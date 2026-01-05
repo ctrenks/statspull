@@ -1,12 +1,16 @@
 import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
+  // Middleware handles auth redirects
   const session = await auth();
 
-  if (!session) {
-    redirect("/auth/signin");
+  if (!session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading session...</p>
+      </div>
+    );
   }
 
   return (

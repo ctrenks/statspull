@@ -1,18 +1,18 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import DashboardContent from "./DashboardContent";
 
 export default async function Dashboard() {
+  // Middleware handles auth redirects, but we still need session data
   const session = await auth();
 
-  if (!session?.user) {
-    redirect("/auth/signin");
-  }
-
-  // If no username set, redirect to profile
-  if (!session.user.username) {
-    redirect("/profile");
+  // If somehow no session (shouldn't happen, middleware protects this)
+  if (!session?.user?.id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading session...</p>
+      </div>
+    );
   }
 
   // Get fresh user data with API key
@@ -31,7 +31,11 @@ export default async function Dashboard() {
   });
 
   if (!user) {
-    redirect("/auth/signin");
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>User not found</p>
+      </div>
+    );
   }
 
   return <DashboardContent user={user} />;
