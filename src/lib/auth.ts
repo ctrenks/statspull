@@ -22,27 +22,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
-      // Allow sign in
       console.log("SignIn callback - user:", user?.email);
       return true;
     },
     async redirect({ url, baseUrl }) {
-      // After sign in, go to profile to set username (middleware will handle redirect)
       if (url.startsWith(baseUrl)) return url;
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       return `${baseUrl}/profile`;
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        // Fetch fresh user data from database to get username
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id as string },
-          select: { role: true, username: true, apiKey: true },
-        });
         token.id = user.id as string;
-        token.role = dbUser?.role ?? 1;
-        token.username = dbUser?.username ?? null;
-        token.apiKey = dbUser?.apiKey ?? null;
+        // Fetch fresh user data from database
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id as string },
+            select: { role: true, username: true, apiKey: true },
+          });
+          token.role = dbUser?.role ?? 1;
+          token.username = dbUser?.username ?? null;
+          token.apiKey = dbUser?.apiKey ?? null;
+        } catch (error) {
+          console.error("Error fetching user in JWT callback:", error);
+          token.role = 1;
+          token.username = null;
+          token.apiKey = null;
+        }
       }
       // Handle session update (when user sets username)
       if (trigger === "update" && session) {
