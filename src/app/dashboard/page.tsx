@@ -10,12 +10,18 @@ export default async function Dashboard() {
     redirect("/auth/signin");
   }
 
+  // If no username set, redirect to profile
+  if (!session.user.username) {
+    redirect("/profile");
+  }
+
   // Get fresh user data with API key
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
       id: true,
       name: true,
+      username: true,
       email: true,
       role: true,
       apiKey: true,
