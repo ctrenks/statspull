@@ -26,7 +26,7 @@ function ErrorContent() {
       </div>
       <h1 className="text-2xl font-bold font-display mb-2">Authentication Error</h1>
       <p className="text-dark-400 mb-6">{message}</p>
-      
+
       <Link href="/auth/signin" className="btn-primary inline-block">
         Try Again
       </Link>
@@ -54,4 +54,3 @@ export default function AuthError() {
     </div>
   );
 }
-
