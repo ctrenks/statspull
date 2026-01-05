@@ -8,54 +8,39 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET
   });
 
-  const isAuthPage = request.nextUrl.pathname.startsWith("/auth");
-  const isAdminPage = request.nextUrl.pathname.startsWith("/admin");
-  const isDashboardPage = request.nextUrl.pathname.startsWith("/dashboard");
-  const isProfilePage = request.nextUrl.pathname.startsWith("/profile");
-  const isApiRoute = request.nextUrl.pathname.startsWith("/api");
+  const path = request.nextUrl.pathname;
+  
+  // Debug logging
+  console.log("Middleware:", path, "Token:", token ? "exists" : "null", "Username:", token?.username);
 
-  // Skip middleware for API routes (except checking)
-  if (isApiRoute) {
-    return NextResponse.next();
-  }
-
-  // Redirect authenticated users away from auth pages
-  if (isAuthPage && token) {
-    // If user has no username, redirect to profile
-    if (!token.username) {
-      return NextResponse.redirect(new URL("/profile", request.url));
-    }
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  // Protect profile page - require authentication
-  if (isProfilePage && !token) {
-    return NextResponse.redirect(new URL("/auth/signin", request.url));
-  }
-
-  // Protect dashboard routes
-  if (isDashboardPage) {
+  // Protect dashboard - just check if logged in
+  if (path.startsWith("/dashboard")) {
     if (!token) {
       return NextResponse.redirect(new URL("/auth/signin", request.url));
     }
-    // If user has no username, redirect to profile
-    if (!token.username) {
-      return NextResponse.redirect(new URL("/profile", request.url));
-    }
+    // Skip username check for now - let user access dashboard
   }
 
-  // Protect admin routes - require role 9
-  if (isAdminPage) {
+  // Protect profile - just check if logged in  
+  if (path.startsWith("/profile")) {
     if (!token) {
       return NextResponse.redirect(new URL("/auth/signin", request.url));
     }
-    // If user has no username, redirect to profile first
-    if (!token.username) {
-      return NextResponse.redirect(new URL("/profile", request.url));
+  }
+
+  // Protect admin - check role
+  if (path.startsWith("/admin")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/auth/signin", request.url));
     }
     if (token.role !== 9) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
+  }
+
+  // Redirect logged-in users away from auth pages
+  if (path.startsWith("/auth") && token) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
