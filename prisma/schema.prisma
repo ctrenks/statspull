@@ -11,10 +11,10 @@ datasource db {
 model User {
   id            String    @id @default(cuid())
   name          String?
+  username      String?   @unique
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  password      String?
   role          Int       @default(1) // 1 = user, 9 = admin
   apiKey        String?   @unique
   apiKeyCreatedAt DateTime?

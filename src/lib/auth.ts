@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
+import Resend from "next-auth/providers/resend";
 import { prisma } from "./prisma";
 import type { Adapter } from "next-auth/adapters";
 
@@ -12,53 +11,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/auth/signin",
+    verifyRequest: "/auth/verify",
     error: "/auth/error",
   },
   providers: [
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          apiKey: user.apiKey,
-        };
-      },
+    Resend({
+      from: "Stats Fetch <noreply@statsfetch.com>",
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id as string;
         token.role = (user as { role: number }).role;
+        token.username = (user as { username: string | null }).username;
         token.apiKey = (user as { apiKey: string | null }).apiKey;
+      }
+      // Handle session update (when user sets username)
+      if (trigger === "update" && session) {
+        token.username = session.username;
       }
       return token;
     },
@@ -66,6 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as number;
+        session.user.username = token.username as string | null;
         session.user.apiKey = token.apiKey as string | null;
       }
       return session;
