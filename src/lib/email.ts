@@ -1,8 +1,11 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 export async function sendWelcomeEmail(email: string, name: string) {
+  const resend = getResend();
   try {
     await resend.emails.send({
       from: "Stats Fetch <noreply@statsfetch.com>",
@@ -54,6 +57,7 @@ export async function sendWelcomeEmail(email: string, name: string) {
 }
 
 export async function sendApiKeyEmail(email: string, apiKey: string) {
+  const resend = getResend();
   try {
     await resend.emails.send({
       from: "Stats Fetch <noreply@statsfetch.com>",
