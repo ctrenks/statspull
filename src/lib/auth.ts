@@ -16,7 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Resend({
-      from: "Stats Fetch <noreply@statsfetch.com>",
+      from: process.env.EMAIL_FROM || "onboarding@resend.dev",
     }),
   ],
   callbacks: {
