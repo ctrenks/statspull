@@ -23,7 +23,7 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
       setAvailable(null);
       return;
     }
-    
+
     setChecking(true);
     try {
       const res = await fetch(`/api/profile/check-username?username=${encodeURIComponent(value)}`);
@@ -40,7 +40,7 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
     const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
     setUsername(value);
     setError("");
-    
+
     // Debounce the check
     const timeoutId = setTimeout(() => checkUsername(value), 500);
     return () => clearTimeout(timeoutId);
@@ -48,7 +48,7 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (username.length < 3) {
       setError("Username must be at least 3 characters");
       return;
@@ -78,7 +78,7 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
 
       // Update the session with new username
       await update({ username });
-      
+
       router.push("/dashboard");
       router.refresh();
     } catch {
@@ -114,7 +114,7 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
               value={username}
               onChange={handleUsernameChange}
               className={`input-field pl-8 ${
-                available === true ? "border-green-500/50 focus:border-green-500" : 
+                available === true ? "border-green-500/50 focus:border-green-500" :
                 available === false ? "border-red-500/50 focus:border-red-500" : ""
               }`}
               placeholder="username"
@@ -178,4 +178,3 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
     </div>
   );
 }
-

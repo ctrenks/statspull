@@ -22,12 +22,11 @@ export default async function ProfilePage() {
           <p className="text-dark-400">Choose a unique username to continue</p>
         </div>
 
-        <ProfileForm 
-          currentUsername={session.user.username} 
-          email={session.user.email || ""} 
+        <ProfileForm
+          currentUsername={session.user.username}
+          email={session.user.email || ""}
         />
       </div>
     </div>
   );
 }
-

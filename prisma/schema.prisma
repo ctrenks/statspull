@@ -20,7 +20,7 @@ model User {
   apiKeyCreatedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   accounts      Account[]
   sessions      Session[]
 }
@@ -59,4 +59,3 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
