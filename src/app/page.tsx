@@ -23,6 +23,9 @@ export default async function Home() {
               <Link href="/downloads" className="btn-ghost">
                 Download
               </Link>
+              <Link href="/forum" className="btn-ghost">
+                Forum
+              </Link>
               {session ? (
                 <Link href="/dashboard" className="btn-primary">
                   Dashboard
