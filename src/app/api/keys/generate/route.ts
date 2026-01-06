@@ -17,12 +17,14 @@ export async function POST() {
 
     const apiKey = generateApiKey();
 
-    // Update user with new API key
+    // Update user with new API key and clear installation binding
     const user = await prisma.user.update({
       where: { id: session.user.id },
       data: {
         apiKey,
         apiKeyCreatedAt: new Date(),
+        installationId: null,  // Clear binding so new key can be used on any device
+        installationBoundAt: null,
       },
     });
 

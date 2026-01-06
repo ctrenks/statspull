@@ -20,6 +20,59 @@ const SERVER_URL = 'https://allmediamatter.com';
 // API Key validation URL
 const API_URL = 'https://www.statsfetch.com';
 
+// Installation ID - unique per device
+let installationId = null;
+
+function getOrCreateInstallationId() {
+  if (installationId) return installationId;
+  
+  const crypto = require('crypto');
+  const fs = require('fs');
+  const path = require('path');
+  
+  const userDataPath = app.getPath('userData');
+  const idPath = path.join(userDataPath, '.installation-id');
+  
+  // Ensure directory exists
+  if (!fs.existsSync(userDataPath)) {
+    fs.mkdirSync(userDataPath, { recursive: true });
+  }
+  
+  // Try to load existing ID
+  if (fs.existsSync(idPath)) {
+    try {
+      installationId = fs.readFileSync(idPath, 'utf8').trim();
+      if (installationId && installationId.length === 64) {
+        return installationId;
+      }
+    } catch (e) {
+      console.error('[INSTALL ID] Error reading installation ID:', e);
+    }
+  }
+  
+  // Generate new installation ID (SHA-256 of random bytes + machine info)
+  const machineInfo = [
+    require('os').hostname(),
+    require('os').platform(),
+    require('os').arch(),
+    require('os').cpus()[0]?.model || 'unknown',
+    Date.now().toString(),
+    crypto.randomBytes(16).toString('hex')
+  ].join('|');
+  
+  installationId = crypto.createHash('sha256').update(machineInfo).digest('hex');
+  
+  // Save it
+  try {
+    fs.writeFileSync(idPath, installationId, { mode: 0o600 });
+    console.log('[INSTALL ID] Created new installation ID:', installationId.slice(0, 8) + '...');
+  } catch (e) {
+    console.error('[INSTALL ID] Error saving installation ID:', e);
+  }
+  
+  return installationId;
+}
+
 // Cached license info
 let licenseInfo = {
   valid: false,
@@ -84,13 +137,17 @@ async function validateApiKey(apiKey) {
       return;
     }
 
+    // Get or create installation ID for device binding
+    const instId = getOrCreateInstallationId();
+
     const request = net.request({
-      method: 'GET',
+      method: 'POST',
       url: `${API_URL}/api/keycheck`,
     });
 
     request.setHeader('Authorization', `Bearer ${apiKey}`);
     request.setHeader('Content-Type', 'application/json');
+    request.setHeader('X-Installation-ID', instId);
 
     let responseData = '';
 
@@ -111,7 +168,8 @@ async function validateApiKey(apiKey) {
               userId: data.userId,
               username: data.username,
               lastChecked: Date.now(),
-              maxPrograms: (data.role <= 1) ? 5 : Infinity  // Demo = 5, Full/Admin = unlimited
+              maxPrograms: (data.role <= 1) ? 5 : Infinity,  // Demo = 5, Full/Admin = unlimited
+              boundToDevice: data.boundToDevice
             };
             // Save to settings
             if (db) {
@@ -123,7 +181,12 @@ async function validateApiKey(apiKey) {
             licenseInfo.valid = false;
             licenseInfo.role = 0;
             licenseInfo.maxPrograms = 5;
-            resolve({ valid: false, error: data.error || 'Invalid API key' });
+            // Check for installation mismatch
+            if (data.code === 'INSTALLATION_MISMATCH') {
+              resolve({ valid: false, error: data.error, code: 'INSTALLATION_MISMATCH' });
+            } else {
+              resolve({ valid: false, error: data.error || 'Invalid API key' });
+            }
           }
         } catch (e) {
           resolve({ valid: false, error: 'Failed to parse response' });
@@ -141,6 +204,9 @@ async function validateApiKey(apiKey) {
       }
     });
 
+    // Send body with installation ID
+    const body = JSON.stringify({ installationId: instId });
+    request.write(body);
     request.end();
   });
 }

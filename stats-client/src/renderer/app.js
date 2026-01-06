@@ -1906,13 +1906,20 @@ function updateLicenseUI(status) {
 
   if (!status.valid) {
     badge.classList.add("invalid");
-    badge.innerHTML = '<span class="badge-role">No License</span>';
-    if (limitInfo) limitInfo.textContent = "Programs: 0 / 5";
+    // Check for specific error codes
+    if (status.code === "INSTALLATION_MISMATCH") {
+      badge.innerHTML = '<span class="badge-role">Wrong Device</span>';
+      if (limitInfo) limitInfo.textContent = "Regenerate key to use here";
+      showToast("API key is bound to another device. Regenerate your key at statsfetch.com to use it here.", "error");
+    } else {
+      badge.innerHTML = '<span class="badge-role">No License</span>';
+      if (limitInfo) limitInfo.textContent = "Programs: 0 / 5";
+    }
   } else {
     const roleClass = status.role <= 1 ? "demo" : status.role >= 9 ? "admin" : "full";
     badge.classList.add(roleClass);
     badge.innerHTML = `<span class="badge-role">${status.roleLabel || roleClass}</span>`;
-
+    
     if (limitInfo) {
       const maxDisplay = status.maxPrograms === Infinity ? "∞" : status.maxPrograms;
       limitInfo.textContent = `Programs: ${status.current || 0} / ${maxDisplay}`;

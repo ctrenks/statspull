@@ -16,67 +16,103 @@ const ROLE_LABELS: Record<number, string> = {
   9: "admin",
 };
 
+async function validateKey(request: NextRequest, installationId?: string) {
+  // Get API key from Authorization header
+  const authHeader = request.headers.get("authorization");
+
+  if (!authHeader) {
+    return NextResponse.json(
+      { valid: false, error: "Authorization header required" },
+      { status: 401 }
+    );
+  }
+
+  // Extract token from "Bearer <token>" format
+  const apiKey = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : authHeader;
+
+  if (!apiKey || apiKey.length < 10) {
+    return NextResponse.json(
+      { valid: false, error: "Invalid API key format" },
+      { status: 401 }
+    );
+  }
+
+  // Check if API key exists in database
+  const user = await prisma.user.findUnique({
+    where: { apiKey },
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      apiKeyCreatedAt: true,
+      installationId: true,
+      installationBoundAt: true,
+    },
+  });
+
+  if (!user) {
+    return NextResponse.json(
+      { valid: false, error: "Invalid API key" },
+      { status: 401 }
+    );
+  }
+
+  // Installation binding logic
+  let boundToThisDevice = true;
+  if (installationId) {
+    if (!user.installationId) {
+      // First time: bind this installation to the API key
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          installationId: installationId,
+          installationBoundAt: new Date(),
+        },
+      });
+      console.log(`[KEYCHECK] Bound API key to installation: ${installationId.slice(0, 8)}...`);
+    } else if (user.installationId !== installationId) {
+      // Different installation trying to use this key
+      console.log(`[KEYCHECK] Installation mismatch: expected ${user.installationId.slice(0, 8)}..., got ${installationId.slice(0, 8)}...`);
+      return NextResponse.json(
+        { 
+          valid: false, 
+          error: "API key is bound to a different device. Regenerate your key to use on this device.",
+          code: "INSTALLATION_MISMATCH"
+        },
+        { status: 403 }
+      );
+    }
+  }
+
+  // Build response data
+  const timestamp = Date.now();
+  const data = {
+    valid: true,
+    userId: user.id,
+    username: user.username,
+    role: user.role,
+    roleLabel: ROLE_LABELS[user.role] || "unknown",
+    keyCreatedAt: user.apiKeyCreatedAt,
+    boundToDevice: !!user.installationId || !!installationId,
+    timestamp,
+  };
+
+  // Sign the response so it can't be faked
+  const signature = signResponse(data);
+
+  return NextResponse.json({
+    ...data,
+    signature,
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // Get API key from Authorization header
-    const authHeader = request.headers.get("authorization");
-
-    if (!authHeader) {
-      return NextResponse.json(
-        { valid: false, error: "Authorization header required" },
-        { status: 401 }
-      );
-    }
-
-    // Extract token from "Bearer <token>" format
-    const apiKey = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : authHeader;
-
-    if (!apiKey || apiKey.length < 10) {
-      return NextResponse.json(
-        { valid: false, error: "Invalid API key format" },
-        { status: 401 }
-      );
-    }
-
-    // Check if API key exists in database
-    const user = await prisma.user.findUnique({
-      where: { apiKey },
-      select: {
-        id: true,
-        username: true,
-        role: true,
-        apiKeyCreatedAt: true,
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { valid: false, error: "Invalid API key" },
-        { status: 401 }
-      );
-    }
-
-    // Build response data
-    const timestamp = Date.now();
-    const data = {
-      valid: true,
-      userId: user.id,
-      username: user.username,
-      role: user.role,
-      roleLabel: ROLE_LABELS[user.role] || "unknown",
-      keyCreatedAt: user.apiKeyCreatedAt,
-      timestamp,
-    };
-
-    // Sign the response so it can't be faked
-    const signature = signResponse(data);
-
-    return NextResponse.json({
-      ...data,
-      signature,
-    });
+    // Get installation ID from header (optional for GET)
+    const installationId = request.headers.get("x-installation-id") || undefined;
+    return await validateKey(request, installationId);
   } catch (error) {
     console.error("Error checking API key:", error);
     return NextResponse.json(
@@ -86,7 +122,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Also support POST for flexibility
+// POST allows sending installation ID in body
 export async function POST(request: NextRequest) {
-  return GET(request);
+  try {
+    let installationId: string | undefined;
+    
+    // Try to get installation ID from body
+    try {
+      const body = await request.json();
+      installationId = body.installationId;
+    } catch {
+      // No body or invalid JSON, check header
+      installationId = request.headers.get("x-installation-id") || undefined;
+    }
+
+    return await validateKey(request, installationId);
+  } catch (error) {
+    console.error("Error checking API key:", error);
+    return NextResponse.json(
+      { valid: false, error: "Failed to check API key" },
+      { status: 500 }
+    );
+  }
 }

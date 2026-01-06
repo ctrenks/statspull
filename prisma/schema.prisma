@@ -18,6 +18,8 @@ model User {
   role          Int       @default(1) // 1 = user, 9 = admin
   apiKey        String?   @unique
   apiKeyCreatedAt DateTime?
+  installationId String?   // Bound device/installation ID
+  installationBoundAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
