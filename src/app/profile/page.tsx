@@ -61,7 +61,7 @@ export default async function ProfilePage() {
               </span>
             )}
           </div>
-          
+
           {user.apiKey ? (
             <div className="p-3 bg-dark-800 rounded-lg border border-dark-700">
               <code className="font-mono text-sm text-dark-300 break-all">
@@ -77,7 +77,7 @@ export default async function ProfilePage() {
               to generate one.
             </p>
           )}
-          
+
           <p className="mt-3 text-dark-500 text-xs">
             <Link href="/dashboard" className="text-primary-400 hover:text-primary-300">
               View full API key on Dashboard →
