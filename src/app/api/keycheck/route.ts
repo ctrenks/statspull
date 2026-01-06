@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get API key from Authorization header
     const authHeader = request.headers.get("authorization");
-    
+
     if (!authHeader) {
       return NextResponse.json(
         { valid: false, error: "Authorization header required" },
