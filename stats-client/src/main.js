@@ -1,5 +1,5 @@
 /**
- * Affiliate Stats Manager - Electron Main Process
+ * Stats Fetch - Electron Main Process
  * Handles window creation, IPC, and database operations
  */
 
@@ -156,7 +156,7 @@ async function checkLicenseOnStartup() {
 
   console.log('[LICENSE] Validating API key...');
   const result = await validateApiKey(apiKey);
-  
+
   if (result.valid) {
     console.log(`[LICENSE] Valid - Role: ${result.roleLabel}, Max programs: ${result.maxPrograms}`);
   } else {
@@ -195,7 +195,7 @@ function startLicenseCheckTimer() {
   if (licenseCheckTimer) {
     clearInterval(licenseCheckTimer);
   }
-  
+
   licenseCheckTimer = setInterval(async () => {
     const apiKey = db.getSetting('api_key');
     if (apiKey) {
@@ -232,7 +232,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 700,
-    title: 'Affiliate Stats Manager',
+    title: 'Stats Fetch',
     backgroundColor: '#0d0d1a',
     webPreferences: {
       nodeIntegration: false,
@@ -342,7 +342,7 @@ async function initialize() {
   });
 
   console.log('Database initialized at:', userDataPath);
-  
+
   // Load cached license info from settings
   const cachedRole = db.getSetting('license_role');
   const cachedLastChecked = db.getSetting('license_last_checked');
@@ -351,10 +351,10 @@ async function initialize() {
     licenseInfo.maxPrograms = (licenseInfo.role <= 1) ? 5 : Infinity;
     licenseInfo.lastChecked = cachedLastChecked ? parseInt(cachedLastChecked, 10) : null;
   }
-  
+
   // Check license on startup
   await checkLicenseOnStartup();
-  
+
   // Start periodic license check (every 24 hours)
   startLicenseCheckTimer();
 }
