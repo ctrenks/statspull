@@ -17,6 +17,22 @@ let syncEngine;
 // Server URL for fetching templates
 const SERVER_URL = 'https://allmediamatter.com';
 
+// API Key validation URL
+const API_URL = 'https://www.statsfetch.com';
+
+// Cached license info
+let licenseInfo = {
+  valid: false,
+  role: 0,
+  roleLabel: 'invalid',
+  lastChecked: null,
+  maxPrograms: 5  // Default to demo limit
+};
+
+// Check interval (24 hours in ms)
+const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+let licenseCheckTimer = null;
+
 // Configure auto-updater
 autoUpdater.autoDownload = false; // Don't auto-download, ask user first
 autoUpdater.autoInstallOnAppQuit = true; // Install update when app quits
@@ -58,6 +74,156 @@ function sendUpdateStatus(status, message, data = null) {
   if (mainWindow && mainWindow.webContents) {
     mainWindow.webContents.send('update-status', { status, message, data });
   }
+}
+
+// Validate API key against server
+async function validateApiKey(apiKey) {
+  return new Promise((resolve) => {
+    if (!apiKey) {
+      resolve({ valid: false, error: 'No API key provided' });
+      return;
+    }
+
+    const request = net.request({
+      method: 'GET',
+      url: `${API_URL}/api/keycheck`,
+    });
+
+    request.setHeader('Authorization', `Bearer ${apiKey}`);
+    request.setHeader('Content-Type', 'application/json');
+
+    let responseData = '';
+
+    request.on('response', (response) => {
+      response.on('data', (chunk) => {
+        responseData += chunk.toString();
+      });
+
+      response.on('end', () => {
+        try {
+          const data = JSON.parse(responseData);
+          if (data.valid) {
+            // Update license info
+            licenseInfo = {
+              valid: true,
+              role: data.role,
+              roleLabel: data.roleLabel,
+              userId: data.userId,
+              username: data.username,
+              lastChecked: Date.now(),
+              maxPrograms: (data.role <= 1) ? 5 : Infinity  // Demo = 5, Full/Admin = unlimited
+            };
+            // Save to settings
+            if (db) {
+              db.setSetting('license_role', String(data.role));
+              db.setSetting('license_last_checked', String(Date.now()));
+            }
+            resolve({ valid: true, ...licenseInfo });
+          } else {
+            licenseInfo.valid = false;
+            licenseInfo.role = 0;
+            licenseInfo.maxPrograms = 5;
+            resolve({ valid: false, error: data.error || 'Invalid API key' });
+          }
+        } catch (e) {
+          resolve({ valid: false, error: 'Failed to parse response' });
+        }
+      });
+    });
+
+    request.on('error', (error) => {
+      console.error('[LICENSE] Validation error:', error.message);
+      // On network error, use cached data if available
+      if (licenseInfo.lastChecked) {
+        resolve({ valid: licenseInfo.valid, cached: true, ...licenseInfo });
+      } else {
+        resolve({ valid: false, error: 'Network error' });
+      }
+    });
+
+    request.end();
+  });
+}
+
+// Check license and disable programs if invalid
+async function checkLicenseOnStartup() {
+  const apiKey = db.getSetting('api_key');
+  if (!apiKey) {
+    console.log('[LICENSE] No API key configured');
+    sendLicenseStatus({ valid: false, error: 'No API key configured' });
+    return;
+  }
+
+  console.log('[LICENSE] Validating API key...');
+  const result = await validateApiKey(apiKey);
+  
+  if (result.valid) {
+    console.log(`[LICENSE] Valid - Role: ${result.roleLabel}, Max programs: ${result.maxPrograms}`);
+  } else {
+    console.log('[LICENSE] Invalid:', result.error);
+    // Disable all programs if license is invalid
+    disableAllPrograms();
+  }
+
+  sendLicenseStatus(result);
+}
+
+// Disable all programs
+function disableAllPrograms() {
+  try {
+    const programs = db.getPrograms();
+    programs.forEach(program => {
+      if (program.is_active) {
+        db.updateProgram(program.id, { is_active: 0 });
+      }
+    });
+    console.log('[LICENSE] All programs disabled due to invalid license');
+  } catch (error) {
+    console.error('[LICENSE] Error disabling programs:', error);
+  }
+}
+
+// Send license status to renderer
+function sendLicenseStatus(status) {
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('license-status', status);
+  }
+}
+
+// Start periodic license check
+function startLicenseCheckTimer() {
+  if (licenseCheckTimer) {
+    clearInterval(licenseCheckTimer);
+  }
+  
+  licenseCheckTimer = setInterval(async () => {
+    const apiKey = db.getSetting('api_key');
+    if (apiKey) {
+      const result = await validateApiKey(apiKey);
+      if (!result.valid && !result.cached) {
+        disableAllPrograms();
+      }
+      sendLicenseStatus(result);
+    }
+  }, LICENSE_CHECK_INTERVAL);
+}
+
+// Check if can add more programs (based on role)
+function canAddProgram() {
+  const currentCount = db.getPrograms().length;
+  return currentCount < licenseInfo.maxPrograms;
+}
+
+// Get program limit info
+function getProgramLimitInfo() {
+  const currentCount = db.getPrograms().length;
+  return {
+    current: currentCount,
+    max: licenseInfo.maxPrograms,
+    canAdd: currentCount < licenseInfo.maxPrograms,
+    role: licenseInfo.role,
+    roleLabel: licenseInfo.roleLabel
+  };
 }
 
 function createWindow() {
@@ -176,6 +342,21 @@ async function initialize() {
   });
 
   console.log('Database initialized at:', userDataPath);
+  
+  // Load cached license info from settings
+  const cachedRole = db.getSetting('license_role');
+  const cachedLastChecked = db.getSetting('license_last_checked');
+  if (cachedRole) {
+    licenseInfo.role = parseInt(cachedRole, 10);
+    licenseInfo.maxPrograms = (licenseInfo.role <= 1) ? 5 : Infinity;
+    licenseInfo.lastChecked = cachedLastChecked ? parseInt(cachedLastChecked, 10) : null;
+  }
+  
+  // Check license on startup
+  await checkLicenseOnStartup();
+  
+  // Start periodic license check (every 24 hours)
+  startLicenseCheckTimer();
 }
 
 // IPC Handlers
@@ -190,8 +371,11 @@ function setupIpcHandlers() {
     return db.getProgram(id);
   });
 
-  // Create new program
+  // Create new program (with license limit check)
   ipcMain.handle('create-program', async (event, program) => {
+    if (!canAddProgram()) {
+      throw new Error(`Program limit reached. Demo accounts can have up to ${licenseInfo.maxPrograms} programs. Upgrade to add more.`);
+    }
     return db.createProgram(program);
   });
 
@@ -335,6 +519,42 @@ function setupIpcHandlers() {
 
   ipcMain.handle('get-app-version', async () => {
     return packageJson.version;
+  });
+
+  // License/API key handlers
+  ipcMain.handle('validate-api-key', async (event, apiKey) => {
+    // Save the API key first
+    db.setSetting('api_key', apiKey);
+    // Validate it
+    const result = await validateApiKey(apiKey);
+    return result;
+  });
+
+  ipcMain.handle('get-license-status', async () => {
+    return {
+      valid: licenseInfo.valid,
+      role: licenseInfo.role,
+      roleLabel: licenseInfo.roleLabel,
+      maxPrograms: licenseInfo.maxPrograms,
+      lastChecked: licenseInfo.lastChecked,
+      ...getProgramLimitInfo()
+    };
+  });
+
+  ipcMain.handle('get-api-key', async () => {
+    return db.getSetting('api_key') || '';
+  });
+
+  ipcMain.handle('clear-api-key', async () => {
+    db.setSetting('api_key', '');
+    licenseInfo.valid = false;
+    licenseInfo.role = 0;
+    licenseInfo.maxPrograms = 5;
+    return { success: true };
+  });
+
+  ipcMain.handle('get-program-limit-info', async () => {
+    return getProgramLimitInfo();
   });
 
   // Auto-updater IPC handlers

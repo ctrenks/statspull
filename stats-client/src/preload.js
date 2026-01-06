@@ -74,5 +74,15 @@ contextBridge.exposeInMainWorld('api', {
   installUpdate: () => ipcRenderer.invoke('install-update'),
   onUpdateStatus: (callback) => {
     ipcRenderer.on('update-status', (event, data) => callback(data));
+  },
+
+  // License/API Key
+  validateApiKey: (apiKey) => ipcRenderer.invoke('validate-api-key', apiKey),
+  getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
+  getApiKey: () => ipcRenderer.invoke('get-api-key'),
+  clearApiKey: () => ipcRenderer.invoke('clear-api-key'),
+  getProgramLimitInfo: () => ipcRenderer.invoke('get-program-limit-info'),
+  onLicenseStatus: (callback) => {
+    ipcRenderer.on('license-status', (event, data) => callback(data));
   }
 });
