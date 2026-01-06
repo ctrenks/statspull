@@ -75,9 +75,52 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Pricing Card */}
-          <div className="max-w-md mx-auto mb-24 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <div className="card overflow-hidden text-center py-10 px-8 border-2 border-primary-500/30">
+          {/* Pricing Cards */}
+          <div className="max-w-4xl mx-auto mb-24 grid md:grid-cols-2 gap-8 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+            {/* Free Trial */}
+            <div className="card overflow-hidden text-center py-10 px-8 border border-dark-700">
+              <div className="text-dark-400 text-sm font-semibold uppercase tracking-wider mb-2">Free Trial</div>
+              <div className="flex items-baseline justify-center gap-1 mb-4">
+                <span className="text-5xl font-bold font-display">$0</span>
+                <span className="text-dark-400 text-lg">/ forever</span>
+              </div>
+              <div className="text-2xl font-bold text-white mb-6">Up to 5 Programs</div>
+              <ul className="text-left space-y-3 mb-8">
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Try all features
+                </li>
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Limited to 5 programs
+                </li>
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Pre-configured templates
+                </li>
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  100% local storage
+                </li>
+              </ul>
+              <Link href="/auth/signup" className="btn-secondary w-full text-lg py-4">
+                Start Free
+              </Link>
+            </div>
+
+            {/* Full Access */}
+            <div className="card overflow-hidden text-center py-10 px-8 border-2 border-primary-500/30 relative">
+              <div className="absolute top-0 right-0 bg-primary-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                POPULAR
+              </div>
               <div className="text-primary-400 text-sm font-semibold uppercase tracking-wider mb-2">Full Access</div>
               <div className="flex items-baseline justify-center gap-1 mb-4">
                 <span className="text-5xl font-bold font-display">$25</span>
