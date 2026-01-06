@@ -1,16 +1,14 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
-  // Middleware handles auth redirects
   const session = await auth();
+  
+  console.log("Profile - session:", session?.user?.email || "no session");
 
   if (!session?.user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading session...</p>
-      </div>
-    );
+    redirect("/auth/signin");
   }
 
   return (
