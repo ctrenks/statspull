@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { maskApiKey } from "@/lib/api-key";
 import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
@@ -7,7 +10,21 @@ export default async function ProfilePage() {
 
   console.log("Profile - session:", session?.user?.email || "no session");
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
+    redirect("/auth/signin");
+  }
+
+  // Get fresh user data including API key
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      username: true,
+      email: true,
+      apiKey: true,
+    },
+  });
+
+  if (!user) {
     redirect("/auth/signin");
   }
 
@@ -20,14 +37,53 @@ export default async function ProfilePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold font-display mb-2">Complete your profile</h1>
-          <p className="text-dark-400">Choose a unique username to continue</p>
+          <h1 className="text-2xl font-bold font-display mb-2">
+            {user.username ? "Your Profile" : "Complete your profile"}
+          </h1>
+          <p className="text-dark-400">
+            {user.username ? "Manage your account settings" : "Choose a unique username to continue"}
+          </p>
         </div>
 
         <ProfileForm
-          currentUsername={session.user.username}
-          email={session.user.email || ""}
+          currentUsername={user.username}
+          email={user.email || ""}
         />
+
+        {/* API Key Section */}
+        <div className="card mt-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold font-display">API Key</h3>
+            {user.apiKey && (
+              <span className="flex items-center gap-2 px-2 py-1 rounded-full bg-primary-500/10 text-primary-400 text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+                Active
+              </span>
+            )}
+          </div>
+          
+          {user.apiKey ? (
+            <div className="p-3 bg-dark-800 rounded-lg border border-dark-700">
+              <code className="font-mono text-sm text-dark-300 break-all">
+                {maskApiKey(user.apiKey)}
+              </code>
+            </div>
+          ) : (
+            <p className="text-dark-400 text-sm">
+              No API key yet.{" "}
+              <Link href="/dashboard" className="text-primary-400 hover:text-primary-300">
+                Go to Dashboard
+              </Link>{" "}
+              to generate one.
+            </p>
+          )}
+          
+          <p className="mt-3 text-dark-500 text-xs">
+            <Link href="/dashboard" className="text-primary-400 hover:text-primary-300">
+              View full API key on Dashboard →
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
