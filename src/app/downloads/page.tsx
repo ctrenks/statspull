@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 
 export const metadata = {
   title: "Download Stats Fetch - Windows & Mac",
   description: "Download Stats Fetch desktop app for Windows and Mac. Collect your iGaming affiliate stats automatically.",
 };
 
-export default function DownloadsPage() {
+export default async function DownloadsPage() {
+  const session = await auth();
+
   return (
     <div className="min-h-screen animated-bg grid-pattern">
       {/* Navigation */}
@@ -22,12 +25,20 @@ export default function DownloadsPage() {
             </Link>
 
             <div className="flex items-center gap-4">
-              <Link href="/auth/signin" className="btn-ghost">
-                Sign In
-              </Link>
-              <Link href="/auth/signup" className="btn-primary">
-                Get Started
-              </Link>
+              {session ? (
+                <Link href="/dashboard" className="btn-primary">
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link href="/auth/signin" className="btn-ghost">
+                    Sign In
+                  </Link>
+                  <Link href="/auth/signup" className="btn-primary">
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
