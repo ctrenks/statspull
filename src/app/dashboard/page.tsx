@@ -5,7 +5,7 @@ import DashboardContent from "./DashboardContent";
 
 export default async function Dashboard() {
   const session = await auth();
-  
+
   console.log("Dashboard - session:", session?.user?.email || "no session");
 
   if (!session?.user?.id) {

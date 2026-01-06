@@ -4,7 +4,7 @@ import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
   const session = await auth();
-  
+
   console.log("Profile - session:", session?.user?.email || "no session");
 
   if (!session?.user) {
