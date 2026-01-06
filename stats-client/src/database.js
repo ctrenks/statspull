@@ -133,6 +133,15 @@ class Database {
       // Column may already exist
     }
 
+    // Add currency column to programs table (EUR, USD, GBP)
+    try {
+      this.db.run(
+        "ALTER TABLE programs ADD COLUMN currency TEXT DEFAULT 'USD'"
+      );
+    } catch (e) {
+      // Column may already exist
+    }
+
     // Add withdrawals and chargebacks columns to stats table
     try {
       this.db.run("ALTER TABLE stats ADD COLUMN withdrawals INTEGER DEFAULT 0");
@@ -240,8 +249,8 @@ class Database {
     const id = this.generateId();
     this.run(
       `
-      INSERT INTO programs (id, name, code, provider, auth_type, login_url, stats_url, api_url, config)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO programs (id, name, code, provider, auth_type, login_url, stats_url, api_url, config, currency)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       [
         id,
@@ -253,6 +262,7 @@ class Database {
         program.statsUrl || null,
         program.apiUrl || null,
         program.config ? JSON.stringify(program.config) : null,
+        program.currency || "USD",
       ]
     );
 
@@ -325,6 +335,10 @@ class Database {
     if (updates.revsharePercent !== undefined) {
       fields.push("revshare_percent = ?");
       values.push(parseInt(updates.revsharePercent) || 0);
+    }
+    if (updates.currency !== undefined) {
+      fields.push("currency = ?");
+      values.push(updates.currency);
     }
 
     if (fields.length === 0) return this.getProgram(id);

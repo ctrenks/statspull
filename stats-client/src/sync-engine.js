@@ -7,6 +7,9 @@ const https = require('https');
 const http = require('http');
 const Scraper = require('./scraper');
 
+// Exchange rate cache duration (24 hours)
+const EXCHANGE_RATE_CACHE_DURATION = 24 * 60 * 60 * 1000;
+
 class SyncEngine {
   constructor(db, showDialogCallback = null) {
     this.db = db;
@@ -14,6 +17,100 @@ class SyncEngine {
     this.onProgress = null;
     this.onLog = null;
     this.inBatchMode = false; // Track if we're in batch sync mode (don't close pages between syncs)
+    this.exchangeRates = null; // Cached exchange rates
+  }
+
+  // Fetch exchange rates from free API (frankfurter.app - no API key needed)
+  async fetchExchangeRates() {
+    const cachedRates = this.db.getSetting('exchangeRates');
+    const cachedTime = this.db.getSetting('exchangeRatesTime');
+
+    // Check if cache is still valid (less than 24 hours old)
+    if (cachedRates && cachedTime) {
+      const cacheAge = Date.now() - parseInt(cachedTime);
+      if (cacheAge < EXCHANGE_RATE_CACHE_DURATION) {
+        this.exchangeRates = JSON.parse(cachedRates);
+        this.log(`Using cached exchange rates (${Math.round(cacheAge / 3600000)}h old)`);
+        return this.exchangeRates;
+      }
+    }
+
+    this.log('Fetching fresh exchange rates...');
+
+    return new Promise((resolve) => {
+      // Fetch rates with USD as base (we'll calculate cross-rates)
+      const request = https.get('https://api.frankfurter.app/latest?from=USD', (response) => {
+        let data = '';
+        response.on('data', chunk => data += chunk);
+        response.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            if (result.rates) {
+              // Build rate matrix for easy conversion
+              const rates = {
+                USD: { USD: 1, EUR: result.rates.EUR, GBP: result.rates.GBP },
+                EUR: { USD: 1 / result.rates.EUR, EUR: 1, GBP: result.rates.GBP / result.rates.EUR },
+                GBP: { USD: 1 / result.rates.GBP, EUR: result.rates.EUR / result.rates.GBP, GBP: 1 }
+              };
+
+              // Cache the rates
+              this.db.setSetting('exchangeRates', JSON.stringify(rates));
+              this.db.setSetting('exchangeRatesTime', String(Date.now()));
+              this.exchangeRates = rates;
+
+              this.log(`Exchange rates updated: 1 USD = ${result.rates.EUR.toFixed(4)} EUR, ${result.rates.GBP.toFixed(4)} GBP`);
+              resolve(rates);
+            } else {
+              throw new Error('Invalid response');
+            }
+          } catch (e) {
+            this.log(`Failed to parse exchange rates: ${e.message}`, 'warn');
+            // Use fallback rates
+            this.exchangeRates = this.getFallbackRates();
+            resolve(this.exchangeRates);
+          }
+        });
+      });
+
+      request.on('error', (e) => {
+        this.log(`Failed to fetch exchange rates: ${e.message}`, 'warn');
+        // Use fallback rates
+        this.exchangeRates = this.getFallbackRates();
+        resolve(this.exchangeRates);
+      });
+
+      request.setTimeout(10000, () => {
+        request.destroy();
+        this.log('Exchange rate fetch timed out', 'warn');
+        this.exchangeRates = this.getFallbackRates();
+        resolve(this.exchangeRates);
+      });
+    });
+  }
+
+  // Fallback rates if API fails
+  getFallbackRates() {
+    return {
+      USD: { USD: 1, EUR: 0.92, GBP: 0.79 },
+      EUR: { USD: 1.09, EUR: 1, GBP: 0.86 },
+      GBP: { USD: 1.27, EUR: 1.16, GBP: 1 }
+    };
+  }
+
+  // Convert amount from one currency to another
+  convertCurrency(amount, fromCurrency, toCurrency) {
+    if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) {
+      return amount;
+    }
+
+    const rates = this.exchangeRates || this.getFallbackRates();
+    const rate = rates[fromCurrency]?.[toCurrency] || 1;
+    return Math.round(amount * rate);
+  }
+
+  // Get the user's default currency
+  getDefaultCurrency() {
+    return this.db.getSetting('defaultCurrency') || 'USD';
   }
 
   // Set progress callback
@@ -42,6 +139,9 @@ class SyncEngine {
       this.log('No active programs to sync', 'warn');
       return { success: true, synced: 0, failed: 0, results: [] };
     }
+
+    // Fetch exchange rates before syncing (cached for 24h)
+    await this.fetchExchangeRates();
 
     // Set flag to prevent individual syncs from closing browser/pages
     this.inBatchMode = true;
@@ -433,6 +533,30 @@ class SyncEngine {
         if (!this.inBatchMode) {
           await scr.closePages();
         }
+
+        // Auto-detect and save currency if program doesn't have one set
+        if (stats && stats.detectedCurrency && !program.currency) {
+          this.log(`Auto-detected currency: ${stats.detectedCurrency}, saving to program`);
+          this.db.updateProgram(program.id, { currency: stats.detectedCurrency });
+          program.currency = stats.detectedCurrency; // Update local reference too
+        }
+
+        // Convert currency if needed
+        const sourceCurrency = program.currency || stats.detectedCurrency || 'EUR'; // Use detected or default to EUR
+        const targetCurrency = this.getDefaultCurrency();
+
+        if (sourceCurrency !== targetCurrency && stats && stats.length > 0) {
+          this.log(`Converting ${sourceCurrency} to ${targetCurrency}`);
+          for (const stat of stats) {
+            if (stat.revenue) {
+              stat.revenue = this.convertCurrency(stat.revenue, sourceCurrency, targetCurrency);
+            }
+            if (stat.deposits) {
+              stat.deposits = this.convertCurrency(stat.deposits, sourceCurrency, targetCurrency);
+            }
+          }
+        }
+
         return stats;
       } catch (error) {
         if (!this.inBatchMode) {
@@ -589,7 +713,7 @@ class SyncEngine {
   async syncCellxpertScrape({ program, credentials, config, loginUrl, statsUrl, scraper }) {
     const scr = scraper || this.scraper; // Use dedicated scraper for parallel safety
     const login = loginUrl || config?.loginUrl || config?.custom?.loginUrl;
-    const stats = statsUrl || config?.statsUrl || config?.custom?.statsUrl;
+    const statsUrlPath = statsUrl || config?.statsUrl || config?.custom?.statsUrl;
 
     if (!login) {
       throw new Error('No login URL configured for scraping');
@@ -598,9 +722,9 @@ class SyncEngine {
     const { startDate, endDate } = this.getDateRange(7);
 
     try {
-      const results = await scr.scrapeCellxpert({
+      const stats = await scr.scrapeCellxpert({
         loginUrl: login,
-        statsUrl: stats || login.replace(/\/login.*$/, '/partner/reports/media'),
+        statsUrl: statsUrlPath || login.replace(/\/login.*$/, '/partner/reports/media'),
         username: credentials.username,
         password: credentials.password,
         startDate,
@@ -611,7 +735,31 @@ class SyncEngine {
       if (!this.inBatchMode) {
         await scr.closePages();
       }
-      return results;
+
+      // Auto-detect and save currency if program doesn't have one set
+      if (stats && stats.detectedCurrency && !program.currency) {
+        this.log(`Auto-detected currency: ${stats.detectedCurrency}, saving to program`);
+        this.db.updateProgram(program.id, { currency: stats.detectedCurrency });
+        program.currency = stats.detectedCurrency;
+      }
+
+      // Convert currency if needed
+      const sourceCurrency = program.currency || stats.detectedCurrency || 'EUR';
+      const targetCurrency = this.getDefaultCurrency();
+
+      if (sourceCurrency !== targetCurrency && stats && stats.length > 0) {
+        this.log(`Converting ${sourceCurrency} to ${targetCurrency}`);
+        for (const stat of stats) {
+          if (stat.revenue) {
+            stat.revenue = this.convertCurrency(stat.revenue, sourceCurrency, targetCurrency);
+          }
+          if (stat.deposits) {
+            stat.deposits = this.convertCurrency(stat.deposits, sourceCurrency, targetCurrency);
+          }
+        }
+      }
+
+      return stats;
     } catch (error) {
       if (!this.inBatchMode) {
         await scr.closePages();

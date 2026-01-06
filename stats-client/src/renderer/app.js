@@ -64,6 +64,7 @@ const elements = {
   programName: document.getElementById("programName"),
   programCode: document.getElementById("programCode"),
   programProvider: document.getElementById("programProvider"),
+  programCurrency: document.getElementById("programCurrency"),
   programLoginUrl: document.getElementById("programLoginUrl"),
   programApiUrl: document.getElementById("programApiUrl"),
   credUsername: document.getElementById("credUsername"),
@@ -336,6 +337,14 @@ function createFreshModal() {
           </select>
         </div>
         <div class="form-group">
+          <label for="programCurrency">Currency</label>
+          <select class="select" id="programCurrency">
+            <option value="USD">USD ($)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="GBP">GBP (£)</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label for="programLoginUrl">Login URL</label>
           <input type="text" class="input" id="programLoginUrl" placeholder="e.g., https://login.example.com">
         </div>
@@ -391,6 +400,7 @@ function createFreshModal() {
   elements.programName = document.getElementById("programName");
   elements.programCode = document.getElementById("programCode");
   elements.programProvider = document.getElementById("programProvider");
+  elements.programCurrency = document.getElementById("programCurrency");
   elements.programLoginUrl = document.getElementById("programLoginUrl");
   elements.programApiUrl = document.getElementById("programApiUrl");
   elements.credUsername = document.getElementById("credUsername");
@@ -761,6 +771,7 @@ async function editProgram(id) {
   elements.programName.value = program.name || "";
   elements.programCode.value = program.code || "";
   elements.programProvider.value = program.provider || "";
+  elements.programCurrency.value = program.currency || "USD";
   elements.programLoginUrl.value = program.login_url || "";
   elements.programApiUrl.value = program.api_url || "";
 
@@ -861,6 +872,7 @@ async function saveProgram() {
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, "-"),
       provider: elements.programProvider.value,
+      currency: elements.programCurrency.value || "USD",
       loginUrl: elements.programLoginUrl.value.trim(),
       apiUrl: elements.programApiUrl.value.trim(),
       useDwcCalculation: useDwcCheckbox.checked,

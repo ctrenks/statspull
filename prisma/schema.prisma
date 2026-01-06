@@ -12,10 +12,11 @@ model User {
   id            String    @id @default(cuid())
   name          String?
   username      String?   @unique
+  displayName   String?   // Display name for forum
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  role          Int       @default(1) // 1 = user, 9 = admin
+  role          Int       @default(1) // 1 = demo, 2 = full, 9 = admin
   apiKey        String?   @unique
   apiKeyCreatedAt DateTime?
   installationId String?   // Bound device/installation ID
@@ -60,4 +61,168 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ===================================
+// Forum System
+// ===================================
+
+model ForumCategory {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String?
+  icon         String?  // emoji or icon name
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  topics ForumTopic[]
+
+  @@index([slug])
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
+model ForumTopic {
+  id              String    @id @default(cuid())
+  categoryId      String
+  authorId        String
+  title           String
+  slug            String    @unique
+  isPinned        Boolean   @default(false)
+  isLocked        Boolean   @default(false)
+  viewCount       Int       @default(0)
+  replyCount      Int       @default(0)
+  lastReplyAt     DateTime?
+  lastReplyUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  category  ForumCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  posts     ForumPost[]
+  followers ForumTopicFollower[]
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([slug])
+  @@index([isPinned])
+  @@index([lastReplyAt])
+}
+
+model ForumPost {
+  id        String    @id @default(cuid())
+  topicId   String
+  authorId  String
+  content   String    @db.Text
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  editedBy  String?
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  deletedBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  topic       ForumTopic        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  attachments ForumAttachment[]
+
+  @@index([topicId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([isDeleted])
+}
+
+model ForumAttachment {
+  id        String   @id @default(cuid())
+  postId    String
+  url       String   // Blob URL
+  filename  String
+  mimeType  String
+  size      Int      // bytes
+  width     Int?     // for images
+  height    Int?     // for images
+  createdAt DateTime @default(now())
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model ForumPrivateMessage {
+  id        String   @id @default(cuid())
+  senderId  String
+  subject   String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  participants ForumMessageParticipant[]
+
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model ForumMessageParticipant {
+  id        String    @id @default(cuid())
+  messageId String
+  userId    String
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  message ForumPrivateMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@index([messageId])
+  @@index([isRead])
+  @@index([isDeleted])
+}
+
+model ForumTopicFollower {
+  id                 String   @id @default(cuid())
+  topicId            String
+  userId             String
+  emailNotifications Boolean  @default(true)
+  unsubscribeToken   String   @unique @default(cuid())
+  createdAt          DateTime @default(now())
+
+  topic ForumTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, userId])
+  @@index([userId])
+  @@index([topicId])
+  @@index([unsubscribeToken])
+}
+
+// ===================================
+// Notification System
+// ===================================
+
+enum NotificationType {
+  FORUM_REPLY
+  FORUM_MENTION
+  FORUM_MESSAGE
+  SYSTEM
+  ANNOUNCEMENT
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?          // URL to navigate to when clicked
+  icon      String?          // Optional emoji or icon name
+  isRead    Boolean          @default(false)
+  metadata  Json?            // Additional data
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead])
 }
