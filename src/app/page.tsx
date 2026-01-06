@@ -45,23 +45,23 @@ export default async function Home() {
           <div className="text-center mb-16 animate-fade-in">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-sm font-medium mb-8">
               <span className="w-2 h-2 rounded-full bg-primary-500 pulse-dot"></span>
-              Now in Beta
+              Desktop App Available
             </div>
 
             <h1 className="text-5xl md:text-7xl font-bold font-display mb-6 leading-tight">
-              Fetch Stats with
+              Dedicated iGaming
               <br />
-              <span className="gradient-text">Unprecedented Speed</span>
+              <span className="gradient-text">Stats Collector</span>
             </h1>
 
             <p className="text-xl text-dark-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-              Access comprehensive statistics through our powerful API.
-              Generate your API key and start fetching real-time data in seconds.
+              Automatically collect and organize your affiliate statistics from all your programs.
+              100% local storage - your data stays on your machine.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/auth/signup" className="btn-primary text-lg px-8 py-4 glow">
-                Get Your API Key
+                Get Started
                 <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
@@ -72,51 +72,44 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Code Preview */}
-          <div className="max-w-3xl mx-auto mb-24 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <div className="card overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 bg-dark-800/50 border-b border-dark-700">
-                <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-                <span className="ml-4 text-sm text-dark-500 font-mono">api-request.js</span>
+          {/* Pricing Card */}
+          <div className="max-w-md mx-auto mb-24 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+            <div className="card overflow-hidden text-center py-10 px-8 border-2 border-primary-500/30">
+              <div className="text-primary-400 text-sm font-semibold uppercase tracking-wider mb-2">Full Access</div>
+              <div className="flex items-baseline justify-center gap-1 mb-4">
+                <span className="text-5xl font-bold font-display">$25</span>
+                <span className="text-dark-400 text-lg">/ month</span>
               </div>
-              <pre className="p-6 overflow-x-auto text-sm font-mono">
-                <code>
-                  <span className="text-primary-400">const</span>{" "}
-                  <span className="text-dark-200">response</span>{" "}
-                  <span className="text-primary-400">=</span>{" "}
-                  <span className="text-primary-400">await</span>{" "}
-                  <span className="text-yellow-400">fetch</span>
-                  <span className="text-dark-400">(</span>
-                  <span className="text-green-400">&apos;https://api.statsfetch.com/v1/stats&apos;</span>
-                  <span className="text-dark-400">,</span>
-                  {" {\n"}
-                  {"  "}
-                  <span className="text-dark-200">headers</span>
-                  <span className="text-dark-400">:</span>
-                  {" {\n"}
-                  {"    "}
-                  <span className="text-green-400">&apos;Authorization&apos;</span>
-                  <span className="text-dark-400">:</span>
-                  {" "}
-                  <span className="text-green-400">&apos;Bearer sf_live_your_api_key&apos;</span>
-                  {"\n  }\n"}
-                  <span className="text-dark-400">{"}"}</span>
-                  <span className="text-dark-400">)</span>
-                  <span className="text-dark-400">;</span>
-                  {"\n\n"}
-                  <span className="text-primary-400">const</span>{" "}
-                  <span className="text-dark-200">stats</span>{" "}
-                  <span className="text-primary-400">=</span>{" "}
-                  <span className="text-primary-400">await</span>{" "}
-                  <span className="text-dark-200">response</span>
-                  <span className="text-dark-400">.</span>
-                  <span className="text-yellow-400">json</span>
-                  <span className="text-dark-400">()</span>
-                  <span className="text-dark-400">;</span>
-                </code>
-              </pre>
+              <div className="text-2xl font-bold text-white mb-6">Unlimited Programs</div>
+              <ul className="text-left space-y-3 mb-8">
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Add unlimited affiliate programs
+                </li>
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Works with all supported software
+                </li>
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Pre-configured templates available
+                </li>
+                <li className="flex items-center gap-3 text-dark-300">
+                  <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Automatic daily syncing
+                </li>
+              </ul>
+              <Link href="/auth/signup" className="btn-primary w-full text-lg py-4">
+                Subscribe Now
+              </Link>
             </div>
           </div>
 
@@ -126,29 +119,29 @@ export default async function Home() {
               {
                 icon: (
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
                 ),
-                title: "Lightning Fast",
-                description: "Sub-millisecond response times with our globally distributed edge network.",
+                title: "Easy Configuration",
+                description: "Pre-configured templates for popular affiliate programs. Just add your credentials and start collecting.",
               },
               {
                 icon: (
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 ),
-                title: "Secure by Default",
-                description: "Enterprise-grade security with encrypted API keys and rate limiting.",
+                title: "100% Local Storage",
+                description: "All data runs and stores locally on your machine. Your stats never leave your computer.",
               },
               {
                 icon: (
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
                   </svg>
                 ),
-                title: "Real-time Data",
-                description: "Access live statistics updated in real-time from multiple data sources.",
+                title: "No Data Sharing",
+                description: "Your affiliate data is never shared, uploaded, or stored on external servers. Complete privacy.",
               },
             ].map((feature, index) => (
               <div
@@ -168,13 +161,13 @@ export default async function Home() {
           {/* CTA Section */}
           <div className="text-center card py-16 px-8 animate-slide-up" style={{ animationDelay: "0.6s" }}>
             <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
-              Ready to get started?
+              Ready to automate your stats?
             </h2>
             <p className="text-dark-400 mb-8 max-w-xl mx-auto">
-              Create your free account and get your API key in under a minute.
+              Try free with up to 5 programs. Upgrade anytime for unlimited access.
             </p>
             <Link href="/auth/signup" className="btn-primary text-lg px-8 py-4">
-              Create Free Account
+              Start Free Trial
             </Link>
           </div>
         </div>
