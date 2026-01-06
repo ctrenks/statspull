@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { maskApiKey } from "@/lib/api-key";
 import ProfileForm from "./ProfileForm";
+import ApiKeyManager from "./ApiKeyManager";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -50,40 +49,7 @@ export default async function ProfilePage() {
           email={user.email || ""}
         />
 
-        {/* API Key Section */}
-        <div className="card mt-6 animate-fade-in">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold font-display">API Key</h3>
-            {user.apiKey && (
-              <span className="flex items-center gap-2 px-2 py-1 rounded-full bg-primary-500/10 text-primary-400 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
-                Active
-              </span>
-            )}
-          </div>
-
-          {user.apiKey ? (
-            <div className="p-3 bg-dark-800 rounded-lg border border-dark-700">
-              <code className="font-mono text-sm text-dark-300 break-all">
-                {maskApiKey(user.apiKey)}
-              </code>
-            </div>
-          ) : (
-            <p className="text-dark-400 text-sm">
-              No API key yet.{" "}
-              <Link href="/dashboard" className="text-primary-400 hover:text-primary-300">
-                Go to Dashboard
-              </Link>{" "}
-              to generate one.
-            </p>
-          )}
-
-          <p className="mt-3 text-dark-500 text-xs">
-            <Link href="/dashboard" className="text-primary-400 hover:text-primary-300">
-              View full API key on Dashboard →
-            </Link>
-          </p>
-        </div>
+        <ApiKeyManager initialApiKey={user.apiKey} />
       </div>
     </div>
   );
