@@ -293,6 +293,35 @@
         <!-- Settings View -->
         <div class="view" id="settingsView">
           <div class="settings-section">
+            <h2 class="section-title">License & API Key</h2>
+            <div class="license-status" id="licenseStatus">
+              <div class="license-badge" id="licenseBadge">
+                <span class="badge-role">Checking...</span>
+              </div>
+              <div class="license-details">
+                <p id="licenseProgramLimit">Programs: -- / --</p>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 16px;">
+              <label for="apiKeyInput">API Key</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" class="input" id="apiKeyInput" placeholder="sf_live_xxxxxxxxxxxxxxxx" style="flex: 1;">
+                <button class="btn btn-secondary" id="toggleApiKeyVisibility" title="Show/Hide">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <button class="btn btn-primary" id="saveApiKeyBtn">Save & Validate</button>
+              <button class="btn btn-secondary" id="clearApiKeyBtn">Clear Key</button>
+            </div>
+            <p class="settings-note">Get your API key from <a href="https://www.statsfetch.com/dashboard" target="_blank" style="color: var(--primary);">statsfetch.com</a>. Demo accounts allow 5 programs max.</p>
+          </div>
+
+          <div class="settings-section">
             <h2 class="section-title">Application Info</h2>
             <div class="form-group">
               <label>Version</label>

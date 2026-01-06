@@ -144,6 +144,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.api.onUpdateStatus((updateData) => {
     handleUpdateStatus(updateData);
   });
+
+  // Load and display license status
+  await loadLicenseStatus();
+
+  // Load saved API key
+  const savedApiKey = await window.api.getApiKey();
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  if (apiKeyInput && savedApiKey) {
+    apiKeyInput.value = savedApiKey;
+  }
+
+  // Listen for license status updates
+  window.api.onLicenseStatus((status) => {
+    updateLicenseUI(status);
+  });
+
+  // Setup API key handlers
+  setupLicenseHandlers();
 });
 
 // Load providers
@@ -1861,6 +1879,116 @@ async function checkForUpdates() {
   const result = await window.api.checkForUpdates();
   if (!result.success) {
     showToast("Failed to check for updates", "error");
+  }
+}
+
+// =====================
+// License Management
+// =====================
+
+async function loadLicenseStatus() {
+  try {
+    const status = await window.api.getLicenseStatus();
+    updateLicenseUI(status);
+  } catch (error) {
+    console.error("Failed to load license status:", error);
+  }
+}
+
+function updateLicenseUI(status) {
+  const badge = document.getElementById("licenseBadge");
+  const limitInfo = document.getElementById("licenseProgramLimit");
+
+  if (!badge) return;
+
+  // Remove old classes
+  badge.classList.remove("invalid", "demo", "full", "admin");
+
+  if (!status.valid) {
+    badge.classList.add("invalid");
+    badge.innerHTML = '<span class="badge-role">No License</span>';
+    if (limitInfo) limitInfo.textContent = "Programs: 0 / 5";
+  } else {
+    const roleClass = status.role <= 1 ? "demo" : status.role >= 9 ? "admin" : "full";
+    badge.classList.add(roleClass);
+    badge.innerHTML = `<span class="badge-role">${status.roleLabel || roleClass}</span>`;
+    
+    if (limitInfo) {
+      const maxDisplay = status.maxPrograms === Infinity ? "∞" : status.maxPrograms;
+      limitInfo.textContent = `Programs: ${status.current || 0} / ${maxDisplay}`;
+    }
+  }
+}
+
+function setupLicenseHandlers() {
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  const saveApiKeyBtn = document.getElementById("saveApiKeyBtn");
+  const clearApiKeyBtn = document.getElementById("clearApiKeyBtn");
+  const toggleVisibilityBtn = document.getElementById("toggleApiKeyVisibility");
+
+  // Toggle API key visibility
+  if (toggleVisibilityBtn && apiKeyInput) {
+    toggleVisibilityBtn.addEventListener("click", () => {
+      if (apiKeyInput.type === "password") {
+        apiKeyInput.type = "text";
+        toggleVisibilityBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        `;
+      } else {
+        apiKeyInput.type = "password";
+        toggleVisibilityBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        `;
+      }
+    });
+  }
+
+  // Save API key
+  if (saveApiKeyBtn) {
+    saveApiKeyBtn.addEventListener("click", async () => {
+      const apiKey = apiKeyInput?.value?.trim();
+      if (!apiKey) {
+        showToast("Please enter an API key", "error");
+        return;
+      }
+
+      saveApiKeyBtn.disabled = true;
+      saveApiKeyBtn.textContent = "Validating...";
+
+      try {
+        const result = await window.api.validateApiKey(apiKey);
+        if (result.valid) {
+          showToast(`License validated: ${result.roleLabel}`, "success");
+          updateLicenseUI(result);
+        } else {
+          showToast(`Invalid API key: ${result.error}`, "error");
+          updateLicenseUI({ valid: false });
+        }
+      } catch (error) {
+        showToast("Failed to validate API key", "error");
+      } finally {
+        saveApiKeyBtn.disabled = false;
+        saveApiKeyBtn.textContent = "Save & Validate";
+      }
+    });
+  }
+
+  // Clear API key
+  if (clearApiKeyBtn) {
+    clearApiKeyBtn.addEventListener("click", async () => {
+      if (confirm("Are you sure you want to clear your API key?")) {
+        await window.api.clearApiKey();
+        if (apiKeyInput) apiKeyInput.value = "";
+        updateLicenseUI({ valid: false });
+        showToast("API key cleared", "info");
+      }
+    });
   }
 }
 
