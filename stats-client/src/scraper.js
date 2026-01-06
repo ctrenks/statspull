@@ -616,73 +616,134 @@ class Scraper {
         this.log(`Calculated FTDs: ${stats.summary.signups} signups × ${stats.summary.ftdPercent}% = ${stats.summary.ftds} FTDs`);
       }
 
-      // Now navigate to stats page to get deposits
-      if (statsUrl && statsUrl !== loginUrl) {
-        this.log(`Navigating to stats page for deposits: ${statsUrl}`);
-        await page.goto(statsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-        await this.delay(3000);
+      // Navigate to Media Reports page for accurate stats
+      // Use /partner/reports/media for totals: Visitors=clicks, Commissions=revenue, QFTD/FTD=ftds, Deposits=deposits
+      const mediaReportsUrl = statsUrl || loginUrl.replace(/\/login.*$/, '/partner/reports/media');
+      this.log(`Navigating to Media Reports page: ${mediaReportsUrl}`);
+      await page.goto(mediaReportsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await this.delay(3000);
 
-        // Extract deposits and other stats from stats page
-        const statsPageData = await page.evaluate(() => {
-          const textContent = document.body ? document.body.innerText : '';
-          const summaryStats = {};
+      // Log page info for debugging
+      const mediaPageUrl = page.url();
+      this.log(`Media Reports URL: ${mediaPageUrl}`);
 
-          // Helper to parse values
-          const parseValue = (str) => {
-            if (!str) return 0;
-            str = str.trim().replace(/[$€£\-+]/g, '').trim();
-            let multiplier = 1;
-            if (str.toLowerCase().endsWith('k')) {
-              multiplier = 1000;
-              str = str.slice(0, -1);
+      // Extract stats from Media Reports page - look for totals row
+      const mediaStats = await page.evaluate(() => {
+        const summaryStats = {};
+        const textContent = document.body ? document.body.innerText : '';
+        
+        // Helper to parse values like "1,234" or "1.44k"
+        const parseValue = (str) => {
+          if (!str) return 0;
+          str = str.trim().replace(/[$€£\-+]/g, '').trim();
+          let multiplier = 1;
+          if (str.toLowerCase().endsWith('k')) {
+            multiplier = 1000;
+            str = str.slice(0, -1);
+          } else if (str.toLowerCase().endsWith('m')) {
+            multiplier = 1000000;
+            str = str.slice(0, -1);
+          }
+          return parseFloat(str.replace(/,/g, '')) * multiplier || 0;
+        };
+
+        // Try to find the totals row in a table
+        const tables = document.querySelectorAll('table');
+        for (const table of tables) {
+          // Look for header row to find column indices
+          const headers = Array.from(table.querySelectorAll('th')).map(h => h.textContent.trim().toLowerCase());
+          
+          // Find column indices for our target stats
+          const visitorIdx = headers.findIndex(h => h.includes('visitor') || h.includes('click'));
+          const commissionIdx = headers.findIndex(h => h.includes('commission') || h.includes('comm'));
+          const ftdIdx = headers.findIndex(h => h.includes('qftd') || h.includes('ftd') || h.includes('first'));
+          const depositIdx = headers.findIndex(h => h.includes('deposit') && !h.includes('first'));
+          
+          // Find totals row (usually last row, or row with "Total" text)
+          const rows = table.querySelectorAll('tbody tr, tfoot tr');
+          let totalsRow = null;
+          
+          for (const row of rows) {
+            const rowText = row.textContent.toLowerCase();
+            if (rowText.includes('total') || rowText.includes('sum')) {
+              totalsRow = row;
+              break;
             }
-            return parseFloat(str.replace(/,/g, '')) * multiplier || 0;
-          };
-
-          // Look for deposit count (e.g., "32 deposits")
-          const depositCountMatch = textContent.match(/(\d+)\s*deposits?/i);
-          if (depositCountMatch) {
-            summaryStats.depositCount = parseInt(depositCountMatch[1]);
           }
-
-          // Look for deposit amount (e.g., "760.91 euro in deposits" or "Deposits: €760.91")
-          const depositAmountMatch = textContent.match(/deposits?\s*[:\s]*[€$£]?([\d,.]+)/i) ||
-                                     textContent.match(/[€$£]([\d,.]+)\s*(?:in\s*)?deposits?/i);
-          if (depositAmountMatch) {
-            summaryStats.depositAmount = parseValue(depositAmountMatch[1]);
+          
+          // If no explicit totals row, use the last row with data
+          if (!totalsRow && rows.length > 0) {
+            // Check if there's a tfoot
+            const tfoot = table.querySelector('tfoot tr');
+            if (tfoot) {
+              totalsRow = tfoot;
+            }
           }
-
-          // Look for withdrawals
-          const withdrawMatch = textContent.match(/withdrawa?l?s?\s*[:\s]*[€$£]?([\d,.]+)/i);
-          if (withdrawMatch) {
-            summaryStats.withdrawals = parseValue(withdrawMatch[1]);
+          
+          if (totalsRow) {
+            const cells = Array.from(totalsRow.querySelectorAll('td, th'));
+            const cellValues = cells.map(c => c.textContent.trim());
+            
+            // Extract values by column index
+            if (visitorIdx >= 0 && cells[visitorIdx]) {
+              summaryStats.clicks = parseValue(cells[visitorIdx].textContent);
+            }
+            if (commissionIdx >= 0 && cells[commissionIdx]) {
+              summaryStats.revenue = parseValue(cells[commissionIdx].textContent);
+            }
+            if (ftdIdx >= 0 && cells[ftdIdx]) {
+              summaryStats.ftds = parseInt(parseValue(cells[ftdIdx].textContent));
+            }
+            if (depositIdx >= 0 && cells[depositIdx]) {
+              summaryStats.deposits = parseInt(parseValue(cells[depositIdx].textContent));
+            }
+            
+            // Log what we found
+            summaryStats._debug = {
+              headers: headers,
+              indices: { visitorIdx, commissionIdx, ftdIdx, depositIdx },
+              cellValues: cellValues
+            };
+            
+            break; // Found totals, stop searching
           }
-
-          // Look for FTDs
-          const ftdMatch = textContent.match(/(?:ftd|first\s*time|new\s*deposit(?:or)?s?)\s*[:\s]*(\d+)/i);
-          if (ftdMatch) {
-            summaryStats.ftds = parseInt(ftdMatch[1]);
-          }
-
-          return summaryStats;
-        });
-
-        this.log(`Stats page data: ${JSON.stringify(statsPageData)}`);
-
-        // Merge with dashboard stats
-        if (statsPageData.depositCount) {
-          stats.summary.deposits = statsPageData.depositCount;
         }
-        if (statsPageData.depositAmount) {
-          stats.summary.depositAmount = statsPageData.depositAmount;
+
+        // Fallback: look for patterns in page text if no table found
+        if (Object.keys(summaryStats).length === 0 || !summaryStats.clicks) {
+          // Look for Visitors/Clicks
+          const visitorMatch = textContent.match(/visitors?\s*[:\s]*([\d,.]+)/i) ||
+                               textContent.match(/clicks?\s*[:\s]*([\d,.]+)/i);
+          if (visitorMatch) summaryStats.clicks = parseValue(visitorMatch[1]);
+          
+          // Look for Commissions
+          const commMatch = textContent.match(/commissions?\s*[:\s]*[€$£]?([\d,.]+)/i);
+          if (commMatch) summaryStats.revenue = parseValue(commMatch[1]);
+          
+          // Look for QFTD or FTD
+          const ftdMatch = textContent.match(/qftd\s*[:\s]*(\d+)/i) ||
+                           textContent.match(/ftd\s*[:\s]*(\d+)/i);
+          if (ftdMatch) summaryStats.ftds = parseInt(ftdMatch[1]);
+          
+          // Look for Deposits
+          const depositMatch = textContent.match(/deposits?\s*[:\s]*(\d+)/i);
+          if (depositMatch) summaryStats.deposits = parseInt(depositMatch[1]);
         }
-        if (statsPageData.withdrawals) {
-          stats.summary.withdrawals = statsPageData.withdrawals;
-        }
-        if (statsPageData.ftds && !stats.summary.ftds) {
-          stats.summary.ftds = statsPageData.ftds;
-        }
+
+        return summaryStats;
+      });
+
+      this.log(`Media Reports stats: ${JSON.stringify(mediaStats)}`);
+      if (mediaStats._debug) {
+        this.log(`Debug - Headers: ${JSON.stringify(mediaStats._debug.headers)}`);
+        this.log(`Debug - Indices: ${JSON.stringify(mediaStats._debug.indices)}`);
       }
+
+      // Update stats with Media Reports data (more accurate)
+      if (mediaStats.clicks) stats.summary.clicks = mediaStats.clicks;
+      if (mediaStats.revenue) stats.summary.revenue = mediaStats.revenue;
+      if (mediaStats.ftds) stats.summary.ftds = mediaStats.ftds;
+      if (mediaStats.deposits) stats.summary.deposits = mediaStats.deposits;
 
       this.log(`Final combined stats: ${JSON.stringify(stats.summary)}`);
 

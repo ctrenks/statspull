@@ -422,7 +422,7 @@ class SyncEngine {
       try {
         const stats = await scr.scrapeCellxpert({
           loginUrl: loginPath,
-          statsUrl: statsPath || loginPath.replace('/login', '/reports/activity'),
+          statsUrl: statsPath || loginPath.replace(/\/login.*$/, '/partner/reports/media'),
           username,
           password,
           startDate,
@@ -600,7 +600,7 @@ class SyncEngine {
     try {
       const results = await scr.scrapeCellxpert({
         loginUrl: login,
-        statsUrl: stats || login.replace('/login', '/reports/activity'),
+        statsUrl: stats || login.replace(/\/login.*$/, '/partner/reports/media'),
         username: credentials.username,
         password: credentials.password,
         startDate,
