@@ -25,19 +25,19 @@ let installationId = null;
 
 function getOrCreateInstallationId() {
   if (installationId) return installationId;
-  
+
   const crypto = require('crypto');
   const fs = require('fs');
   const path = require('path');
-  
+
   const userDataPath = app.getPath('userData');
   const idPath = path.join(userDataPath, '.installation-id');
-  
+
   // Ensure directory exists
   if (!fs.existsSync(userDataPath)) {
     fs.mkdirSync(userDataPath, { recursive: true });
   }
-  
+
   // Try to load existing ID
   if (fs.existsSync(idPath)) {
     try {
@@ -49,7 +49,7 @@ function getOrCreateInstallationId() {
       console.error('[INSTALL ID] Error reading installation ID:', e);
     }
   }
-  
+
   // Generate new installation ID (SHA-256 of random bytes + machine info)
   const machineInfo = [
     require('os').hostname(),
@@ -59,9 +59,9 @@ function getOrCreateInstallationId() {
     Date.now().toString(),
     crypto.randomBytes(16).toString('hex')
   ].join('|');
-  
+
   installationId = crypto.createHash('sha256').update(machineInfo).digest('hex');
-  
+
   // Save it
   try {
     fs.writeFileSync(idPath, installationId, { mode: 0o600 });
@@ -69,7 +69,7 @@ function getOrCreateInstallationId() {
   } catch (e) {
     console.error('[INSTALL ID] Error saving installation ID:', e);
   }
-  
+
   return installationId;
 }
 

@@ -1919,7 +1919,7 @@ function updateLicenseUI(status) {
     const roleClass = status.role <= 1 ? "demo" : status.role >= 9 ? "admin" : "full";
     badge.classList.add(roleClass);
     badge.innerHTML = `<span class="badge-role">${status.roleLabel || roleClass}</span>`;
-    
+
     if (limitInfo) {
       const maxDisplay = status.maxPrograms === Infinity ? "∞" : status.maxPrograms;
       limitInfo.textContent = `Programs: ${status.current || 0} / ${maxDisplay}`;

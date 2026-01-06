@@ -76,8 +76,8 @@ async function validateKey(request: NextRequest, installationId?: string) {
       // Different installation trying to use this key
       console.log(`[KEYCHECK] Installation mismatch: expected ${user.installationId.slice(0, 8)}..., got ${installationId.slice(0, 8)}...`);
       return NextResponse.json(
-        { 
-          valid: false, 
+        {
+          valid: false,
           error: "API key is bound to a different device. Regenerate your key to use on this device.",
           code: "INSTALLATION_MISMATCH"
         },
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     let installationId: string | undefined;
-    
+
     // Try to get installation ID from body
     try {
       const body = await request.json();
