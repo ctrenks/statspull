@@ -1,5 +1,5 @@
 # Dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
@@ -41,4 +41,10 @@ prisma/*.db-journal
 # IDE
 .idea
 .vscode
+
+# Stats Client (Electron)
+stats-client/node_modules/
+stats-client/dist/
+*.exe
+*.blockmap
 

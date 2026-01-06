@@ -1,0 +1,60 @@
+name: Build Electron App
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.9
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows
+        run: npm run build:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Mac (unsigned)
+        run: npm run build:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false  # Skip code signing
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-build
+          path: |
+            dist/*.zip
+            dist/*.dmg
+            dist/latest-mac.yml

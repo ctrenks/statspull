@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com">
+  <title>Affiliate Stats Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3v18h18"/>
+              <path d="M18 9l-5 5-4-4-3 3"/>
+            </svg>
+          </div>
+          <span class="logo-text">AFC Stats</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="programs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 7l9-4 9 4-9 4-9-4z"/>
+            <path d="M21 12l-9 4-9-4"/>
+            <path d="M21 17l-9 4-9-4"/>
+          </svg>
+          <span>Programs</span>
+        </button>
+        <button class="nav-item" data-view="templates">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+          <span>Configured Programs</span>
+        </button>
+        <button class="nav-item" data-view="stats">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10"/>
+            <path d="M12 20V4"/>
+            <path d="M6 20v-6"/>
+          </svg>
+          <span>Statistics</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sync-status" id="syncStatus">
+          <div class="sync-dot"></div>
+          <span>Ready</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Header -->
+      <header class="header">
+        <h1 class="page-title" id="pageTitle">Dashboard</h1>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="refreshBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      <!-- Views Container -->
+      <div class="views">
+        <!-- Dashboard View -->
+        <div class="view active" id="dashboardView">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon programs-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 7l9-4 9 4-9 4-9-4z"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value" id="totalPrograms">0</span>
+                <span class="stat-label">Total Programs</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon active-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22,4 12,14.01 9,11.01"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value" id="activePrograms">0</span>
+                <span class="stat-label">Active Programs</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon stats-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 20V10"/>
+                  <path d="M12 20V4"/>
+                  <path d="M6 20v-6"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value" id="totalStatsRecords">0</span>
+                <span class="stat-label">Stats Records</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="8.5" cy="7" r="4"/>
+                  <polyline points="17,11 19,13 23,9"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value" id="currentMonthFTDs">0</span>
+                <span class="stat-label">FTDs This Month</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value" id="currentMonthRevenue">$0</span>
+                <span class="stat-label">Revenue This Month</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon sync-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12,6 12,12 16,14"/>
+                </svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-value stat-value-small" id="lastSync">Never</span>
+                <span class="stat-label">Last Sync</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Quick Actions</h2>
+            <div class="quick-actions">
+              <button class="action-card" id="quickAddProgram">
+                <div class="action-icon add-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                    <line x1="8" y1="12" x2="16" y2="12"/>
+                  </svg>
+                </div>
+                <span class="action-title">Add Program</span>
+                <span class="action-desc">Create a custom program</span>
+              </button>
+              <button class="action-card" id="quickFetchTemplates">
+                <div class="action-icon fetch-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="8,17 12,21 16,17"/>
+                    <line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/>
+                  </svg>
+                </div>
+                <span class="action-title">Fetch Templates</span>
+                <span class="action-desc">Get latest from server</span>
+              </button>
+              <button class="action-card" id="quickSyncStats">
+                <div class="action-icon sync-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"/>
+                    <path d="M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                </div>
+                <span class="action-title">Sync All Stats</span>
+                <span class="action-desc">Update all programs</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sync Status Panel - Always visible -->
+          <div class="section" id="syncSection">
+            <div class="section-header">
+              <h2 class="section-title">Activity Log</h2>
+              <button class="btn btn-sm btn-secondary" id="clearLogBtn">Clear</button>
+            </div>
+            <div class="sync-panel">
+              <div class="sync-progress-container" id="syncProgressContainer" style="display: none;">
+                <div class="sync-progress-bar">
+                  <div class="sync-progress-fill" id="syncProgressFill" style="width: 0%"></div>
+                </div>
+                <div class="sync-progress-text" id="syncProgressText">Ready to sync</div>
+              </div>
+              <div class="sync-log" id="syncLog">
+                <div class="sync-log-entry info">
+                  <span class="sync-log-time">${new Date().toLocaleTimeString()}</span>
+                  <span class="sync-log-message">Ready - click Sync to start</span>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Programs View -->
+        <div class="view" id="programsView">
+          <div class="view-header">
+            <button class="btn btn-primary" id="addProgramBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add Program
+            </button>
+            <button class="btn btn-secondary" id="syncAllBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              Sync All
+            </button>
+          </div>
+          <div class="programs-list" id="programsList">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 7l9-4 9 4-9 4-9-4z"/>
+                <path d="M21 12l-9 4-9-4"/>
+                <path d="M21 17l-9 4-9-4"/>
+              </svg>
+              <h3>No Programs Yet</h3>
+              <p>Add a program or import from templates to get started</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Templates View -->
+        <div class="view" id="templatesView">
+          <div class="view-header">
+            <button class="btn btn-primary" id="fetchTemplatesBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="8,17 12,21 16,17"/>
+                <line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/>
+              </svg>
+              Fetch from Server
+            </button>
+          </div>
+          <div class="templates-list" id="templatesList">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+              <h3>Loading...</h3>
+              <p>Configured programs will appear here</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings View -->
+        <div class="view" id="settingsView">
+          <div class="settings-section">
+            <h2 class="section-title">Application Info</h2>
+            <div class="form-group">
+              <label>Version</label>
+              <p id="appVersion" style="font-size: 1rem; color: var(--text-primary); margin: 8px 0;">Loading...</p>
+              <button class="btn btn-secondary" id="checkUpdatesBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px;">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                Check for Updates
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2 class="section-title">Currency Settings</h2>
+            <div class="form-group">
+              <label for="defaultCurrency">Default Currency</label>
+              <select class="select" id="defaultCurrency">
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+            <p class="settings-note">All stats will be displayed in your default currency.</p>
+          </div>
+
+          <div class="settings-section">
+            <h2 class="section-title">Sync Performance</h2>
+            <div class="form-group">
+              <label for="syncConcurrency">Concurrent Syncs</label>
+              <select class="select" id="syncConcurrency" style="width: auto; min-width: 100px;">
+                <option value="1">1 (Sequential)</option>
+                <option value="3">3</option>
+                <option value="5" selected>5 (Default)</option>
+                <option value="8">8</option>
+                <option value="10">10</option>
+                <option value="15">15 (High)</option>
+              </select>
+            </div>
+            <p class="settings-note">Number of programs to sync simultaneously. Higher values are faster but use more memory. Each program maintains its own cookies/session.</p>
+          </div>
+
+          <div class="settings-section">
+            <h2 class="section-title">Developer Settings</h2>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="showBrowserDebug">
+                <span>Show Browser Window (Debug Mode)</span>
+              </label>
+              <p class="settings-note">When enabled, browser automation will be visible. Useful for debugging scraping issues.</p>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h2 class="section-title">Data Management</h2>
+            <button class="btn btn-secondary" id="cleanupDuplicatesBtn">
+              Find & Remove Duplicate Programs
+            </button>
+            <button class="btn btn-secondary" id="consolidateStatsBtn" style="margin-left: 12px;">
+              Consolidate Monthly Stats
+            </button>
+            <button class="btn btn-danger" id="clearAllStatsBtn" style="margin-left: 12px;">
+              Clear All Stats
+            </button>
+            <p class="settings-note" style="margin-top: 12px;">Consolidate combines multiple daily records into single monthly totals.</p>
+          </div>
+        </div>
+
+        <!-- Stats View -->
+        <div class="view" id="statsView">
+          <div class="view-header">
+            <select class="select" id="statsProgramSelect">
+              <option value="all">All Programs</option>
+            </select>
+            <div class="date-quick-btns">
+              <button class="btn btn-outline" id="statsThisMonth">This Month</button>
+              <button class="btn btn-outline" id="statsLastMonth">Last Month</button>
+            </div>
+            <div class="date-range">
+              <input type="date" class="input" id="statsStartDate">
+              <span>to</span>
+              <input type="date" class="input" id="statsEndDate">
+            </div>
+            <button class="btn btn-secondary" id="loadStatsBtn">Load Stats</button>
+          </div>
+          <div class="stats-table-container" id="statsTableContainer">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M18 20V10"/>
+                <path d="M12 20V4"/>
+                <path d="M6 20v-6"/>
+              </svg>
+              <h3>No Stats Data</h3>
+              <p>Click "Load Stats" to view statistics</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="programModal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Program</h2>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="programForm">
+          <div class="form-group">
+            <label for="programName">Program Name</label>
+            <input type="text" class="input" id="programName" placeholder="e.g., Bet365 Affiliates" required>
+          </div>
+          <div class="form-group">
+            <label for="programCode">Program Code</label>
+            <input type="text" class="input" id="programCode" placeholder="e.g., bet365" required>
+          </div>
+          <div class="form-group">
+            <label for="programProvider">Provider</label>
+            <select class="select" id="programProvider" required>
+              <option value="">Select provider...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="programLoginUrl">Login URL</label>
+            <input type="url" class="input" id="programLoginUrl" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label for="programApiUrl">API URL (if applicable)</label>
+            <input type="url" class="input" id="programApiUrl" placeholder="https://...">
+          </div>
+
+          <div class="form-divider">
+            <span>Credentials (stored locally & encrypted)</span>
+          </div>
+
+          <div class="form-group">
+            <label for="credUsername">Username</label>
+            <input type="text" class="input" id="credUsername" placeholder="Your username">
+          </div>
+          <div class="form-group">
+            <label for="credPassword">Password</label>
+            <input type="password" class="input" id="credPassword" placeholder="Your password">
+          </div>
+          <div class="form-group">
+            <label for="credApiKey">API Key (if applicable)</label>
+            <input type="text" class="input" id="credApiKey" placeholder="API key">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalSave">Save Program</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security Code Input Modal -->
+  <div class="modal-overlay" id="securityCodeModal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2>🔐 Security Code Required</h2>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 20px; color: #e0e0ff;">
+          <strong id="securityCodeProgramName">Program</strong> has sent a security code to your email.
+        </p>
+        <p style="margin-bottom: 20px; color: #a0a0d0;">
+          Please check your email and enter the code below:
+        </p>
+        <div class="form-group">
+          <label for="securityCodeInput">Security Code</label>
+          <input
+            type="text"
+            class="input"
+            id="securityCodeInput"
+            placeholder="Enter code from email"
+            autocomplete="off"
+            style="font-size: 18px; text-align: center; letter-spacing: 2px;"
+          >
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="securityCodeCancel">Cancel</button>
+        <button class="btn btn-primary" id="securityCodeSubmit">Submit Code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
