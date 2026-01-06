@@ -28,8 +28,9 @@
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "publish": [
       {
-        "provider": "generic",
-        "url": "https://allmediamatter.com/downloads/stats-client/"
+        "provider": "github",
+        "owner": "ctrenks",
+        "repo": "stats-client"
       }
     ],
     "directories": {
