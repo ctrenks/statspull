@@ -20,6 +20,9 @@ export default async function Home() {
             </Link>
 
             <div className="flex items-center gap-4">
+              <Link href="/downloads" className="btn-ghost">
+                Download
+              </Link>
               {session ? (
                 <Link href="/dashboard" className="btn-primary">
                   Dashboard
