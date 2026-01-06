@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
+
+// Create HMAC signature for response verification
+function signResponse(data: object): string {
+  const secret = process.env.NEXTAUTH_SECRET || "fallback-secret";
+  const payload = JSON.stringify(data);
+  return crypto.createHmac("sha256", secret).update(payload).digest("hex");
+}
+
+// Role labels for clarity
+const ROLE_LABELS: Record<number, string> = {
+  1: "demo",
+  2: "full",
+  9: "admin",
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,14 +58,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    // Build response data
+    const timestamp = Date.now();
+    const data = {
       valid: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-      },
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      roleLabel: ROLE_LABELS[user.role] || "unknown",
       keyCreatedAt: user.apiKeyCreatedAt,
+      timestamp,
+    };
+
+    // Sign the response so it can't be faked
+    const signature = signResponse(data);
+
+    return NextResponse.json({
+      ...data,
+      signature,
     });
   } catch (error) {
     console.error("Error checking API key:", error);
@@ -65,4 +90,3 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return GET(request);
 }
-

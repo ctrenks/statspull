@@ -33,16 +33,20 @@ export default function AdminContent({
   const [users, setUsers] = useState(initialUsers);
   const [loading, setLoading] = useState<string | null>(null);
 
-  const toggleRole = async (userId: string, currentRole: number) => {
+  const ROLE_OPTIONS = [
+    { value: 1, label: "Demo", color: "bg-dark-700 text-dark-300" },
+    { value: 2, label: "Full", color: "bg-blue-500/10 text-blue-400" },
+    { value: 9, label: "Admin", color: "bg-amber-500/10 text-amber-400" },
+  ];
+
+  const setUserRole = async (userId: string, newRole: number) => {
     if (userId === currentUserId) {
       alert("You cannot change your own role");
       return;
     }
 
-    const newRole = currentRole === 9 ? 1 : 9;
-    const action = newRole === 9 ? "make admin" : "remove admin";
-
-    if (!confirm(`Are you sure you want to ${action} this user?`)) {
+    const roleLabel = ROLE_OPTIONS.find(r => r.value === newRole)?.label || "Unknown";
+    if (!confirm(`Set this user's role to "${roleLabel}"?`)) {
       return;
     }
 
@@ -267,18 +271,18 @@ export default function AdminContent({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {user.role === 9 ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 text-sm">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.736 6.979C9.208 6.193 9.696 6 10 6c.304 0 .792.193 1.264.979a1 1 0 001.715-1.029C12.279 4.784 11.232 4 10 4s-2.279.784-2.979 1.95c-.285.475-.507 1-.67 1.55H6a1 1 0 000 2h.013a9.358 9.358 0 000 1H6a1 1 0 100 2h.351c.163.55.385 1.075.67 1.55C7.721 15.216 8.768 16 10 16s2.279-.784 2.979-1.95a1 1 0 10-1.715-1.029c-.472.786-.96.979-1.264.979-.304 0-.792-.193-1.264-.979a4.265 4.265 0 01-.264-.521H10a1 1 0 100-2H8.017a7.36 7.36 0 010-1H10a1 1 0 100-2H8.472a4.265 4.265 0 01.264-.521z" clipRule="evenodd" />
-                          </svg>
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full bg-dark-700 text-dark-300 text-sm">
-                          User
-                        </span>
-                      )}
+                      <select
+                        value={user.role}
+                        onChange={(e) => setUserRole(user.id, parseInt(e.target.value))}
+                        disabled={loading === user.id || user.id === currentUserId}
+                        className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                      >
+                        {ROLE_OPTIONS.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label} ({role.value})
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-6 py-4">
                       {user.apiKey ? (
@@ -303,16 +307,6 @@ export default function AdminContent({
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => toggleRole(user.id, user.role)}
-                          disabled={loading === user.id || user.id === currentUserId}
-                          className="p-2 text-dark-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50"
-                          title={user.role === 9 ? "Remove admin" : "Make admin"}
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                          </svg>
-                        </button>
                         {user.apiKey && (
                           <button
                             onClick={() => revokeUserApiKey(user.id)}
