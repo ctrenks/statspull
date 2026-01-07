@@ -215,7 +215,7 @@ export default async function Home() {
             <p className="text-dark-400 text-center mb-10 max-w-xl mx-auto">
               See how we compare to other affiliate stats solutions
             </p>
-            
+
             <div className="card overflow-hidden">
               <table className="w-full">
                 <thead>
