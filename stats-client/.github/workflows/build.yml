@@ -83,11 +83,22 @@ jobs:
           name: mac-build
           path: dist/
 
+      - name: List downloaded files
+        run: |
+          echo "Files in dist/:"
+          ls -la dist/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*
+          files: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/*.dmg
+            dist/*.zip
+            dist/*.yml
           draft: false
           prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
