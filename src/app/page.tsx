@@ -243,19 +243,6 @@ export default async function Home() {
                     </td>
                   </tr>
                   <tr className="border-b border-dark-800">
-                    <td className="py-4 px-6 text-dark-200">Add any program (on supported software)</td>
-                    <td className="py-4 px-6 text-center">
-                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </td>
-                  </tr>
-                  <tr className="border-b border-dark-800">
                     <td className="py-4 px-6 text-dark-200">Fast response for new programs</td>
                     <td className="py-4 px-6 text-center">
                       <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">

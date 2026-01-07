@@ -602,7 +602,7 @@ function renderPrograms() {
   }
 
   // Sort programs alphabetically by name
-  const sortedPrograms = [...programs].sort((a, b) => 
+  const sortedPrograms = [...programs].sort((a, b) =>
     a.name.toLowerCase().localeCompare(b.name.toLowerCase())
   );
 
@@ -762,7 +762,7 @@ function renderTemplates() {
   }
 
   // Sort templates alphabetically and use filtered list
-  templates = availableTemplates.sort((a, b) => 
+  templates = availableTemplates.sort((a, b) =>
     a.name.toLowerCase().localeCompare(b.name.toLowerCase())
   );
 
