@@ -207,6 +207,122 @@ export default async function Home() {
             ))}
           </div>
 
+          {/* Comparison Table */}
+          <div className="max-w-4xl mx-auto mb-24 animate-slide-up" style={{ animationDelay: "0.5s" }}>
+            <h2 className="text-3xl md:text-4xl font-bold font-display text-center mb-4">
+              Why Choose <span className="gradient-text">Stats Fetch</span>?
+            </h2>
+            <p className="text-dark-400 text-center mb-10 max-w-xl mx-auto">
+              See how we compare to other affiliate stats solutions
+            </p>
+            
+            <div className="card overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-dark-700">
+                    <th className="text-left py-4 px-6 text-dark-300 font-medium">Feature</th>
+                    <th className="text-center py-4 px-6">
+                      <span className="gradient-text font-bold">Stats Fetch</span>
+                    </th>
+                    <th className="text-center py-4 px-6 text-dark-400">Others</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Both have */}
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">Support major affiliate software</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">Add any program (on supported software)</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">Fast response for new programs</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                  </tr>
+                  {/* Some have */}
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">100% local data storage</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="text-yellow-500 text-sm font-medium">Some</span>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">Free trial available</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="text-yellow-500 text-sm font-medium">Some</span>
+                    </td>
+                  </tr>
+                  {/* US only */}
+                  <tr className="border-b border-dark-800 bg-primary-500/5">
+                    <td className="py-4 px-6 text-dark-200 font-medium">Low monthly price ($25/mo)</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </td>
+                  </tr>
+                  <tr className="bg-primary-500/5">
+                    <td className="py-4 px-6 text-dark-200 font-medium">Create custom programs yourself</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* CTA Section */}
           <div className="text-center card py-16 px-8 animate-slide-up" style={{ animationDelay: "0.6s" }}>
             <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">

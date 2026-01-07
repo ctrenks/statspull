@@ -2253,10 +2253,10 @@ async function loadPaymentsForMonth(month) {
 
   paymentsList.innerHTML = programsWithRevenue.map(p => {
     const isPaid = p.payment?.is_paid;
-    const paidDate = p.payment?.paid_date 
-      ? new Date(p.payment.paid_date).toLocaleDateString() 
+    const paidDate = p.payment?.paid_date
+      ? new Date(p.payment.paid_date).toLocaleDateString()
       : '';
-    
+
     return `
       <div class="payment-card ${isPaid ? 'is-paid' : ''}" data-program-id="${p.id}" data-month="${month}">
         <div class="payment-checkbox" data-program-id="${p.id}" data-month="${month}">
@@ -2276,7 +2276,7 @@ async function loadPaymentsForMonth(month) {
       </div>
     `;
   }).join('');
-  
+
   // Attach click handlers to checkboxes
   document.querySelectorAll('.payment-checkbox').forEach(checkbox => {
     checkbox.addEventListener('click', async (e) => {
