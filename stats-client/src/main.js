@@ -100,14 +100,14 @@ autoUpdater.on('checking-for-update', () => {
 autoUpdater.on('update-available', (info) => {
   const currentVersion = app.getVersion();
   console.log(`[AUTO-UPDATER] Update available: v${info.version} (current: v${currentVersion})`);
-  
+
   // Skip if versions are the same (sometimes electron-updater gets confused)
   if (info.version === currentVersion) {
     console.log('[AUTO-UPDATER] Versions match, skipping update');
     sendUpdateStatus('not-available', 'You are running the latest version', info);
     return;
   }
-  
+
   sendUpdateStatus('available', `Update available: v${info.version}`, info);
 });
 
