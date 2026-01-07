@@ -25,14 +25,21 @@ interface Template {
 
 // Known software types for the dropdown
 const SOFTWARE_TYPES = [
-  { value: "7bitpartners", label: "7BitPartners / Affilka" },
+  { value: "7bitpartners", label: "7BitPartners" },
+  { value: "affilka", label: "Affilka (Generic)" },
   { value: "cellxpert", label: "CellXpert" },
+  { value: "casino-rewards", label: "Casino Rewards" },
+  { value: "deckmedia", label: "DeckMedia" },
   { value: "income-access", label: "Income Access" },
   { value: "myaffiliates", label: "MyAffiliates" },
   { value: "netrefer", label: "NetRefer" },
   { value: "partnermatrix", label: "PartnerMatrix" },
+  { value: "rival", label: "Rival (CasinoController)" },
+  { value: "rtg", label: "RTG (New)" },
+  { value: "rtg-original", label: "RTG Original" },
   { value: "scaleo", label: "Scaleo" },
-  { value: "generic", label: "Generic (Web Scraping)" },
+  { value: "wynta", label: "Wynta" },
+  { value: "custom", label: "Custom / Other" },
 ];
 
 const AUTH_TYPES: { value: AuthType; label: string; description: string }[] = [
