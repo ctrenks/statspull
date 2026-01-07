@@ -523,20 +523,36 @@ function setupIpcHandlers() {
 
   // Get available provider types - fetch from API with fallback
   ipcMain.handle('get-providers', async () => {
+    // Map database softwareType to sync-engine provider codes
+    const SOFTWARE_TO_PROVIDER = {
+      'cellxpert': 'CELLXPERT',
+      'myaffiliates': 'MYAFFILIATES',
+      'income-access': 'INCOME_ACCESS',
+      'netrefer': 'NETREFER',
+      'wynta': 'WYNTA',
+      'affilka': 'AFFILKA',
+      '7bitpartners': '7BITPARTNERS',
+      'deckmedia': 'DECKMEDIA',
+      'rtg-original': 'RTG_ORIGINAL',
+      'rival': 'RIVAL',
+      'casino-rewards': 'CASINO_REWARDS',
+      'custom': 'CUSTOM'
+    };
+
     // Default hardcoded providers (fallback)
     const defaultProviders = [
-      { code: 'CELLXPERT', name: 'Cellxpert', authType: 'BOTH' },
-      { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'BOTH' },
-      { code: 'INCOME_ACCESS', name: 'Income Access', authType: 'CREDENTIALS' },
-      { code: 'NETREFER', name: 'NetRefer', authType: 'API_KEY' },
-      { code: 'WYNTA', name: 'Wynta', authType: 'BOTH' },
-      { code: 'AFFILKA', name: 'Affilka (Generic)', authType: 'BOTH' },
-      { code: '7BITPARTNERS', name: '7BitPartners (Affilka)', authType: 'BOTH' },
-      { code: 'DECKMEDIA', name: 'DeckMedia', authType: 'CREDENTIALS' },
-      { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS' },
-      { code: 'RIVAL', name: 'Rival (CasinoController)', authType: 'CREDENTIALS' },
-      { code: 'CASINO_REWARDS', name: 'Casino Rewards', authType: 'CREDENTIALS' },
-      { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS' }
+      { code: 'CELLXPERT', name: 'Cellxpert', authType: 'BOTH', icon: '📊' },
+      { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'BOTH', icon: '🤝' },
+      { code: 'INCOME_ACCESS', name: 'Income Access', authType: 'CREDENTIALS', icon: '💰' },
+      { code: 'NETREFER', name: 'NetRefer', authType: 'API_KEY', icon: '🌐' },
+      { code: 'WYNTA', name: 'Wynta', authType: 'BOTH', icon: '🎲' },
+      { code: 'AFFILKA', name: 'Affilka (Generic)', authType: 'BOTH', icon: '🔗', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', apiKeyLabel: 'Statistic Token' },
+      { code: '7BITPARTNERS', name: '7BitPartners', authType: 'BOTH', icon: '🎰', baseUrl: 'https://dashboard.7bitpartners.com', apiKeyLabel: 'Statistic Token' },
+      { code: 'DECKMEDIA', name: 'DeckMedia', authType: 'CREDENTIALS', icon: '🃏' },
+      { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS', icon: '🎮', description: 'Supports D-W-C revenue calculation' },
+      { code: 'RIVAL', name: 'Rival (CasinoController)', authType: 'CREDENTIALS', icon: '🎯', description: 'Syncs sequentially to avoid rate limits' },
+      { code: 'CASINO_REWARDS', name: 'Casino Rewards', authType: 'CREDENTIALS', icon: '🏆' },
+      { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS', icon: '⚙️' }
     ];
 
     try {
@@ -545,9 +561,10 @@ function setupIpcHandlers() {
       if (response.ok) {
         const data = await response.json();
         if (data.templates && data.templates.length > 0) {
+          console.log(`Loaded ${data.templates.length} templates from API`);
           // Map API templates to provider format
           return data.templates.map(t => ({
-            code: t.softwareType.toUpperCase(),
+            code: SOFTWARE_TO_PROVIDER[t.softwareType] || t.softwareType.toUpperCase().replace(/-/g, '_'),
             name: t.name,
             authType: t.authType,
             baseUrl: t.baseUrl,

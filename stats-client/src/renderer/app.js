@@ -181,31 +181,36 @@ async function loadProviders() {
 }
 
 // Update credential fields based on provider's auth type
-function updateCredentialFields(provider) {
+function updateCredentialFields(provider, isEditMode = false) {
   const usernameGroup = elements.credUsername?.parentElement;
   const passwordGroup = elements.credPassword?.parentElement;
   const apiKeyGroup = elements.credApiKey?.parentElement;
   const baseUrlGroup = elements.programApiUrl?.parentElement;
   const loginUrlGroup = elements.programLoginUrl?.parentElement;
+  const descriptionEl = document.getElementById('providerDescription');
 
   if (!usernameGroup || !passwordGroup || !apiKeyGroup) return;
 
-  // Default labels
+  // Get label elements
   const usernameLabel = usernameGroup.querySelector('label');
   const passwordLabel = passwordGroup.querySelector('label');
   const apiKeyLabel = apiKeyGroup.querySelector('label');
   const baseUrlLabel = baseUrlGroup?.querySelector('label');
+  const loginUrlLabel = loginUrlGroup?.querySelector('label');
 
-  // Show all fields by default
+  // Reset to defaults first
   usernameGroup.style.display = 'block';
   passwordGroup.style.display = 'block';
   apiKeyGroup.style.display = 'block';
-
-  // Reset labels to defaults
   if (usernameLabel) usernameLabel.textContent = 'Username';
   if (passwordLabel) passwordLabel.textContent = 'Password';
   if (apiKeyLabel) apiKeyLabel.textContent = 'API Key';
   if (baseUrlLabel) baseUrlLabel.textContent = 'API URL';
+  if (loginUrlLabel) loginUrlLabel.textContent = 'Login URL';
+  if (descriptionEl) {
+    descriptionEl.textContent = '';
+    descriptionEl.style.display = 'none';
+  }
 
   if (!provider) return;
 
@@ -217,16 +222,18 @@ function updateCredentialFields(provider) {
     usernameGroup.style.display = 'none';
     passwordGroup.style.display = 'none';
     apiKeyGroup.style.display = 'block';
+    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || 'API Key / Token';
   } else if (authType === 'CREDENTIALS') {
     // Only show username/password
     usernameGroup.style.display = 'block';
     passwordGroup.style.display = 'block';
     apiKeyGroup.style.display = 'none';
   } else {
-    // BOTH - show all fields
+    // BOTH - show all fields with helpful labels
     usernameGroup.style.display = 'block';
     passwordGroup.style.display = 'block';
     apiKeyGroup.style.display = 'block';
+    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || 'API Key (optional if using login)';
   }
 
   // Update custom labels if provided
@@ -243,26 +250,29 @@ function updateCredentialFields(provider) {
     baseUrlLabel.textContent = provider.baseUrlLabel;
   }
 
-  // Show/hide base URL field
+  // Show/hide base URL field based on requiresBaseUrl
   if (baseUrlGroup) {
-    baseUrlGroup.style.display = provider.requiresBaseUrl ? 'block' : 'block'; // Always show for now
-  }
-
-  // Pre-fill URLs if provided
-  if (provider.loginUrl && elements.programLoginUrl && !elements.programLoginUrl.value) {
-    elements.programLoginUrl.value = provider.loginUrl;
-  }
-  if (provider.baseUrl && elements.programApiUrl && !elements.programApiUrl.value) {
-    elements.programApiUrl.value = provider.baseUrl;
-  }
-
-  // Show description as placeholder or tooltip
-  if (provider.description) {
-    const descriptionEl = document.getElementById('providerDescription');
-    if (descriptionEl) {
-      descriptionEl.textContent = provider.description;
-      descriptionEl.style.display = 'block';
+    // Show if required, or if provider has a default baseUrl, or always show for flexibility
+    baseUrlGroup.style.display = 'block';
+    if (provider.requiresBaseUrl && baseUrlLabel) {
+      baseUrlLabel.textContent = (provider.baseUrlLabel || 'Affiliate Dashboard URL') + ' *';
     }
+  }
+
+  // Pre-fill URLs if provided AND not in edit mode (don't overwrite user's URLs)
+  if (!isEditMode) {
+    if (provider.loginUrl && elements.programLoginUrl) {
+      elements.programLoginUrl.value = provider.loginUrl;
+    }
+    if (provider.baseUrl && elements.programApiUrl) {
+      elements.programApiUrl.value = provider.baseUrl;
+    }
+  }
+
+  // Show description
+  if (provider.description && descriptionEl) {
+    descriptionEl.textContent = provider.description;
+    descriptionEl.style.display = 'block';
   }
 }
 
@@ -421,6 +431,7 @@ function createFreshModal() {
           <select class="select" id="programProvider" required>
             <option value="">Select provider...</option>
           </select>
+          <p id="providerDescription" class="settings-note" style="display: none; margin-top: 8px; font-size: 0.85em; color: var(--text-secondary);"></p>
         </div>
         <div class="form-group">
           <label for="programCurrency">Currency</label>
@@ -528,6 +539,7 @@ function createFreshModal() {
   elements.programProvider.addEventListener("change", (e) => {
     const selectedCode = e.target.value;
     const provider = providers.find(p => p.code === selectedCode);
+    const isEditMode = editingProgramId !== null;
 
     // RTG options
     if (selectedCode === "RTG_ORIGINAL") {
@@ -539,8 +551,14 @@ function createFreshModal() {
       revshareInput.value = "";
     }
 
+    // Clear URLs when changing provider in add mode (not edit mode)
+    if (!isEditMode && provider) {
+      elements.programLoginUrl.value = '';
+      elements.programApiUrl.value = '';
+    }
+
     // Credential field visibility based on authType
-    updateCredentialFields(provider);
+    updateCredentialFields(provider, isEditMode);
   });
 
   // Show/hide revshare input based on D-W-C checkbox
@@ -872,9 +890,9 @@ async function editProgram(id) {
   elements.programLoginUrl.value = program.login_url || "";
   elements.programApiUrl.value = program.api_url || "";
 
-  // Update credential field visibility based on provider
+  // Update credential field visibility based on provider (edit mode - don't overwrite URLs)
   const provider = providers.find(p => p.code === program.provider);
-  updateCredentialFields(provider);
+  updateCredentialFields(provider, true);
 
   // Load credentials
   try {
