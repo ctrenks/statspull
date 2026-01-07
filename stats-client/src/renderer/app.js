@@ -584,8 +584,8 @@ async function loadPrograms() {
   updateProgramsSelect();
 }
 
-// Render programs list (categorized by status)
-async function renderPrograms() {
+// Render programs list (sorted alphabetically)
+function renderPrograms() {
   if (programs.length === 0) {
     elements.programsList.innerHTML = `
       <div class="empty-state">
@@ -601,81 +601,26 @@ async function renderPrograms() {
     return;
   }
 
-  // Get categorized programs
-  const categorized = await window.api.getProgramsByStatus();
+  // Sort programs alphabetically by name
+  const sortedPrograms = [...programs].sort((a, b) => 
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  );
 
-  let html = '';
-
-  // Needs Setup category (no credentials)
-  if (categorized.needsSetup.length > 0) {
-    html += `
-      <div class="program-category needs-setup">
-        <div class="program-category-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-warning);">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <h3>Needs Setup</h3>
-          <span class="category-count">${categorized.needsSetup.length}</span>
-        </div>
-        ${renderProgramCards(categorized.needsSetup)}
-      </div>
-    `;
-  }
-
-  // Has Errors category
-  if (categorized.hasErrors.length > 0) {
-    html += `
-      <div class="program-category has-errors">
-        <div class="program-category-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-danger);">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-          <h3>Sync Errors</h3>
-          <span class="category-count">${categorized.hasErrors.length}</span>
-        </div>
-        ${renderProgramCards(categorized.hasErrors)}
-      </div>
-    `;
-  }
-
-  // Working category
-  if (categorized.working.length > 0) {
-    html += `
-      <div class="program-category working">
-        <div class="program-category-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-success);">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          <h3>Working</h3>
-          <span class="category-count">${categorized.working.length}</span>
-        </div>
-        ${renderProgramCards(categorized.working)}
-      </div>
-    `;
-  }
-
-  elements.programsList.innerHTML = html;
+  elements.programsList.innerHTML = renderProgramCards(sortedPrograms);
   attachProgramEventHandlers();
 }
 
-// Render program cards for a category
+// Render program cards
 function renderProgramCards(programList) {
   return programList
     .map((p) => {
-      // Find the index in the main programs array
-      const index = programs.findIndex(prog => prog.id === p.id);
       const lastSync = p.last_sync
         ? new Date(p.last_sync).toLocaleDateString()
         : "Never";
       const hasError = p.last_error ? "has-error" : "";
 
       return `
-    <div class="program-card ${hasError}" data-id="${p.id}" data-index="${index}">
+    <div class="program-card ${hasError}" data-id="${p.id}">
       <div class="program-info">
         <span class="program-name">${escapeHtml(p.name)}</span>
         <div class="program-meta">
@@ -692,15 +637,15 @@ function renderProgramCards(programList) {
         }
       </div>
       <div class="program-actions">
-        <button class="btn btn-sm sync-btn" data-index="${index}" title="Sync this program">
+        <button class="btn btn-sm sync-btn" data-id="${p.id}" title="Sync this program">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <path d="M23 4v6h-6"/>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
           </svg>
         </button>
-        <button class="btn btn-sm btn-secondary edit-btn" data-index="${index}">Edit</button>
-        <button class="btn btn-sm btn-purple clone-btn" data-index="${index}" title="Clone this program">Clone</button>
-        <button class="btn btn-sm btn-danger delete-btn" data-index="${index}">Delete</button>
+        <button class="btn btn-sm btn-secondary edit-btn" data-id="${p.id}">Edit</button>
+        <button class="btn btn-sm btn-purple clone-btn" data-id="${p.id}" title="Clone this program">Clone</button>
+        <button class="btn btn-sm btn-danger delete-btn" data-id="${p.id}">Delete</button>
       </div>
     </div>
   `;
@@ -713,12 +658,9 @@ function attachProgramEventHandlers() {
   // Add click handlers for edit buttons
   document.querySelectorAll(".edit-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const index = parseInt(e.currentTarget.dataset.index);
-      const program = programs[index];
-      if (program) {
-        await editProgram(program.id);
-      } else {
-        console.error("Edit: Program not found at index", index);
+      const programId = e.currentTarget.dataset.id;
+      if (programId) {
+        await editProgram(programId);
       }
     });
   });
@@ -726,20 +668,9 @@ function attachProgramEventHandlers() {
   // Add click handlers for delete buttons
   document.querySelectorAll(".delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const index = parseInt(e.currentTarget.dataset.index);
-      const program = programs[index];
-      if (program) {
-        console.log(
-          "Delete button clicked for program:",
-          program.name,
-          "ID:",
-          program.id,
-          "hasNullId:",
-          program.id === null
-        );
-        await deleteProgram(program.id);
-      } else {
-        console.error("Delete: Program not found at index", index);
+      const programId = e.currentTarget.dataset.id;
+      if (programId) {
+        await deleteProgram(programId);
       }
     });
   });
@@ -747,10 +678,9 @@ function attachProgramEventHandlers() {
   // Add click handlers for sync buttons
   document.querySelectorAll(".program-actions .sync-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const index = parseInt(e.currentTarget.dataset.index);
-      const program = programs[index];
-      if (program) {
-        await syncProgram(program.id);
+      const programId = e.currentTarget.dataset.id;
+      if (programId) {
+        await syncProgram(programId);
       }
     });
   });
@@ -758,18 +688,10 @@ function attachProgramEventHandlers() {
   // Add click handlers for clone buttons
   document.querySelectorAll(".clone-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const index = parseInt(e.currentTarget.dataset.index);
-      const program = programs[index];
+      const programId = e.currentTarget.dataset.id;
+      const program = programs.find(p => p.id === programId);
       if (program) {
-        console.log(
-          "Clone button clicked for program:",
-          program.name,
-          "ID:",
-          program.id
-        );
-        await cloneProgram(program.id, program.name);
-      } else {
-        console.error("Clone: Program not found at index", index);
+        await cloneProgram(programId, program.name);
       }
     });
   });
@@ -839,8 +761,10 @@ function renderTemplates() {
     return;
   }
 
-  // Use filtered templates
-  templates = availableTemplates;
+  // Sort templates alphabetically and use filtered list
+  templates = availableTemplates.sort((a, b) => 
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  );
 
   elements.templatesList.innerHTML = templates
     .map((t, index) => {
