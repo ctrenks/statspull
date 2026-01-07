@@ -777,27 +777,16 @@ function renderTemplates() {
 
   elements.templatesList.innerHTML = templates
     .map((t, index) => {
-      const loginUrl =
-        t.loginUrl || t.config?.loginUrl || t.config?.baseUrl || "";
-      const apiUrl = t.apiUrl || t.config?.apiUrl || t.config?.baseUrl || "";
+      const icon = t.icon || '';
+      const description = t.description || '';
 
       return `
     <div class="template-card">
       <div class="template-header">
-        <span class="template-name">${escapeHtml(t.name)}</span>
+        <span class="template-name">${icon ? icon + ' ' : ''}${escapeHtml(t.name)}</span>
         <span class="template-provider">${escapeHtml(t.provider)}</span>
       </div>
-      <div class="template-code">${escapeHtml(t.code)}</div>
-      ${
-        loginUrl
-          ? `<div class="template-url">Login: ${escapeHtml(loginUrl)}</div>`
-          : ""
-      }
-      ${
-        apiUrl && apiUrl !== loginUrl
-          ? `<div class="template-url">API: ${escapeHtml(apiUrl)}</div>`
-          : ""
-      }
+      ${description ? `<div class="template-description">${escapeHtml(description)}</div>` : ''}
       <button class="btn btn-sm btn-primary import-btn" data-index="${index}">
         Import
       </button>

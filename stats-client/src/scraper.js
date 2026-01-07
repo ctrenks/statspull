@@ -3306,6 +3306,197 @@ class Scraper {
   }
 
   /**
+   * Scrape RTG (New Version) affiliate stats
+   * Simple dashboard scraping - login and extract visible stats
+   */
+  async scrapeRTGNew({ loginUrl, username, password, programName = 'RTG' }) {
+    this.log(`Starting RTG (new) dashboard scrape...`);
+    await this.launch();
+    let page = await this.browser.newPage();
+
+    try {
+      // Navigate to login page
+      this.log(`Navigating to login: ${loginUrl}`);
+      await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await this.delay(2000);
+
+      // Find and fill login form
+      this.log('Looking for login form...');
+
+      // Common username field selectors
+      const usernameSelectors = [
+        'input[name="username"]',
+        'input[name="email"]',
+        'input[name="user"]',
+        'input[name="login"]',
+        'input[type="email"]',
+        'input[id*="user"]',
+        'input[id*="email"]',
+        'input[id*="login"]',
+        'input[placeholder*="user" i]',
+        'input[placeholder*="email" i]'
+      ];
+
+      const passwordSelectors = [
+        'input[name="password"]',
+        'input[type="password"]',
+        'input[id*="pass"]'
+      ];
+
+      let usernameField = null;
+      let passwordField = null;
+
+      for (const selector of usernameSelectors) {
+        usernameField = await page.$(selector);
+        if (usernameField) {
+          this.log(`Found username field: ${selector}`);
+          break;
+        }
+      }
+
+      for (const selector of passwordSelectors) {
+        passwordField = await page.$(selector);
+        if (passwordField) {
+          this.log(`Found password field: ${selector}`);
+          break;
+        }
+      }
+
+      if (!usernameField || !passwordField) {
+        throw new Error('Could not find login form fields');
+      }
+
+      // Fill in credentials
+      await usernameField.click({ clickCount: 3 });
+      await usernameField.type(username, { delay: 50 });
+      await passwordField.click({ clickCount: 3 });
+      await passwordField.type(password, { delay: 50 });
+
+      this.log('Filled login form, submitting...');
+
+      // Submit the form
+      const submitSelectors = [
+        'button[type="submit"]',
+        'input[type="submit"]',
+        'button.login',
+        'button.btn-primary',
+        'button[class*="login"]',
+        'button[class*="submit"]'
+      ];
+
+      let submitted = false;
+      for (const selector of submitSelectors) {
+        const button = await page.$(selector);
+        if (button) {
+          const isVisible = await page.evaluate(el => {
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+          }, button);
+          if (isVisible) {
+            await button.click();
+            submitted = true;
+            break;
+          }
+        }
+      }
+
+      if (!submitted) {
+        await page.keyboard.press('Enter');
+      }
+
+      // Wait for navigation after login
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+      await this.delay(3000);
+
+      const afterLoginUrl = page.url();
+      this.log(`After login URL: ${afterLoginUrl}`);
+
+      // Check if still on login page (login failed)
+      if (afterLoginUrl.toLowerCase().includes('login')) {
+        const errorText = await page.evaluate(() => {
+          const error = document.querySelector('.error, .alert-danger, .login-error, [class*="error"]');
+          return error ? error.textContent.trim() : null;
+        });
+        throw new Error(errorText || 'Login failed - still on login page');
+      }
+
+      this.log('Login successful! Extracting dashboard stats...');
+
+      // Extract stats from dashboard
+      const stats = await page.evaluate(() => {
+        const result = {
+          clicks: 0,
+          signups: 0,
+          ftds: 0,
+          deposits: 0,
+          revenue: 0
+        };
+
+        const bodyText = document.body.innerText.toLowerCase();
+
+        // Look for common stat patterns in the page
+        const patterns = [
+          { name: 'clicks', regex: /clicks?\s*[:\s]*([\d,]+)/i },
+          { name: 'impressions', regex: /impressions?\s*[:\s]*([\d,]+)/i },
+          { name: 'signups', regex: /(?:sign\s*ups?|registrations?|new\s*players?)\s*[:\s]*([\d,]+)/i },
+          { name: 'ftds', regex: /(?:ftd|first\s*time\s*deposit(?:or)?s?|new\s*deposit(?:or)?s?)\s*[:\s]*([\d,]+)/i },
+          { name: 'deposits', regex: /(?:total\s*)?deposits?\s*[:\s]*[$€£]?([\d,.]+)/i },
+          { name: 'revenue', regex: /(?:commission|revenue|earnings?)\s*[:\s]*[$€£]?([\d,.]+)/i }
+        ];
+
+        for (const pattern of patterns) {
+          const match = document.body.innerText.match(pattern.regex);
+          if (match) {
+            const value = match[1].replace(/,/g, '');
+            if (pattern.name === 'deposits' || pattern.name === 'revenue') {
+              result[pattern.name] = Math.round(parseFloat(value) * 100); // Store in cents
+            } else {
+              result[pattern.name] = parseInt(value) || 0;
+            }
+          }
+        }
+
+        // Also look for stat cards/widgets
+        const cards = document.querySelectorAll('[class*="stat"], [class*="card"], [class*="widget"], [class*="summary"], [class*="metric"]');
+        cards.forEach(card => {
+          const text = card.innerText.toLowerCase();
+          const numbers = card.innerText.match(/[\d,]+\.?\d*/g);
+          if (numbers && numbers.length > 0) {
+            const value = numbers[0].replace(/,/g, '');
+            if (text.includes('click') && !result.clicks) result.clicks = parseInt(value) || 0;
+            if ((text.includes('signup') || text.includes('registration') || text.includes('player')) && !result.signups) result.signups = parseInt(value) || 0;
+            if ((text.includes('ftd') || text.includes('first') || text.includes('depositor')) && !result.ftds) result.ftds = parseInt(value) || 0;
+            if (text.includes('commission') || text.includes('revenue') || text.includes('earning')) {
+              result.revenue = Math.round(parseFloat(value) * 100);
+            }
+          }
+        });
+
+        return result;
+      });
+
+      this.log(`Extracted stats: clicks=${stats.clicks}, signups=${stats.signups}, ftds=${stats.ftds}, deposits=${stats.deposits}, revenue=${stats.revenue}`);
+
+      // Return stats in the expected format
+      const today = new Date().toISOString().split('T')[0];
+      return [{
+        date: today,
+        clicks: stats.clicks || 0,
+        impressions: 0,
+        signups: stats.signups || 0,
+        ftds: stats.ftds || 0,
+        deposits: stats.deposits || 0,
+        revenue: stats.revenue || 0
+      }];
+
+    } catch (error) {
+      this.log(`RTG (new) scrape error: ${error.message}`, 'error');
+      await page.close();
+      throw error;
+    }
+  }
+
+  /**
    * Scrape RTG Original affiliate stats
    * Handles login, casino selection, and extracting current month + last month stats
    */

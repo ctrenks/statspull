@@ -14,10 +14,7 @@ let mainWindow;
 let db;
 let syncEngine;
 
-// Server URL for fetching templates
-const SERVER_URL = 'https://allmediamatter.com';
-
-// API Key validation URL
+// Server URL for fetching templates and API validation
 const API_URL = 'https://www.statsfetch.com';
 
 // Installation ID - unique per device
@@ -325,11 +322,27 @@ function createWindow() {
   });
 }
 
-// Fetch templates from server using Electron's net module
+// Map database softwareType to sync-engine provider codes
+const SOFTWARE_TO_PROVIDER = {
+  'cellxpert': 'CELLXPERT',
+  'myaffiliates': 'MYAFFILIATES',
+  'income-access': 'INCOME_ACCESS',
+  'netrefer': 'NETREFER',
+  'wynta': 'WYNTA',
+  'affilka': 'AFFILKA',
+  '7bitpartners': '7BITPARTNERS',
+  'deckmedia': 'DECKMEDIA',
+  'rtg': 'RTG',
+  'rtg-original': 'RTG_ORIGINAL',
+  'rival': 'RIVAL',
+  'casino-rewards': 'CASINO_REWARDS',
+  'custom': 'CUSTOM'
+};
+
+// Fetch templates from statsfetch.com API
 async function fetchTemplates() {
   return new Promise((resolve, reject) => {
-    // Use the export endpoint which includes all URLs and config
-    const request = net.request(`${SERVER_URL}/api/stats/templates/export?all=true`);
+    const request = net.request(`${API_URL}/api/templates`);
     let data = '';
 
     request.on('response', (response) => {
@@ -345,8 +358,26 @@ async function fetchTemplates() {
       response.on('end', () => {
         try {
           const json = JSON.parse(data);
-          console.log('Fetched templates:', json);
-          resolve(json.templates || []);
+          console.log('Fetched templates from statsfetch.com:', json);
+
+          // Map API templates to the format expected by the client
+          const templates = (json.templates || []).map(t => ({
+            name: t.name,
+            code: t.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            provider: SOFTWARE_TO_PROVIDER[t.softwareType] || t.softwareType.toUpperCase().replace(/-/g, '_'),
+            authType: t.authType,
+            loginUrl: t.loginUrl || '',
+            apiUrl: t.baseUrl || '',
+            config: {
+              loginUrl: t.loginUrl || '',
+              apiUrl: t.baseUrl || '',
+              baseUrl: t.baseUrl || ''
+            },
+            description: t.description,
+            icon: t.icon
+          }));
+
+          resolve(templates);
         } catch (e) {
           reject(new Error('Failed to parse response'));
         }
@@ -523,22 +554,6 @@ function setupIpcHandlers() {
 
   // Get available provider types - fetch from API with fallback
   ipcMain.handle('get-providers', async () => {
-    // Map database softwareType to sync-engine provider codes
-    const SOFTWARE_TO_PROVIDER = {
-      'cellxpert': 'CELLXPERT',
-      'myaffiliates': 'MYAFFILIATES',
-      'income-access': 'INCOME_ACCESS',
-      'netrefer': 'NETREFER',
-      'wynta': 'WYNTA',
-      'affilka': 'AFFILKA',
-      '7bitpartners': '7BITPARTNERS',
-      'deckmedia': 'DECKMEDIA',
-      'rtg-original': 'RTG_ORIGINAL',
-      'rival': 'RIVAL',
-      'casino-rewards': 'CASINO_REWARDS',
-      'custom': 'CUSTOM'
-    };
-
     // Default hardcoded providers (fallback)
     const defaultProviders = [
       { code: 'CELLXPERT', name: 'Cellxpert', authType: 'BOTH', icon: '📊' },
@@ -549,7 +564,8 @@ function setupIpcHandlers() {
       { code: 'AFFILKA', name: 'Affilka (Generic)', authType: 'BOTH', icon: '🔗', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', apiKeyLabel: 'Statistic Token' },
       { code: '7BITPARTNERS', name: '7BitPartners', authType: 'BOTH', icon: '🎰', baseUrl: 'https://dashboard.7bitpartners.com', apiKeyLabel: 'Statistic Token' },
       { code: 'DECKMEDIA', name: 'DeckMedia', authType: 'CREDENTIALS', icon: '🃏' },
-      { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS', icon: '🎮', description: 'Supports D-W-C revenue calculation' },
+      { code: 'RTG', name: 'RTG', authType: 'CREDENTIALS', icon: '🎮', description: 'RTG new version - Dashboard scraping' },
+      { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS', icon: '🕹️', description: 'Supports D-W-C revenue calculation' },
       { code: 'RIVAL', name: 'Rival (CasinoController)', authType: 'CREDENTIALS', icon: '🎯', description: 'Syncs sequentially to avoid rate limits' },
       { code: 'CASINO_REWARDS', name: 'Casino Rewards', authType: 'CREDENTIALS', icon: '🏆' },
       { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS', icon: '⚙️' }

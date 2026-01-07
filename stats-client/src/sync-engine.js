@@ -391,6 +391,7 @@ class SyncEngine {
       '7BITPARTNERS_SCRAPE': this.sync7BitPartnersScrape,
       'WYNTA_SCRAPE': this.syncWyntaScrape,
       'DECKMEDIA': this.syncDeckMedia,
+      'RTG': this.syncRTGNew,
       'RTG_ORIGINAL': this.syncRTG,
       'RIVAL': this.syncRival,
       'CASINO_REWARDS': this.syncCasinoRewards,
@@ -1460,6 +1461,43 @@ class SyncEngine {
         await scr.closePages();
       }
       return stats;
+    } catch (error) {
+      if (!this.inBatchMode) {
+        await scr.closePages();
+      }
+      throw error;
+    }
+  }
+
+  // RTG (New Version) - Dashboard scraping
+  async syncRTGNew({ program, credentials, config, loginUrl, statsUrl, scraper }) {
+    const scr = scraper || this.scraper;
+    const login = loginUrl || config?.loginUrl || program.login_url;
+    const username = credentials.username;
+    const password = credentials.password;
+
+    if (!username || !password) {
+      throw new Error('Username and password required for RTG');
+    }
+
+    if (!login) {
+      throw new Error('Login URL required for RTG');
+    }
+
+    this.log('Starting RTG (new) dashboard scrape...');
+
+    try {
+      const statsData = await scr.scrapeRTGNew({
+        loginUrl: login,
+        username,
+        password,
+        programName: program.name
+      });
+
+      if (!this.inBatchMode) {
+        await scr.closePages();
+      }
+      return statsData;
     } catch (error) {
       if (!this.inBatchMode) {
         await scr.closePages();
