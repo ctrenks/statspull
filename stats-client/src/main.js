@@ -521,9 +521,10 @@ function setupIpcHandlers() {
     return db.getStatsSummary();
   });
 
-  // Get available provider types
+  // Get available provider types - fetch from API with fallback
   ipcMain.handle('get-providers', async () => {
-    return [
+    // Default hardcoded providers (fallback)
+    const defaultProviders = [
       { code: 'CELLXPERT', name: 'Cellxpert', authType: 'BOTH' },
       { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'BOTH' },
       { code: 'INCOME_ACCESS', name: 'Income Access', authType: 'CREDENTIALS' },
@@ -537,6 +538,35 @@ function setupIpcHandlers() {
       { code: 'CASINO_REWARDS', name: 'Casino Rewards', authType: 'CREDENTIALS' },
       { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS' }
     ];
+
+    try {
+      // Try to fetch templates from the API
+      const response = await net.fetch(`${API_URL}/api/templates`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.templates && data.templates.length > 0) {
+          // Map API templates to provider format
+          return data.templates.map(t => ({
+            code: t.softwareType.toUpperCase(),
+            name: t.name,
+            authType: t.authType,
+            baseUrl: t.baseUrl,
+            loginUrl: t.loginUrl,
+            description: t.description,
+            icon: t.icon,
+            apiKeyLabel: t.apiKeyLabel,
+            usernameLabel: t.usernameLabel,
+            passwordLabel: t.passwordLabel,
+            baseUrlLabel: t.baseUrlLabel,
+            requiresBaseUrl: t.requiresBaseUrl
+          }));
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch templates from API, using defaults:', error.message);
+    }
+
+    return defaultProviders;
   });
 
   // Sync all programs

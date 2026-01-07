@@ -763,7 +763,7 @@ class Scraper {
             !h.includes('_count') && !h.includes('count')
           );
 
-          // For FTD: look for QFTD or FTD
+          // For FTD: look for QFTD or FTD column (if exists)
           const ftdIdx = headers.findIndex(h =>
             h === 'qftd' || h === 'ftd' ||
             (h.includes('ftd') && !h.includes('count'))
@@ -771,7 +771,7 @@ class Scraper {
 
           // For deposits: look for "deposits" column but NOT "deposit_count" or "net_deposits"
           const depositIdx = headers.findIndex(h =>
-            h === 'deposits' && !h.includes('net')
+            h === 'deposits' && !h.includes('net') && !h.includes('count')
           );
 
           const registrationIdx = headers.findIndex(h =>

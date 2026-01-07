@@ -175,9 +175,95 @@ async function loadProviders() {
   providers.forEach((p) => {
     const option = document.createElement("option");
     option.value = p.code;
-    option.textContent = p.name;
+    option.textContent = p.icon ? `${p.icon} ${p.name}` : p.name;
     elements.programProvider.appendChild(option);
   });
+}
+
+// Update credential fields based on provider's auth type
+function updateCredentialFields(provider) {
+  const usernameGroup = elements.credUsername?.parentElement;
+  const passwordGroup = elements.credPassword?.parentElement;
+  const apiKeyGroup = elements.credApiKey?.parentElement;
+  const baseUrlGroup = elements.programApiUrl?.parentElement;
+  const loginUrlGroup = elements.programLoginUrl?.parentElement;
+
+  if (!usernameGroup || !passwordGroup || !apiKeyGroup) return;
+
+  // Default labels
+  const usernameLabel = usernameGroup.querySelector('label');
+  const passwordLabel = passwordGroup.querySelector('label');
+  const apiKeyLabel = apiKeyGroup.querySelector('label');
+  const baseUrlLabel = baseUrlGroup?.querySelector('label');
+
+  // Show all fields by default
+  usernameGroup.style.display = 'block';
+  passwordGroup.style.display = 'block';
+  apiKeyGroup.style.display = 'block';
+
+  // Reset labels to defaults
+  if (usernameLabel) usernameLabel.textContent = 'Username';
+  if (passwordLabel) passwordLabel.textContent = 'Password';
+  if (apiKeyLabel) apiKeyLabel.textContent = 'API Key';
+  if (baseUrlLabel) baseUrlLabel.textContent = 'API URL';
+
+  if (!provider) return;
+
+  // Update field visibility based on authType
+  const authType = provider.authType || 'CREDENTIALS';
+
+  if (authType === 'API_KEY') {
+    // Only show API key field
+    usernameGroup.style.display = 'none';
+    passwordGroup.style.display = 'none';
+    apiKeyGroup.style.display = 'block';
+  } else if (authType === 'CREDENTIALS') {
+    // Only show username/password
+    usernameGroup.style.display = 'block';
+    passwordGroup.style.display = 'block';
+    apiKeyGroup.style.display = 'none';
+  } else {
+    // BOTH - show all fields
+    usernameGroup.style.display = 'block';
+    passwordGroup.style.display = 'block';
+    apiKeyGroup.style.display = 'block';
+  }
+
+  // Update custom labels if provided
+  if (provider.usernameLabel && usernameLabel) {
+    usernameLabel.textContent = provider.usernameLabel;
+  }
+  if (provider.passwordLabel && passwordLabel) {
+    passwordLabel.textContent = provider.passwordLabel;
+  }
+  if (provider.apiKeyLabel && apiKeyLabel) {
+    apiKeyLabel.textContent = provider.apiKeyLabel;
+  }
+  if (provider.baseUrlLabel && baseUrlLabel) {
+    baseUrlLabel.textContent = provider.baseUrlLabel;
+  }
+
+  // Show/hide base URL field
+  if (baseUrlGroup) {
+    baseUrlGroup.style.display = provider.requiresBaseUrl ? 'block' : 'block'; // Always show for now
+  }
+
+  // Pre-fill URLs if provided
+  if (provider.loginUrl && elements.programLoginUrl && !elements.programLoginUrl.value) {
+    elements.programLoginUrl.value = provider.loginUrl;
+  }
+  if (provider.baseUrl && elements.programApiUrl && !elements.programApiUrl.value) {
+    elements.programApiUrl.value = provider.baseUrl;
+  }
+
+  // Show description as placeholder or tooltip
+  if (provider.description) {
+    const descriptionEl = document.getElementById('providerDescription');
+    if (descriptionEl) {
+      descriptionEl.textContent = provider.description;
+      descriptionEl.style.display = 'block';
+    }
+  }
 }
 
 // Load dashboard data
@@ -438,9 +524,13 @@ function createFreshModal() {
   const revshareGroup = document.getElementById("revshareGroup");
   const revshareInput = document.getElementById("revsharePercent");
 
-  // Show/hide RTG options based on provider selection
+  // Show/hide RTG options and credential fields based on provider selection
   elements.programProvider.addEventListener("change", (e) => {
-    if (e.target.value === "RTG_ORIGINAL") {
+    const selectedCode = e.target.value;
+    const provider = providers.find(p => p.code === selectedCode);
+
+    // RTG options
+    if (selectedCode === "RTG_ORIGINAL") {
       rtgOptionsSection.style.display = "block";
     } else {
       rtgOptionsSection.style.display = "none";
@@ -448,6 +538,9 @@ function createFreshModal() {
       revshareGroup.style.display = "none";
       revshareInput.value = "";
     }
+
+    // Credential field visibility based on authType
+    updateCredentialFields(provider);
   });
 
   // Show/hide revshare input based on D-W-C checkbox
@@ -743,6 +836,10 @@ function showAddProgramModal() {
 
   editingProgramId = null;
   elements.modalTitle.textContent = "Add Program";
+
+  // Reset credential fields to default visibility (show all)
+  updateCredentialFields(null);
+
   elements.modalOverlay.classList.add("active");
 
   // Focus on the first input
@@ -774,6 +871,10 @@ async function editProgram(id) {
   elements.programCurrency.value = program.currency || "USD";
   elements.programLoginUrl.value = program.login_url || "";
   elements.programApiUrl.value = program.api_url || "";
+
+  // Update credential field visibility based on provider
+  const provider = providers.find(p => p.code === program.provider);
+  updateCredentialFields(provider);
 
   // Load credentials
   try {

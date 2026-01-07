@@ -64,6 +64,45 @@ model VerificationToken {
 }
 
 // ===================================
+// Program Templates (for Electron app)
+// ===================================
+
+enum AuthType {
+  API_KEY      // Only API key/token needed
+  CREDENTIALS  // Username + password needed
+  BOTH         // Either API key OR credentials work
+}
+
+model ProgramTemplate {
+  id           String   @id @default(cuid())
+  name         String   @unique // e.g., "7BitPartners", "CellXpert"
+  softwareType String   // e.g., "7bitpartners", "cellxpert", "income-access"
+  authType     AuthType @default(CREDENTIALS)
+  baseUrl      String?  // Default base URL if applicable
+  loginUrl     String?  // Default login URL if applicable
+  description  String?  // Help text for users
+  icon         String?  // Emoji or icon name
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+
+  // Field labels (customize what users see)
+  apiKeyLabel    String?  // e.g., "Statistic Token", "API Key"
+  usernameLabel  String?  // e.g., "Username", "Email", "Partner ID"
+  passwordLabel  String?  // e.g., "Password", "API Secret"
+  baseUrlLabel   String?  // e.g., "Affiliate URL", "Dashboard URL"
+
+  // Field requirements
+  requiresBaseUrl Boolean @default(false)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([softwareType])
+  @@index([isActive])
+  @@index([displayOrder])
+}
+
+// ===================================
 // Forum System
 // ===================================
 
