@@ -603,9 +603,9 @@ async function renderPrograms() {
 
   // Get categorized programs
   const categorized = await window.api.getProgramsByStatus();
-  
+
   let html = '';
-  
+
   // Needs Setup category (no credentials)
   if (categorized.needsSetup.length > 0) {
     html += `
@@ -623,7 +623,7 @@ async function renderPrograms() {
       </div>
     `;
   }
-  
+
   // Has Errors category
   if (categorized.hasErrors.length > 0) {
     html += `
@@ -641,7 +641,7 @@ async function renderPrograms() {
       </div>
     `;
   }
-  
+
   // Working category
   if (categorized.working.length > 0) {
     html += `
@@ -2202,21 +2202,21 @@ let currentPaymentMonth = null;
 
 async function loadPaymentsView() {
   const monthSelect = document.getElementById("paymentMonthSelect");
-  
+
   // Get payment summary for last 12 months
   const summary = await window.api.getPaymentSummary(12);
-  
+
   // Populate month dropdown
-  monthSelect.innerHTML = summary.map((m, idx) => 
+  monthSelect.innerHTML = summary.map((m, idx) =>
     `<option value="${m.month}" ${idx === 0 ? 'selected' : ''}>${m.label}</option>`
   ).join('');
-  
+
   // Load the first (most recent) month by default
   if (summary.length > 0) {
     currentPaymentMonth = summary[0].month;
     await loadPaymentsForMonth(currentPaymentMonth);
   }
-  
+
   // Add change listener
   monthSelect.addEventListener("change", async (e) => {
     currentPaymentMonth = e.target.value;
@@ -2227,16 +2227,16 @@ async function loadPaymentsView() {
 async function loadPaymentsForMonth(month) {
   const paymentsList = document.getElementById("paymentsList");
   const programsWithRevenue = await window.api.getProgramsWithRevenue(month);
-  
+
   // Update summary counts
   const paidCount = programsWithRevenue.filter(p => p.payment?.is_paid).length;
   const unpaidCount = programsWithRevenue.length - paidCount;
   const totalRevenue = programsWithRevenue.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
-  
+
   document.getElementById("paidCount").textContent = paidCount;
   document.getElementById("unpaidCount").textContent = unpaidCount;
   document.getElementById("paymentTotalRevenue").textContent = formatCurrency(totalRevenue, defaultCurrency);
-  
+
   if (programsWithRevenue.length === 0) {
     paymentsList.innerHTML = `
       <div class="empty-state">
@@ -2250,7 +2250,7 @@ async function loadPaymentsForMonth(month) {
     `;
     return;
   }
-  
+
   paymentsList.innerHTML = programsWithRevenue.map(p => {
     const isPaid = p.payment?.is_paid;
     const paidDate = p.payment?.paid_date 
@@ -2259,7 +2259,7 @@ async function loadPaymentsForMonth(month) {
     
     return `
       <div class="payment-card ${isPaid ? 'is-paid' : ''}" data-program-id="${p.id}" data-month="${month}">
-        <div class="payment-checkbox" onclick="togglePayment('${p.id}', '${month}')">
+        <div class="payment-checkbox" data-program-id="${p.id}" data-month="${month}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
@@ -2276,14 +2276,24 @@ async function loadPaymentsForMonth(month) {
       </div>
     `;
   }).join('');
+  
+  // Attach click handlers to checkboxes
+  document.querySelectorAll('.payment-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('click', async (e) => {
+      const programId = e.currentTarget.dataset.programId;
+      const month = e.currentTarget.dataset.month;
+      await togglePaymentStatus(programId, month);
+    });
+  });
 }
 
-// Toggle payment status (global function for onclick)
-window.togglePayment = async function(programId, month) {
+// Toggle payment status
+async function togglePaymentStatus(programId, month) {
   try {
     await window.api.togglePaymentStatus(programId, month);
     await loadPaymentsForMonth(month);
+    showToast("Payment status updated", "success");
   } catch (error) {
     showToast("Failed to update payment: " + error.message, "error");
   }
-};
+}

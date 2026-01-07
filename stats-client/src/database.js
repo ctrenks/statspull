@@ -827,18 +827,18 @@ class Database {
   // Get programs categorized by status
   getProgramsByStatus() {
     const allPrograms = this.getPrograms();
-    
+
     const needsSetup = [];  // No credentials
     const hasErrors = [];   // Last sync had an error
     const working = [];     // All good
-    
+
     for (const program of allPrograms) {
       // Check if has credentials
       const creds = this.queryOne(
         "SELECT id FROM credentials WHERE program_id = ?",
         [program.id]
       );
-      
+
       if (!creds) {
         needsSetup.push(program);
       } else if (program.last_error) {
@@ -847,12 +847,12 @@ class Database {
         working.push(program);
       }
     }
-    
+
     return { needsSetup, hasErrors, working };
   }
 
   // Payment tracking methods
-  
+
   // Get all payments for a specific month (YYYY-MM format)
   getPaymentsForMonth(month) {
     return this.query(
@@ -869,7 +869,7 @@ class Database {
   getProgramsWithRevenueForMonth(month) {
     // Get all programs that have stats for this month with revenue > 0
     const programsWithRevenue = this.query(
-      `SELECT 
+      `SELECT
          pr.id, pr.name, pr.provider, pr.currency,
          SUM(s.revenue) as total_revenue,
          SUM(s.ftds) as total_ftds
@@ -908,7 +908,7 @@ class Database {
       // Update
       const fields = [];
       const values = [];
-      
+
       if (data.amount !== undefined) {
         fields.push("amount = ?");
         values.push(data.amount);
@@ -925,15 +925,15 @@ class Database {
         fields.push("notes = ?");
         values.push(data.notes);
       }
-      
+
       fields.push("updated_at = CURRENT_TIMESTAMP");
       values.push(existing.id);
-      
+
       this.run(
         `UPDATE payments SET ${fields.join(", ")} WHERE id = ?`,
         values
       );
-      
+
       return this.queryOne("SELECT * FROM payments WHERE id = ?", [existing.id]);
     } else {
       // Create
@@ -951,7 +951,7 @@ class Database {
           data.notes || null
         ]
       );
-      
+
       return this.queryOne("SELECT * FROM payments WHERE id = ?", [id]);
     }
   }
@@ -978,7 +978,7 @@ class Database {
         [id, programId, month, new Date().toISOString()]
       );
     }
-    
+
     return this.queryOne(
       "SELECT * FROM payments WHERE program_id = ? AND month = ?",
       [programId, month]
@@ -989,15 +989,15 @@ class Database {
   getPaymentSummary(monthsBack = 6) {
     const months = [];
     const now = new Date();
-    
+
     for (let i = 1; i <= monthsBack; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const month = d.toISOString().slice(0, 7); // YYYY-MM
-      
+
       const programs = this.getProgramsWithRevenueForMonth(month);
       const totalRevenue = programs.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
       const paidCount = programs.filter(p => p.payment?.is_paid).length;
-      
+
       months.push({
         month,
         label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -1007,7 +1007,7 @@ class Database {
         totalRevenue
       });
     }
-    
+
     return months;
   }
 
