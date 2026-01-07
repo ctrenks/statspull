@@ -153,6 +153,32 @@ class Database {
     } catch (e) {
       // Column may already exist
     }
+
+    // Payment tracking table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        program_id TEXT NOT NULL,
+        month TEXT NOT NULL,
+        amount INTEGER DEFAULT 0,
+        is_paid INTEGER DEFAULT 0,
+        paid_date TEXT,
+        notes TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
+        UNIQUE(program_id, month)
+      )
+    `);
+
+    // Create index for payments
+    try {
+      this.db.run(
+        "CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(month)"
+      );
+    } catch (e) {
+      // Index may already exist
+    }
   }
 
   save() {
@@ -796,6 +822,193 @@ class Database {
       value,
     ]);
     return true;
+  }
+
+  // Get programs categorized by status
+  getProgramsByStatus() {
+    const allPrograms = this.getPrograms();
+    
+    const needsSetup = [];  // No credentials
+    const hasErrors = [];   // Last sync had an error
+    const working = [];     // All good
+    
+    for (const program of allPrograms) {
+      // Check if has credentials
+      const creds = this.queryOne(
+        "SELECT id FROM credentials WHERE program_id = ?",
+        [program.id]
+      );
+      
+      if (!creds) {
+        needsSetup.push(program);
+      } else if (program.last_error) {
+        hasErrors.push(program);
+      } else {
+        working.push(program);
+      }
+    }
+    
+    return { needsSetup, hasErrors, working };
+  }
+
+  // Payment tracking methods
+  
+  // Get all payments for a specific month (YYYY-MM format)
+  getPaymentsForMonth(month) {
+    return this.query(
+      `SELECT p.*, pr.name as program_name, pr.provider
+       FROM payments p
+       JOIN programs pr ON p.program_id = pr.id
+       WHERE p.month = ?
+       ORDER BY pr.name`,
+      [month]
+    );
+  }
+
+  // Get programs with revenue for a specific month that need payment tracking
+  getProgramsWithRevenueForMonth(month) {
+    // Get all programs that have stats for this month with revenue > 0
+    const programsWithRevenue = this.query(
+      `SELECT 
+         pr.id, pr.name, pr.provider, pr.currency,
+         SUM(s.revenue) as total_revenue,
+         SUM(s.ftds) as total_ftds
+       FROM programs pr
+       JOIN stats s ON pr.id = s.program_id
+       WHERE s.date LIKE ?
+       AND s.revenue > 0
+       GROUP BY pr.id
+       ORDER BY pr.name`,
+      [`${month}%`]
+    );
+
+    // Get existing payment records for this month
+    const existingPayments = this.query(
+      "SELECT * FROM payments WHERE month = ?",
+      [month]
+    );
+    const paymentMap = {};
+    existingPayments.forEach(p => paymentMap[p.program_id] = p);
+
+    // Merge the data
+    return programsWithRevenue.map(prog => ({
+      ...prog,
+      payment: paymentMap[prog.id] || null
+    }));
+  }
+
+  // Create or update a payment record
+  upsertPayment(programId, month, data) {
+    const existing = this.queryOne(
+      "SELECT id FROM payments WHERE program_id = ? AND month = ?",
+      [programId, month]
+    );
+
+    if (existing) {
+      // Update
+      const fields = [];
+      const values = [];
+      
+      if (data.amount !== undefined) {
+        fields.push("amount = ?");
+        values.push(data.amount);
+      }
+      if (data.isPaid !== undefined) {
+        fields.push("is_paid = ?");
+        values.push(data.isPaid ? 1 : 0);
+        if (data.isPaid) {
+          fields.push("paid_date = ?");
+          values.push(new Date().toISOString());
+        }
+      }
+      if (data.notes !== undefined) {
+        fields.push("notes = ?");
+        values.push(data.notes);
+      }
+      
+      fields.push("updated_at = CURRENT_TIMESTAMP");
+      values.push(existing.id);
+      
+      this.run(
+        `UPDATE payments SET ${fields.join(", ")} WHERE id = ?`,
+        values
+      );
+      
+      return this.queryOne("SELECT * FROM payments WHERE id = ?", [existing.id]);
+    } else {
+      // Create
+      const id = this.generateId();
+      this.run(
+        `INSERT INTO payments (id, program_id, month, amount, is_paid, paid_date, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          programId,
+          month,
+          data.amount || 0,
+          data.isPaid ? 1 : 0,
+          data.isPaid ? new Date().toISOString() : null,
+          data.notes || null
+        ]
+      );
+      
+      return this.queryOne("SELECT * FROM payments WHERE id = ?", [id]);
+    }
+  }
+
+  // Toggle payment status
+  togglePaymentStatus(programId, month) {
+    const existing = this.queryOne(
+      "SELECT * FROM payments WHERE program_id = ? AND month = ?",
+      [programId, month]
+    );
+
+    if (existing) {
+      const newStatus = existing.is_paid ? 0 : 1;
+      this.run(
+        `UPDATE payments SET is_paid = ?, paid_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [newStatus, newStatus ? new Date().toISOString() : null, existing.id]
+      );
+    } else {
+      // Create as paid
+      const id = this.generateId();
+      this.run(
+        `INSERT INTO payments (id, program_id, month, is_paid, paid_date)
+         VALUES (?, ?, ?, 1, ?)`,
+        [id, programId, month, new Date().toISOString()]
+      );
+    }
+    
+    return this.queryOne(
+      "SELECT * FROM payments WHERE program_id = ? AND month = ?",
+      [programId, month]
+    );
+  }
+
+  // Get payment summary for multiple months
+  getPaymentSummary(monthsBack = 6) {
+    const months = [];
+    const now = new Date();
+    
+    for (let i = 1; i <= monthsBack; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = d.toISOString().slice(0, 7); // YYYY-MM
+      
+      const programs = this.getProgramsWithRevenueForMonth(month);
+      const totalRevenue = programs.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
+      const paidCount = programs.filter(p => p.payment?.is_paid).length;
+      
+      months.push({
+        month,
+        label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        totalPrograms: programs.length,
+        paidCount,
+        unpaidCount: programs.length - paidCount,
+        totalRevenue
+      });
+    }
+    
+    return months;
   }
 
   close() {

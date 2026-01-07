@@ -686,6 +686,28 @@ function setupIpcHandlers() {
     return getProgramLimitInfo();
   });
 
+  // Get programs categorized by status (needs setup, has errors, working)
+  ipcMain.handle('get-programs-by-status', async () => {
+    return db.getProgramsByStatus();
+  });
+
+  // Payment tracking handlers
+  ipcMain.handle('get-payment-summary', async (event, monthsBack = 6) => {
+    return db.getPaymentSummary(monthsBack);
+  });
+
+  ipcMain.handle('get-programs-with-revenue', async (event, month) => {
+    return db.getProgramsWithRevenueForMonth(month);
+  });
+
+  ipcMain.handle('toggle-payment-status', async (event, programId, month) => {
+    return db.togglePaymentStatus(programId, month);
+  });
+
+  ipcMain.handle('update-payment', async (event, programId, month, data) => {
+    return db.upsertPayment(programId, month, data);
+  });
+
   // Auto-updater IPC handlers
   ipcMain.handle('check-for-updates', async () => {
     try {

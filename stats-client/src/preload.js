@@ -84,5 +84,14 @@ contextBridge.exposeInMainWorld('api', {
   getProgramLimitInfo: () => ipcRenderer.invoke('get-program-limit-info'),
   onLicenseStatus: (callback) => {
     ipcRenderer.on('license-status', (event, data) => callback(data));
-  }
+  },
+
+  // Programs by status (categorized)
+  getProgramsByStatus: () => ipcRenderer.invoke('get-programs-by-status'),
+
+  // Payment tracking
+  getPaymentSummary: (monthsBack) => ipcRenderer.invoke('get-payment-summary', monthsBack),
+  getProgramsWithRevenue: (month) => ipcRenderer.invoke('get-programs-with-revenue', month),
+  togglePaymentStatus: (programId, month) => ipcRenderer.invoke('toggle-payment-status', programId, month),
+  updatePayment: (programId, month, data) => ipcRenderer.invoke('update-payment', programId, month, data)
 });

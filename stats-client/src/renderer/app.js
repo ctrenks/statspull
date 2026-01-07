@@ -584,8 +584,8 @@ async function loadPrograms() {
   updateProgramsSelect();
 }
 
-// Render programs list
-function renderPrograms() {
+// Render programs list (categorized by status)
+async function renderPrograms() {
   if (programs.length === 0) {
     elements.programsList.innerHTML = `
       <div class="empty-state">
@@ -601,17 +601,81 @@ function renderPrograms() {
     return;
   }
 
-  elements.programsList.innerHTML = programs
-    .map((p, index) => {
+  // Get categorized programs
+  const categorized = await window.api.getProgramsByStatus();
+  
+  let html = '';
+  
+  // Needs Setup category (no credentials)
+  if (categorized.needsSetup.length > 0) {
+    html += `
+      <div class="program-category needs-setup">
+        <div class="program-category-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-warning);">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <h3>Needs Setup</h3>
+          <span class="category-count">${categorized.needsSetup.length}</span>
+        </div>
+        ${renderProgramCards(categorized.needsSetup)}
+      </div>
+    `;
+  }
+  
+  // Has Errors category
+  if (categorized.hasErrors.length > 0) {
+    html += `
+      <div class="program-category has-errors">
+        <div class="program-category-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-danger);">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <h3>Sync Errors</h3>
+          <span class="category-count">${categorized.hasErrors.length}</span>
+        </div>
+        ${renderProgramCards(categorized.hasErrors)}
+      </div>
+    `;
+  }
+  
+  // Working category
+  if (categorized.working.length > 0) {
+    html += `
+      <div class="program-category working">
+        <div class="program-category-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; color: var(--accent-success);">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <h3>Working</h3>
+          <span class="category-count">${categorized.working.length}</span>
+        </div>
+        ${renderProgramCards(categorized.working)}
+      </div>
+    `;
+  }
+
+  elements.programsList.innerHTML = html;
+  attachProgramEventHandlers();
+}
+
+// Render program cards for a category
+function renderProgramCards(programList) {
+  return programList
+    .map((p) => {
+      // Find the index in the main programs array
+      const index = programs.findIndex(prog => prog.id === p.id);
       const lastSync = p.last_sync
         ? new Date(p.last_sync).toLocaleDateString()
         : "Never";
       const hasError = p.last_error ? "has-error" : "";
 
       return `
-    <div class="program-card ${hasError}" data-id="${
-        p.id
-      }" data-index="${index}">
+    <div class="program-card ${hasError}" data-id="${p.id}" data-index="${index}">
       <div class="program-info">
         <span class="program-name">${escapeHtml(p.name)}</span>
         <div class="program-meta">
@@ -642,7 +706,10 @@ function renderPrograms() {
   `;
     })
     .join("");
+}
 
+// Attach event handlers to program cards
+function attachProgramEventHandlers() {
   // Add click handlers for edit buttons
   document.querySelectorAll(".edit-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
@@ -1061,6 +1128,7 @@ async function navigateTo(view) {
     programs: "Programs",
     templates: "Configured Programs",
     stats: "Statistics",
+    payments: "Payment Tracking",
     settings: "Settings",
   };
   elements.pageTitle.textContent = titles[view] || "Dashboard";
@@ -1073,6 +1141,11 @@ async function navigateTo(view) {
   // Set default to "This Month" when navigating to Statistics
   if (view === "stats") {
     setDateRange("thisMonth");
+  }
+
+  // Load payments data when navigating to Payments
+  if (view === "payments") {
+    await loadPaymentsView();
   }
 }
 
@@ -2120,3 +2193,97 @@ function setupLicenseHandlers() {
 }
 
 // No more global onclick handlers needed - using event listeners
+
+// =====================
+// Payment Tracking
+// =====================
+
+let currentPaymentMonth = null;
+
+async function loadPaymentsView() {
+  const monthSelect = document.getElementById("paymentMonthSelect");
+  
+  // Get payment summary for last 12 months
+  const summary = await window.api.getPaymentSummary(12);
+  
+  // Populate month dropdown
+  monthSelect.innerHTML = summary.map((m, idx) => 
+    `<option value="${m.month}" ${idx === 0 ? 'selected' : ''}>${m.label}</option>`
+  ).join('');
+  
+  // Load the first (most recent) month by default
+  if (summary.length > 0) {
+    currentPaymentMonth = summary[0].month;
+    await loadPaymentsForMonth(currentPaymentMonth);
+  }
+  
+  // Add change listener
+  monthSelect.addEventListener("change", async (e) => {
+    currentPaymentMonth = e.target.value;
+    await loadPaymentsForMonth(currentPaymentMonth);
+  });
+}
+
+async function loadPaymentsForMonth(month) {
+  const paymentsList = document.getElementById("paymentsList");
+  const programsWithRevenue = await window.api.getProgramsWithRevenue(month);
+  
+  // Update summary counts
+  const paidCount = programsWithRevenue.filter(p => p.payment?.is_paid).length;
+  const unpaidCount = programsWithRevenue.length - paidCount;
+  const totalRevenue = programsWithRevenue.reduce((sum, p) => sum + (p.total_revenue || 0), 0);
+  
+  document.getElementById("paidCount").textContent = paidCount;
+  document.getElementById("unpaidCount").textContent = unpaidCount;
+  document.getElementById("paymentTotalRevenue").textContent = formatCurrency(totalRevenue, defaultCurrency);
+  
+  if (programsWithRevenue.length === 0) {
+    paymentsList.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+        <h3>No Payments to Track</h3>
+        <p>No programs had revenue for this month</p>
+      </div>
+    `;
+    return;
+  }
+  
+  paymentsList.innerHTML = programsWithRevenue.map(p => {
+    const isPaid = p.payment?.is_paid;
+    const paidDate = p.payment?.paid_date 
+      ? new Date(p.payment.paid_date).toLocaleDateString() 
+      : '';
+    
+    return `
+      <div class="payment-card ${isPaid ? 'is-paid' : ''}" data-program-id="${p.id}" data-month="${month}">
+        <div class="payment-checkbox" onclick="togglePayment('${p.id}', '${month}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div class="payment-info">
+          <div class="payment-program-name">${escapeHtml(p.name)}</div>
+          <div class="payment-meta">
+            <span>${escapeHtml(p.provider)}</span>
+            <span>${p.total_ftds || 0} FTDs</span>
+          </div>
+        </div>
+        <div class="payment-amount">${formatCurrency(p.total_revenue || 0, p.currency || defaultCurrency)}</div>
+        <div class="payment-date">${paidDate}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Toggle payment status (global function for onclick)
+window.togglePayment = async function(programId, month) {
+  try {
+    await window.api.togglePaymentStatus(programId, month);
+    await loadPaymentsForMonth(month);
+  } catch (error) {
+    showToast("Failed to update payment: " + error.message, "error");
+  }
+};
