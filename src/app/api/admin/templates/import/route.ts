@@ -28,8 +28,23 @@ const PROVIDER_TO_SOFTWARE: Record<string, string> = {
   'CUSTOM': 'custom',
 };
 
+// Default template type
+interface DefaultTemplate {
+  name: string;
+  softwareType: string;
+  authType: 'API_KEY' | 'CREDENTIALS' | 'BOTH';
+  apiKeyLabel?: string;
+  baseUrl?: string;
+  loginUrl?: string;
+  icon?: string;
+  requiresBaseUrl?: boolean;
+  baseUrlLabel?: string;
+  description?: string;
+  displayOrder?: number;
+}
+
 // Default templates to add if API fails or is empty
-const DEFAULT_TEMPLATES = [
+const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { name: '7BitPartners', softwareType: '7bitpartners', authType: 'BOTH', apiKeyLabel: 'Statistic Token', baseUrl: 'https://dashboard.7bitpartners.com', icon: '🎰' },
   { name: 'CellXpert', softwareType: 'cellxpert', authType: 'BOTH', icon: '📊' },
   { name: 'MyAffiliates', softwareType: 'myaffiliates', authType: 'BOTH', icon: '🤝' },
@@ -54,7 +69,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { source = 'defaults' } = body; // 'allmediamatter' or 'defaults'
 
-    let templatesToImport: typeof DEFAULT_TEMPLATES = [];
+    let templatesToImport: DefaultTemplate[] = [];
     let fetchedFromApi = false;
 
     if (source === 'allmediamatter') {
@@ -80,15 +95,15 @@ export async function POST(request: NextRequest) {
               apiUrl?: string;
               loginUrl?: string;
               config?: { apiUrl?: string; loginUrl?: string; baseUrl?: string };
-            }, index: number) => {
+            }, index: number): DefaultTemplate => {
               const softwareType = PROVIDER_TO_SOFTWARE[t.provider || ''] || 'custom';
               return {
                 name: t.name,
                 softwareType,
                 authType: (t.authType as 'API_KEY' | 'CREDENTIALS' | 'BOTH') || 'CREDENTIALS',
-                baseUrl: t.apiUrl || t.config?.apiUrl || t.config?.baseUrl || null,
-                loginUrl: t.loginUrl || t.config?.loginUrl || null,
-                icon: null,
+                baseUrl: t.apiUrl || t.config?.apiUrl || t.config?.baseUrl || undefined,
+                loginUrl: t.loginUrl || t.config?.loginUrl || undefined,
+                icon: undefined,
                 displayOrder: index,
               };
             });
