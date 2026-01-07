@@ -46,6 +46,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
@@ -185,6 +186,36 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
     }
   };
 
+  const importTemplates = async (source: 'defaults' | 'allmediamatter') => {
+    setIsImporting(true);
+    try {
+      const res = await fetch("/api/admin/templates/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to import");
+      }
+
+      alert(data.message);
+
+      // Refresh templates list
+      const refreshRes = await fetch("/api/admin/templates");
+      const refreshData = await refreshRes.json();
+      if (refreshData.templates) {
+        setTemplates(refreshData.templates);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to import templates");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Header */}
@@ -196,12 +227,28 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
             </Link>
             <h1 className="text-xl font-bold">Program Templates</h1>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium"
-          >
-            + Add Template
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => importTemplates('defaults')}
+              disabled={isImporting}
+              className="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 px-4 py-2 rounded-lg font-medium text-sm"
+            >
+              {isImporting ? "Importing..." : "Import Defaults"}
+            </button>
+            <button
+              onClick={() => importTemplates('allmediamatter')}
+              disabled={isImporting}
+              className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-700 px-4 py-2 rounded-lg font-medium text-sm"
+            >
+              {isImporting ? "Importing..." : "Import from AllMediaMatter"}
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-medium"
+            >
+              + Add Template
+            </button>
+          </div>
         </div>
       </header>
 
