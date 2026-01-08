@@ -2635,47 +2635,72 @@ class Scraper {
         // STEP 1: Click the login button to reveal the login form
         this.log('Looking for login button to reveal form...');
 
-      const loginButtonClicked = await page.evaluate(() => {
-        // Look for buttons with login-related text
-        const buttons = document.querySelectorAll('button, a, .btn, [role="button"]');
-        for (const btn of buttons) {
-          const text = (btn.textContent || '').toLowerCase().trim();
-          const href = (btn.href || '').toLowerCase();
-          const tagName = btn.tagName.toLowerCase();
-          const btnType = btn.type ? btn.type.toLowerCase() : '';
-
-          // Skip submit buttons - we don't want to submit the form!
-          if (btnType === 'submit' || btn.name === 'login' || btn.name === 'submit') {
-            continue;
-          }
-
-          // Skip mailto links and contact/support buttons
-          if (href.includes('mailto:') ||
-              text.includes('contact') ||
-              text.includes('support') ||
-              text.includes('manager') ||
-              text.includes('email')) {
-            continue;
-          }
-
-          // Skip if this is inside a form (it's likely a submit button)
-          if (btn.closest('form')) {
-            continue;
-          }
-
-          // Only click actual login buttons (links that lead to login page, not submit buttons)
-          if ((tagName === 'a' || tagName === 'button') &&
-              (text === 'login' ||
-               text === 'log in' ||
-               text === 'sign in' ||
-               text === 'affiliate login' ||
-               (text.includes('log') && text.includes('in') && text.length < 15))) {
-            btn.click();
-            return { success: true, text: btn.textContent.trim() };
-          }
+      // First, try clicking by ID (most reliable for sites like Gwages)
+      let loginButtonClicked = { success: false };
+      
+      try {
+        // Try specific login button IDs first (Gwages uses #login_btn)
+        const loginBtnById = await page.$('#login_btn, #loginBtn, #login-btn, [data-target="right"]#login_btn');
+        if (loginBtnById) {
+          await loginBtnById.click();
+          loginButtonClicked = { success: true, text: 'login_btn (by ID)' };
+          this.log('✓ Clicked login button by ID');
         }
-        return { success: false };
-      });
+      } catch (idClickErr) {
+        this.log(`ID click failed: ${idClickErr.message}`);
+      }
+
+      // If ID click didn't work, try finding by text content
+      if (!loginButtonClicked.success) {
+        loginButtonClicked = await page.evaluate(() => {
+          // Look for buttons with login-related text
+          const buttons = document.querySelectorAll('button, a, .btn, [role="button"], .btn-getstarted');
+          for (const btn of buttons) {
+            const text = (btn.textContent || '').toLowerCase().trim();
+            const href = (btn.href || '').toLowerCase();
+            const tagName = btn.tagName.toLowerCase();
+            const btnType = btn.type ? btn.type.toLowerCase() : '';
+            const btnId = (btn.id || '').toLowerCase();
+
+            // Check for login button ID patterns
+            if (btnId === 'login_btn' || btnId === 'loginbtn' || btnId === 'login-btn') {
+              btn.click();
+              return { success: true, text: `${btn.textContent.trim()} (ID: ${btn.id})` };
+            }
+
+            // Skip submit buttons - we don't want to submit the form!
+            if (btnType === 'submit' || btn.name === 'login' || btn.name === 'submit') {
+              continue;
+            }
+
+            // Skip mailto links and contact/support buttons
+            if (href.includes('mailto:') ||
+                text.includes('contact') ||
+                text.includes('support') ||
+                text.includes('manager') ||
+                text.includes('email')) {
+              continue;
+            }
+
+            // Skip if this is inside a form (it's likely a submit button)
+            if (btn.closest('form')) {
+              continue;
+            }
+
+            // Only click actual login buttons (links that lead to login page, not submit buttons)
+            if ((tagName === 'a' || tagName === 'button') &&
+                (text === 'login' ||
+                 text === 'log in' ||
+                 text === 'sign in' ||
+                 text === 'affiliate login' ||
+                 (text.includes('log') && text.includes('in') && text.length < 15))) {
+              btn.click();
+              return { success: true, text: btn.textContent.trim() };
+            }
+          }
+          return { success: false };
+        });
+      }
 
       if (loginButtonClicked.success) {
         this.log(`✓ Clicked login button: "${loginButtonClicked.text}"`);
@@ -2687,7 +2712,22 @@ class Scraper {
       // STEP 2: Fill in the login form (with retry logic for parallel execution)
       this.log('Filling login credentials...');
 
+      // Wait a bit for sidebar/modal to fully open
+      await this.delay(1500);
+
+      // Selectors - sidebar forms often use different selectors
       const emailSelectors = [
+        // Sidebar-specific selectors (Gwages pattern)
+        '.sidebar input[name="username"]',
+        '.sidebar input[name="email"]',
+        '.sidebar input[type="email"]',
+        '.sidebar input[type="text"]',
+        '[data-component="sidebar"] input[name="username"]',
+        '[data-component="sidebar"] input[name="email"]',
+        // Modal/dialog selectors
+        '.modal input[name="username"]',
+        '.login-form input[name="username"]',
+        // Standard selectors
         '#username',
         'input[name="username"]',
         'input[name="email"]',
@@ -2701,6 +2741,16 @@ class Scraper {
       ];
 
       const passwordSelectors = [
+        // Sidebar-specific selectors (Gwages pattern)
+        '.sidebar input[name="password"]',
+        '.sidebar input[type="password"]',
+        '[data-component="sidebar"] input[name="password"]',
+        '[data-component="sidebar"] input[type="password"]',
+        // Modal/dialog selectors
+        '.modal input[name="password"]',
+        '.modal input[type="password"]',
+        '.login-form input[name="password"]',
+        // Standard selectors
         'input[name="password"]',
         'input[type="password"]',
         '#password',
@@ -2711,12 +2761,12 @@ class Scraper {
       let emailInput = null;
       let passwordInput = null;
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 5; // Increased attempts for sidebar animations
 
       while (attempts < maxAttempts && (!emailInput || !passwordInput)) {
         if (attempts > 0) {
           this.log(`Retry attempt ${attempts}/${maxAttempts} to find form fields...`);
-          await this.delay(2000);
+          await this.delay(1500); // Wait for sidebar animation
         }
 
         // Try to find email input
@@ -2727,7 +2777,11 @@ class Scraper {
               if (emailInput) {
                 const isVisible = await page.evaluate(el => {
                   const style = window.getComputedStyle(el);
-                  return style.display !== 'none' && style.visibility !== 'hidden';
+                  const rect = el.getBoundingClientRect();
+                  return style.display !== 'none' && 
+                         style.visibility !== 'hidden' && 
+                         style.opacity !== '0' &&
+                         rect.width > 0 && rect.height > 0;
                 }, emailInput);
 
                 if (isVisible) {
@@ -2751,7 +2805,11 @@ class Scraper {
               if (passwordInput) {
                 const isVisible = await page.evaluate(el => {
                   const style = window.getComputedStyle(el);
-                  return style.display !== 'none' && style.visibility !== 'hidden';
+                  const rect = el.getBoundingClientRect();
+                  return style.display !== 'none' && 
+                         style.visibility !== 'hidden' && 
+                         style.opacity !== '0' &&
+                         rect.width > 0 && rect.height > 0;
                 }, passwordInput);
 
                 if (isVisible) {
@@ -2774,15 +2832,31 @@ class Scraper {
         // Get debug info about what IS on the page
         const pageInfo = await page.evaluate(() => {
           const inputs = Array.from(document.querySelectorAll('input'));
+          const sidebars = document.querySelectorAll('.sidebar, [data-component="sidebar"], .modal, .login-form');
+          const visibleInputs = inputs.filter(i => {
+            const style = window.getComputedStyle(i);
+            const rect = i.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0;
+          });
           return {
             inputCount: inputs.length,
-            inputTypes: inputs.map(i => ({ type: i.type, name: i.name, id: i.id, placeholder: i.placeholder })),
+            visibleInputCount: visibleInputs.length,
+            inputTypes: inputs.map(i => ({ 
+              type: i.type, 
+              name: i.name, 
+              id: i.id, 
+              placeholder: i.placeholder,
+              visible: visibleInputs.includes(i),
+              parent: i.closest('.sidebar, [data-component="sidebar"], .modal, form')?.className || 'none'
+            })),
+            sidebarCount: sidebars.length,
             url: window.location.href,
             title: document.title
           };
         });
 
-        this.log(`DEBUG - Page has ${pageInfo.inputCount} inputs: ${JSON.stringify(pageInfo.inputTypes)}`, 'warn');
+        this.log(`DEBUG - Page has ${pageInfo.inputCount} inputs (${pageInfo.visibleInputCount} visible), ${pageInfo.sidebarCount} sidebars/modals`, 'warn');
+        this.log(`DEBUG - Inputs: ${JSON.stringify(pageInfo.inputTypes)}`, 'warn');
         throw new Error(`Could not find login form fields on ${pageInfo.url}. Found ${pageInfo.inputCount} inputs but none matched email/password selectors.`);
       }
 
