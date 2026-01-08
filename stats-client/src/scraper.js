@@ -3411,10 +3411,10 @@ class Scraper {
       // Check if already logged in
       const currentUrl = page.url();
       const urlPath = new URL(currentUrl).pathname.toLowerCase();
-      const isAlreadyLoggedIn = !urlPath.includes('/login') && 
+      const isAlreadyLoggedIn = !urlPath.includes('/login') &&
                                 !urlPath.endsWith('/') &&
-                                (urlPath.includes('/dashboard') || 
-                                 urlPath.includes('/affiliate') || 
+                                (urlPath.includes('/dashboard') ||
+                                 urlPath.includes('/affiliate') ||
                                  urlPath.includes('/partner') ||
                                  urlPath.includes('/reports') ||
                                  urlPath.includes('/home'));
@@ -3424,7 +3424,7 @@ class Scraper {
       } else {
         // STEP 1: Check if we need to click a login button to reveal the form (sidebar pattern)
         this.log('Checking for login button to reveal form...');
-        
+
         // Try clicking login button by ID first (Gwages uses #login_btn)
         let loginButtonClicked = false;
         try {
@@ -3446,10 +3446,10 @@ class Scraper {
             for (const btn of buttons) {
               const text = (btn.textContent || '').trim().toLowerCase();
               const id = (btn.id || '').toLowerCase();
-              
+
               // Skip if inside a form (submit button)
               if (btn.closest('form')) continue;
-              
+
               if (id.includes('login') || text === 'login' || text === 'log in' || text === 'sign in') {
                 btn.click();
                 return true;
@@ -3457,7 +3457,7 @@ class Scraper {
             }
             return false;
           });
-          
+
           if (clicked) {
             loginButtonClicked = true;
             this.log('✓ Clicked login button by text');
@@ -3514,8 +3514,8 @@ class Scraper {
               const isVisible = await page.evaluate(el => {
                 const style = window.getComputedStyle(el);
                 const rect = el.getBoundingClientRect();
-                return style.display !== 'none' && 
-                       style.visibility !== 'hidden' && 
+                return style.display !== 'none' &&
+                       style.visibility !== 'hidden' &&
                        rect.width > 0 && rect.height > 0;
               }, field);
               if (isVisible) {
@@ -3532,8 +3532,8 @@ class Scraper {
               const isVisible = await page.evaluate(el => {
                 const style = window.getComputedStyle(el);
                 const rect = el.getBoundingClientRect();
-                return style.display !== 'none' && 
-                       style.visibility !== 'hidden' && 
+                return style.display !== 'none' &&
+                       style.visibility !== 'hidden' &&
                        rect.width > 0 && rect.height > 0;
               }, field);
               if (isVisible) {
@@ -3626,7 +3626,8 @@ class Scraper {
             signups: 0,
             ftds: 0,
             deposits: 0,
-            revenue: 0
+            revenue: 0,
+            conversionRate: 0
           };
 
           // Helper to parse value (removes $, commas, etc)
@@ -3638,19 +3639,40 @@ class Scraper {
 
           // Try specific RTG dashboard IDs first
           const signupEl = document.querySelector('#id_signup');
-          const ftdEl = document.querySelector('#id_net_new_acquisitions');
           const clickEl = document.querySelector('#id_clicks');
           const earningEl = document.querySelector('#id_earning');
 
           if (signupEl) result.signups = parseInt(signupEl.textContent.trim()) || 0;
-          if (ftdEl) result.ftds = parseInt(ftdEl.textContent.trim()) || 0;
           if (clickEl) result.clicks = parseInt(clickEl.textContent.trim()) || 0;
           if (earningEl) result.revenue = Math.round(parseVal(earningEl.textContent) * 100);
 
+          // Look for conversion rate in the page (e.g., "2.33%", "Conversion Rate: 2.33%")
+          const pageText = document.body.innerText;
+          const conversionMatch = pageText.match(/conversion\s*(?:rate)?[:\s]*(\d+\.?\d*)%/i);
+          if (conversionMatch) {
+            result.conversionRate = parseFloat(conversionMatch[1]) || 0;
+          }
+
+          // Also check for "Conversion Rate" panel
+          const panels = document.querySelectorAll('.summary .panel, .panel, [class*="stat"], [class*="card"], [class*="widget"]');
+          panels.forEach(panel => {
+            const heading = panel.querySelector('.media-heading, .heading, h3, h4, label');
+            const value = panel.querySelector('.lead, .value, .number, p:last-child');
+            if (heading && value) {
+              const headingText = heading.textContent.toLowerCase();
+              const valText = value.textContent.trim();
+
+              if (headingText.includes('conversion') && valText.includes('%')) {
+                const rateMatch = valText.match(/(\d+\.?\d*)%/);
+                if (rateMatch) {
+                  result.conversionRate = parseFloat(rateMatch[1]) || 0;
+                }
+              }
+            }
+          });
+
           // If specific IDs not found, fallback to text pattern matching
-          if (!signupEl && !clickEl && !ftdEl && !earningEl) {
-            // Look for stats in summary panels/cards
-            const panels = document.querySelectorAll('.summary .panel, .panel, [class*="stat"], [class*="card"], [class*="widget"]');
+          if (!signupEl && !clickEl && !earningEl) {
             panels.forEach(panel => {
               const heading = panel.querySelector('.media-heading, .heading, h3, h4, label');
               const value = panel.querySelector('.lead, .value, .number, p:last-child');
@@ -3660,8 +3682,6 @@ class Scraper {
 
                 if (headingText.includes('signup') || headingText.includes('registration')) {
                   result.signups = parseInt(valText.replace(/,/g, '')) || 0;
-                } else if (headingText.includes('depositor') || headingText.includes('ftd') || headingText.includes('acquisition')) {
-                  result.ftds = parseInt(valText.replace(/,/g, '')) || 0;
                 } else if (headingText.includes('click')) {
                   result.clicks = parseInt(valText.replace(/,/g, '')) || 0;
                 } else if (headingText.includes('earning') || headingText.includes('commission') || headingText.includes('revenue')) {
@@ -3677,7 +3697,15 @@ class Scraper {
 
       // Extract this month's stats
       const thisMonthStats = await extractDashboardStats();
-      this.log(`This month stats: clicks=${thisMonthStats.clicks}, signups=${thisMonthStats.signups}, ftds=${thisMonthStats.ftds}, revenue=${thisMonthStats.revenue/100}`);
+      
+      // Calculate FTDs from signups × conversion rate (like CellXpert)
+      let calculatedFtds = 0;
+      if (thisMonthStats.conversionRate > 0 && thisMonthStats.signups > 0) {
+        calculatedFtds = Math.round(thisMonthStats.signups * (thisMonthStats.conversionRate / 100));
+        this.log(`Calculated FTDs: ${thisMonthStats.signups} signups × ${thisMonthStats.conversionRate}% = ${calculatedFtds} FTDs`);
+      }
+      
+      this.log(`This month stats: clicks=${thisMonthStats.clicks}, signups=${thisMonthStats.signups}, ftds=${calculatedFtds}, revenue=${thisMonthStats.revenue/100}, convRate=${thisMonthStats.conversionRate}%`);
 
       const allStats = [];
       const now = new Date();
@@ -3688,7 +3716,7 @@ class Scraper {
         clicks: thisMonthStats.clicks || 0,
         impressions: 0,
         signups: thisMonthStats.signups || 0,
-        ftds: thisMonthStats.ftds || 0,
+        ftds: calculatedFtds,
         deposits: thisMonthStats.deposits || 0,
         revenue: thisMonthStats.revenue || 0
       });
@@ -3713,7 +3741,15 @@ class Scraper {
           await this.delay(3000);
 
           const lastMonthStats = await extractDashboardStats();
-          this.log(`Last month stats: clicks=${lastMonthStats.clicks}, signups=${lastMonthStats.signups}, ftds=${lastMonthStats.ftds}, revenue=${lastMonthStats.revenue/100}`);
+          
+          // Calculate FTDs from signups × conversion rate
+          let lastMonthFtds = 0;
+          if (lastMonthStats.conversionRate > 0 && lastMonthStats.signups > 0) {
+            lastMonthFtds = Math.round(lastMonthStats.signups * (lastMonthStats.conversionRate / 100));
+            this.log(`Last month calculated FTDs: ${lastMonthStats.signups} signups × ${lastMonthStats.conversionRate}% = ${lastMonthFtds} FTDs`);
+          }
+          
+          this.log(`Last month stats: clicks=${lastMonthStats.clicks}, signups=${lastMonthStats.signups}, ftds=${lastMonthFtds}, revenue=${lastMonthStats.revenue/100}, convRate=${lastMonthStats.conversionRate}%`);
 
           const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
           const lastMonthDate = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
@@ -3723,7 +3759,7 @@ class Scraper {
             clicks: lastMonthStats.clicks || 0,
             impressions: 0,
             signups: lastMonthStats.signups || 0,
-            ftds: lastMonthStats.ftds || 0,
+            ftds: lastMonthFtds,
             deposits: lastMonthStats.deposits || 0,
             revenue: lastMonthStats.revenue || 0
           });
