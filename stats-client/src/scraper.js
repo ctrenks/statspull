@@ -3697,14 +3697,14 @@ class Scraper {
 
       // Extract this month's stats
       const thisMonthStats = await extractDashboardStats();
-      
+
       // Calculate FTDs from signups × conversion rate (like CellXpert)
       let calculatedFtds = 0;
       if (thisMonthStats.conversionRate > 0 && thisMonthStats.signups > 0) {
         calculatedFtds = Math.round(thisMonthStats.signups * (thisMonthStats.conversionRate / 100));
         this.log(`Calculated FTDs: ${thisMonthStats.signups} signups × ${thisMonthStats.conversionRate}% = ${calculatedFtds} FTDs`);
       }
-      
+
       this.log(`This month stats: clicks=${thisMonthStats.clicks}, signups=${thisMonthStats.signups}, ftds=${calculatedFtds}, revenue=${thisMonthStats.revenue/100}, convRate=${thisMonthStats.conversionRate}%`);
 
       const allStats = [];
@@ -3741,14 +3741,14 @@ class Scraper {
           await this.delay(3000);
 
           const lastMonthStats = await extractDashboardStats();
-          
+
           // Calculate FTDs from signups × conversion rate
           let lastMonthFtds = 0;
           if (lastMonthStats.conversionRate > 0 && lastMonthStats.signups > 0) {
             lastMonthFtds = Math.round(lastMonthStats.signups * (lastMonthStats.conversionRate / 100));
             this.log(`Last month calculated FTDs: ${lastMonthStats.signups} signups × ${lastMonthStats.conversionRate}% = ${lastMonthFtds} FTDs`);
           }
-          
+
           this.log(`Last month stats: clicks=${lastMonthStats.clicks}, signups=${lastMonthStats.signups}, ftds=${lastMonthFtds}, revenue=${lastMonthStats.revenue/100}, convRate=${lastMonthStats.conversionRate}%`);
 
           const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
