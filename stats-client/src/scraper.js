@@ -3436,72 +3436,123 @@ class Scraper {
 
       this.log('Login successful! Extracting dashboard stats...');
 
-      // Extract stats from dashboard
-      const stats = await page.evaluate(() => {
-        const result = {
-          clicks: 0,
-          signups: 0,
-          ftds: 0,
-          deposits: 0,
-          revenue: 0
-        };
+      // Helper to extract stats from dashboard
+      const extractDashboardStats = async () => {
+        return await page.evaluate(() => {
+          const result = {
+            clicks: 0,
+            signups: 0,
+            ftds: 0,
+            deposits: 0,
+            revenue: 0
+          };
 
-        const bodyText = document.body.innerText.toLowerCase();
+          // Helper to parse value (removes $, commas, etc)
+          const parseVal = (text) => {
+            if (!text) return 0;
+            const cleaned = text.replace(/[$€£,\s]/g, '').trim();
+            return parseFloat(cleaned) || 0;
+          };
 
-        // Look for common stat patterns in the page
-        const patterns = [
-          { name: 'clicks', regex: /clicks?\s*[:\s]*([\d,]+)/i },
-          { name: 'impressions', regex: /impressions?\s*[:\s]*([\d,]+)/i },
-          { name: 'signups', regex: /(?:sign\s*ups?|registrations?|new\s*players?)\s*[:\s]*([\d,]+)/i },
-          { name: 'ftds', regex: /(?:ftd|first\s*time\s*deposit(?:or)?s?|new\s*deposit(?:or)?s?)\s*[:\s]*([\d,]+)/i },
-          { name: 'deposits', regex: /(?:total\s*)?deposits?\s*[:\s]*[$€£]?([\d,.]+)/i },
-          { name: 'revenue', regex: /(?:commission|revenue|earnings?)\s*[:\s]*[$€£]?([\d,.]+)/i }
-        ];
+          // Try specific RTG dashboard IDs first
+          const signupEl = document.querySelector('#id_signup');
+          const ftdEl = document.querySelector('#id_net_new_acquisitions');
+          const clickEl = document.querySelector('#id_clicks');
+          const earningEl = document.querySelector('#id_earning');
 
-        for (const pattern of patterns) {
-          const match = document.body.innerText.match(pattern.regex);
-          if (match) {
-            const value = match[1].replace(/,/g, '');
-            if (pattern.name === 'deposits' || pattern.name === 'revenue') {
-              result[pattern.name] = Math.round(parseFloat(value) * 100); // Store in cents
-            } else {
-              result[pattern.name] = parseInt(value) || 0;
-            }
+          if (signupEl) result.signups = parseInt(signupEl.textContent.trim()) || 0;
+          if (ftdEl) result.ftds = parseInt(ftdEl.textContent.trim()) || 0;
+          if (clickEl) result.clicks = parseInt(clickEl.textContent.trim()) || 0;
+          if (earningEl) result.revenue = Math.round(parseVal(earningEl.textContent) * 100);
+
+          // If specific IDs not found, fallback to text pattern matching
+          if (!signupEl && !clickEl && !ftdEl && !earningEl) {
+            // Look for stats in summary panels/cards
+            const panels = document.querySelectorAll('.summary .panel, .panel, [class*="stat"], [class*="card"], [class*="widget"]');
+            panels.forEach(panel => {
+              const heading = panel.querySelector('.media-heading, .heading, h3, h4, label');
+              const value = panel.querySelector('.lead, .value, .number, p:last-child');
+              if (heading && value) {
+                const headingText = heading.textContent.toLowerCase();
+                const valText = value.textContent.trim();
+                
+                if (headingText.includes('signup') || headingText.includes('registration')) {
+                  result.signups = parseInt(valText.replace(/,/g, '')) || 0;
+                } else if (headingText.includes('depositor') || headingText.includes('ftd') || headingText.includes('acquisition')) {
+                  result.ftds = parseInt(valText.replace(/,/g, '')) || 0;
+                } else if (headingText.includes('click')) {
+                  result.clicks = parseInt(valText.replace(/,/g, '')) || 0;
+                } else if (headingText.includes('earning') || headingText.includes('commission') || headingText.includes('revenue')) {
+                  result.revenue = Math.round(parseVal(valText) * 100);
+                }
+              }
+            });
           }
-        }
 
-        // Also look for stat cards/widgets
-        const cards = document.querySelectorAll('[class*="stat"], [class*="card"], [class*="widget"], [class*="summary"], [class*="metric"]');
-        cards.forEach(card => {
-          const text = card.innerText.toLowerCase();
-          const numbers = card.innerText.match(/[\d,]+\.?\d*/g);
-          if (numbers && numbers.length > 0) {
-            const value = numbers[0].replace(/,/g, '');
-            if (text.includes('click') && !result.clicks) result.clicks = parseInt(value) || 0;
-            if ((text.includes('signup') || text.includes('registration') || text.includes('player')) && !result.signups) result.signups = parseInt(value) || 0;
-            if ((text.includes('ftd') || text.includes('first') || text.includes('depositor')) && !result.ftds) result.ftds = parseInt(value) || 0;
-            if (text.includes('commission') || text.includes('revenue') || text.includes('earning')) {
-              result.revenue = Math.round(parseFloat(value) * 100);
-            }
-          }
+          return result;
         });
+      };
 
-        return result;
+      // Extract this month's stats
+      const thisMonthStats = await extractDashboardStats();
+      this.log(`This month stats: clicks=${thisMonthStats.clicks}, signups=${thisMonthStats.signups}, ftds=${thisMonthStats.ftds}, revenue=${thisMonthStats.revenue/100}`);
+
+      const allStats = [];
+      const now = new Date();
+      const thisMonthDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+      allStats.push({
+        date: thisMonthDate,
+        clicks: thisMonthStats.clicks || 0,
+        impressions: 0,
+        signups: thisMonthStats.signups || 0,
+        ftds: thisMonthStats.ftds || 0,
+        deposits: thisMonthStats.deposits || 0,
+        revenue: thisMonthStats.revenue || 0
       });
 
-      this.log(`Extracted stats: clicks=${stats.clicks}, signups=${stats.signups}, ftds=${stats.ftds}, deposits=${stats.deposits}, revenue=${stats.revenue}`);
+      // Try to get last month's stats by clicking "Last Month" link
+      try {
+        this.log('Looking for Last Month link...');
+        const lastMonthClicked = await page.evaluate(() => {
+          const links = document.querySelectorAll('a');
+          for (const link of links) {
+            const text = link.textContent.toLowerCase();
+            if (text.includes('last month') || text.includes('previous month')) {
+              link.click();
+              return true;
+            }
+          }
+          return false;
+        });
 
-      // Return stats in the expected format
-      const today = new Date().toISOString().split('T')[0];
-      return [{
-        date: today,
-        clicks: stats.clicks || 0,
-        impressions: 0,
-        signups: stats.signups || 0,
-        ftds: stats.ftds || 0,
-        deposits: stats.deposits || 0,
-        revenue: stats.revenue || 0
-      }];
+        if (lastMonthClicked) {
+          this.log('Clicked Last Month link, waiting for data...');
+          await this.delay(3000);
+
+          const lastMonthStats = await extractDashboardStats();
+          this.log(`Last month stats: clicks=${lastMonthStats.clicks}, signups=${lastMonthStats.signups}, ftds=${lastMonthStats.ftds}, revenue=${lastMonthStats.revenue/100}`);
+
+          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastMonthDate = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+          allStats.push({
+            date: lastMonthDate,
+            clicks: lastMonthStats.clicks || 0,
+            impressions: 0,
+            signups: lastMonthStats.signups || 0,
+            ftds: lastMonthStats.ftds || 0,
+            deposits: lastMonthStats.deposits || 0,
+            revenue: lastMonthStats.revenue || 0
+          });
+        } else {
+          this.log('No Last Month link found', 'info');
+        }
+      } catch (error) {
+        this.log(`Could not get last month stats: ${error.message}`, 'warn');
+      }
+
+      return allStats;
 
     } catch (error) {
       this.log(`RTG (new) scrape error: ${error.message}`, 'error');
