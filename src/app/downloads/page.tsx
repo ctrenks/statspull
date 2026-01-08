@@ -68,7 +68,9 @@ export default async function DownloadsPage() {
               <h2 className="text-2xl font-bold font-display mb-2">Windows</h2>
               <p className="text-dark-400 mb-6">Windows 10 or later (64-bit)</p>
               <a
-                href="https://github.com/ctrenks/stats-client/releases/latest/download/Stats.Fetch-1.2.0-win-x64.exe"
+                href="https://github.com/ctrenks/stats-client/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn-primary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +78,7 @@ export default async function DownloadsPage() {
                 </svg>
                 Download for Windows
               </a>
-              <p className="text-dark-500 text-sm mt-4">~85 MB • Installer (.exe)</p>
+              <p className="text-dark-500 text-sm mt-4">v1.3.0 • ~85 MB • Installer (.exe)</p>
             </div>
 
             {/* Mac */}
@@ -90,14 +92,16 @@ export default async function DownloadsPage() {
               <p className="text-dark-400 mb-6">macOS 10.15 or later (Intel & Apple Silicon)</p>
               <a
                 href="https://github.com/ctrenks/stats-client/releases/latest"
-                className="btn-secondary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                View Mac Downloads
+                Download for Mac
               </a>
-              <p className="text-dark-500 text-sm mt-4">~90 MB • DMG or ZIP</p>
+              <p className="text-dark-500 text-sm mt-4">v1.3.0 • ~90 MB • DMG or ZIP</p>
             </div>
           </div>
 
