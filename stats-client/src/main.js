@@ -563,54 +563,29 @@ function setupIpcHandlers() {
     return db.getStatsSummary();
   });
 
-  // Get available provider types - fetch from API with fallback
+  // Get available provider/software types for the dropdown
+  // These are the SOFTWARE TYPES (RTG, CellXpert, etc.), not individual program templates
   ipcMain.handle('get-providers', async () => {
-    // Default hardcoded providers (fallback)
-    const defaultProviders = [
-      { code: 'CELLXPERT', name: 'Cellxpert', authType: 'BOTH', icon: '📊' },
-      { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'BOTH', icon: '🤝' },
+    // Software types - these are the scraper/sync engine types
+    const providers = [
+      { code: 'CELLXPERT', name: 'CellXpert', authType: 'CREDENTIALS', icon: '📊' },
+      { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'CREDENTIALS', icon: '🤝' },
       { code: 'INCOME_ACCESS', name: 'Income Access', authType: 'CREDENTIALS', icon: '💰' },
-      { code: 'NETREFER', name: 'NetRefer', authType: 'API_KEY', icon: '🌐' },
-      { code: 'WYNTA', name: 'Wynta', authType: 'BOTH', icon: '🎲' },
-      { code: 'AFFILKA', name: 'Affilka (Generic)', authType: 'BOTH', icon: '🔗', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', apiKeyLabel: 'Statistic Token' },
+      { code: 'NETREFER', name: 'NetRefer', authType: 'API_KEY', icon: '🌐', apiKeyLabel: 'API Key' },
+      { code: 'WYNTA', name: 'Wynta', authType: 'CREDENTIALS', icon: '🎲' },
+      { code: 'AFFILKA', name: 'Affilka', authType: 'BOTH', icon: '🔗', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', apiKeyLabel: 'Statistic Token' },
       { code: '7BITPARTNERS', name: '7BitPartners', authType: 'BOTH', icon: '🎰', baseUrl: 'https://dashboard.7bitpartners.com', apiKeyLabel: 'Statistic Token' },
       { code: 'DECKMEDIA', name: 'DeckMedia', authType: 'CREDENTIALS', icon: '🃏' },
-      { code: 'RTG', name: 'RTG', authType: 'CREDENTIALS', icon: '🎮', description: 'RTG new version - Dashboard scraping' },
+      { code: 'RTG', name: 'RTG (New)', authType: 'CREDENTIALS', icon: '🎮', description: 'RTG new dashboard - scrapes stats panels' },
       { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS', icon: '🕹️', description: 'Supports D-W-C revenue calculation' },
       { code: 'RIVAL', name: 'Rival (CasinoController)', authType: 'CREDENTIALS', icon: '🎯', description: 'Syncs sequentially to avoid rate limits' },
       { code: 'CASINO_REWARDS', name: 'Casino Rewards', authType: 'CREDENTIALS', icon: '🏆' },
+      { code: 'PARTNERMATRIX', name: 'PartnerMatrix', authType: 'CREDENTIALS', icon: '📈' },
+      { code: 'SCALEO', name: 'Scaleo', authType: 'API_KEY', icon: '⚡', apiKeyLabel: 'API Key' },
       { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS', icon: '⚙️' }
     ];
 
-    try {
-      // Try to fetch templates from the API
-      const response = await net.fetch(`${API_URL}/api/templates`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.templates && data.templates.length > 0) {
-          console.log(`Loaded ${data.templates.length} templates from API`);
-          // Map API templates to provider format
-          return data.templates.map(t => ({
-            code: SOFTWARE_TO_PROVIDER[t.softwareType?.toLowerCase()] || t.softwareType?.toUpperCase().replace(/-/g, '_') || 'CUSTOM',
-            name: t.name,
-            authType: t.authType,
-            baseUrl: t.baseUrl,
-            loginUrl: t.loginUrl,
-            description: t.description,
-            icon: t.icon,
-            apiKeyLabel: t.apiKeyLabel,
-            usernameLabel: t.usernameLabel,
-            passwordLabel: t.passwordLabel,
-            baseUrlLabel: t.baseUrlLabel,
-            requiresBaseUrl: t.requiresBaseUrl
-          }));
-        }
-      }
-    } catch (error) {
-      console.log('Could not fetch templates from API, using defaults:', error.message);
-    }
-
-    return defaultProviders;
+    return providers;
   });
 
   // Sync all programs

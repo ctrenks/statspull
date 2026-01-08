@@ -3475,7 +3475,7 @@ class Scraper {
               if (heading && value) {
                 const headingText = heading.textContent.toLowerCase();
                 const valText = value.textContent.trim();
-                
+
                 if (headingText.includes('signup') || headingText.includes('registration')) {
                   result.signups = parseInt(valText.replace(/,/g, '')) || 0;
                 } else if (headingText.includes('depositor') || headingText.includes('ftd') || headingText.includes('acquisition')) {
