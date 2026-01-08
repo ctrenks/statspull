@@ -2641,6 +2641,13 @@ class Scraper {
         for (const btn of buttons) {
           const text = (btn.textContent || '').toLowerCase().trim();
           const href = (btn.href || '').toLowerCase();
+          const tagName = btn.tagName.toLowerCase();
+          const btnType = btn.type ? btn.type.toLowerCase() : '';
+
+          // Skip submit buttons - we don't want to submit the form!
+          if (btnType === 'submit' || btn.name === 'login' || btn.name === 'submit') {
+            continue;
+          }
 
           // Skip mailto links and contact/support buttons
           if (href.includes('mailto:') ||
@@ -2651,12 +2658,18 @@ class Scraper {
             continue;
           }
 
-          // Only click actual login buttons
-          if (text === 'login' ||
-              text === 'log in' ||
-              text === 'sign in' ||
-              text === 'affiliate login' ||
-              (text.includes('log') && text.includes('in') && text.length < 15)) {
+          // Skip if this is inside a form (it's likely a submit button)
+          if (btn.closest('form')) {
+            continue;
+          }
+
+          // Only click actual login buttons (links that lead to login page, not submit buttons)
+          if ((tagName === 'a' || tagName === 'button') &&
+              (text === 'login' ||
+               text === 'log in' ||
+               text === 'sign in' ||
+               text === 'affiliate login' ||
+               (text.includes('log') && text.includes('in') && text.length < 15))) {
             btn.click();
             return { success: true, text: btn.textContent.trim() };
           }
@@ -2675,11 +2688,12 @@ class Scraper {
       this.log('Filling login credentials...');
 
       const emailSelectors = [
+        '#username',
+        'input[name="username"]',
         'input[name="email"]',
         'input[type="email"]',
         '#email',
         'input[name="login"]',
-        'input[name="username"]',
         'input[name="user"]',
         'input[placeholder*="mail" i]',
         'input[placeholder*="user" i]',
