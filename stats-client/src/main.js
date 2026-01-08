@@ -375,7 +375,7 @@ async function fetchTemplates() {
           const templates = (json.templates || []).map(t => ({
             name: t.name,
             code: t.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-            provider: SOFTWARE_TO_PROVIDER[t.softwareType] || t.softwareType.toUpperCase().replace(/-/g, '_'),
+            provider: SOFTWARE_TO_PROVIDER[t.softwareType?.toLowerCase()] || t.softwareType?.toUpperCase().replace(/-/g, '_') || 'CUSTOM',
             authType: t.authType,
             loginUrl: t.loginUrl || '',
             apiUrl: t.baseUrl || '',
@@ -591,7 +591,7 @@ function setupIpcHandlers() {
           console.log(`Loaded ${data.templates.length} templates from API`);
           // Map API templates to provider format
           return data.templates.map(t => ({
-            code: SOFTWARE_TO_PROVIDER[t.softwareType] || t.softwareType.toUpperCase().replace(/-/g, '_'),
+            code: SOFTWARE_TO_PROVIDER[t.softwareType?.toLowerCase()] || t.softwareType?.toUpperCase().replace(/-/g, '_') || 'CUSTOM',
             name: t.name,
             authType: t.authType,
             baseUrl: t.baseUrl,
