@@ -2637,7 +2637,7 @@ class Scraper {
 
       // First, try clicking by ID (most reliable for sites like Gwages)
       let loginButtonClicked = { success: false };
-      
+
       try {
         // Try specific login button IDs first (Gwages uses #login_btn)
         const loginBtnById = await page.$('#login_btn, #loginBtn, #login-btn, [data-target="right"]#login_btn');
@@ -2778,8 +2778,8 @@ class Scraper {
                 const isVisible = await page.evaluate(el => {
                   const style = window.getComputedStyle(el);
                   const rect = el.getBoundingClientRect();
-                  return style.display !== 'none' && 
-                         style.visibility !== 'hidden' && 
+                  return style.display !== 'none' &&
+                         style.visibility !== 'hidden' &&
                          style.opacity !== '0' &&
                          rect.width > 0 && rect.height > 0;
                 }, emailInput);
@@ -2806,8 +2806,8 @@ class Scraper {
                 const isVisible = await page.evaluate(el => {
                   const style = window.getComputedStyle(el);
                   const rect = el.getBoundingClientRect();
-                  return style.display !== 'none' && 
-                         style.visibility !== 'hidden' && 
+                  return style.display !== 'none' &&
+                         style.visibility !== 'hidden' &&
                          style.opacity !== '0' &&
                          rect.width > 0 && rect.height > 0;
                 }, passwordInput);
@@ -2841,10 +2841,10 @@ class Scraper {
           return {
             inputCount: inputs.length,
             visibleInputCount: visibleInputs.length,
-            inputTypes: inputs.map(i => ({ 
-              type: i.type, 
-              name: i.name, 
-              id: i.id, 
+            inputTypes: inputs.map(i => ({
+              type: i.type,
+              name: i.name,
+              id: i.id,
               placeholder: i.placeholder,
               visible: visibleInputs.includes(i),
               parent: i.closest('.sidebar, [data-component="sidebar"], .modal, form')?.className || 'none'
@@ -3408,107 +3408,215 @@ class Scraper {
       await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await this.delay(2000);
 
-      // Find and fill login form
-      this.log('Looking for login form...');
+      // Check if already logged in
+      const currentUrl = page.url();
+      const urlPath = new URL(currentUrl).pathname.toLowerCase();
+      const isAlreadyLoggedIn = !urlPath.includes('/login') && 
+                                !urlPath.endsWith('/') &&
+                                (urlPath.includes('/dashboard') || 
+                                 urlPath.includes('/affiliate') || 
+                                 urlPath.includes('/partner') ||
+                                 urlPath.includes('/reports') ||
+                                 urlPath.includes('/home'));
 
-      // Common username field selectors
-      const usernameSelectors = [
-        'input[name="username"]',
-        'input[name="email"]',
-        'input[name="user"]',
-        'input[name="login"]',
-        'input[type="email"]',
-        'input[id*="user"]',
-        'input[id*="email"]',
-        'input[id*="login"]',
-        'input[placeholder*="user" i]',
-        'input[placeholder*="email" i]'
-      ];
-
-      const passwordSelectors = [
-        'input[name="password"]',
-        'input[type="password"]',
-        'input[id*="pass"]'
-      ];
-
-      let usernameField = null;
-      let passwordField = null;
-
-      for (const selector of usernameSelectors) {
-        usernameField = await page.$(selector);
-        if (usernameField) {
-          this.log(`Found username field: ${selector}`);
-          break;
+      if (isAlreadyLoggedIn) {
+        this.log(`✓ Already logged in (at ${currentUrl}), skipping login`);
+      } else {
+        // STEP 1: Check if we need to click a login button to reveal the form (sidebar pattern)
+        this.log('Checking for login button to reveal form...');
+        
+        // Try clicking login button by ID first (Gwages uses #login_btn)
+        let loginButtonClicked = false;
+        try {
+          const loginBtnById = await page.$('#login_btn, #loginBtn, #login-btn');
+          if (loginBtnById) {
+            await loginBtnById.click();
+            loginButtonClicked = true;
+            this.log('✓ Clicked login button by ID');
+            await this.delay(2000); // Wait for sidebar animation
+          }
+        } catch (e) {
+          this.log(`ID button click attempt: ${e.message}`);
         }
-      }
 
-      for (const selector of passwordSelectors) {
-        passwordField = await page.$(selector);
-        if (passwordField) {
-          this.log(`Found password field: ${selector}`);
-          break;
-        }
-      }
-
-      if (!usernameField || !passwordField) {
-        throw new Error('Could not find login form fields');
-      }
-
-      // Fill in credentials
-      await usernameField.click({ clickCount: 3 });
-      await usernameField.type(username, { delay: 50 });
-      await passwordField.click({ clickCount: 3 });
-      await passwordField.type(password, { delay: 50 });
-
-      this.log('Filled login form, submitting...');
-
-      // Submit the form
-      const submitSelectors = [
-        'button[type="submit"]',
-        'input[type="submit"]',
-        'button.login',
-        'button.btn-primary',
-        'button[class*="login"]',
-        'button[class*="submit"]'
-      ];
-
-      let submitted = false;
-      for (const selector of submitSelectors) {
-        const button = await page.$(selector);
-        if (button) {
-          const isVisible = await page.evaluate(el => {
-            const style = window.getComputedStyle(el);
-            return style.display !== 'none' && style.visibility !== 'hidden';
-          }, button);
-          if (isVisible) {
-            await button.click();
-            submitted = true;
-            break;
+        // If no ID button, try finding by text
+        if (!loginButtonClicked) {
+          const clicked = await page.evaluate(() => {
+            const buttons = document.querySelectorAll('a, button, .btn, .btn-getstarted');
+            for (const btn of buttons) {
+              const text = (btn.textContent || '').trim().toLowerCase();
+              const id = (btn.id || '').toLowerCase();
+              
+              // Skip if inside a form (submit button)
+              if (btn.closest('form')) continue;
+              
+              if (id.includes('login') || text === 'login' || text === 'log in' || text === 'sign in') {
+                btn.click();
+                return true;
+              }
+            }
+            return false;
+          });
+          
+          if (clicked) {
+            loginButtonClicked = true;
+            this.log('✓ Clicked login button by text');
+            await this.delay(2000);
           }
         }
-      }
 
-      if (!submitted) {
-        await page.keyboard.press('Enter');
-      }
+        // STEP 2: Find and fill login form
+        this.log('Looking for login form...');
 
-      // Wait for navigation after login
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
-      await this.delay(3000);
+        // Common username field selectors (including sidebar patterns)
+        const usernameSelectors = [
+          '.sidebar input[name="username"]',
+          '.sidebar input[name="email"]',
+          '[data-component="sidebar"] input[name="username"]',
+          '.modal input[name="username"]',
+          'input[name="username"]',
+          'input[name="email"]',
+          'input[name="user"]',
+          'input[name="login"]',
+          'input[type="email"]',
+          'input[id*="user"]',
+          'input[id*="email"]',
+          'input[id*="login"]',
+          'input[placeholder*="user" i]',
+          'input[placeholder*="email" i]'
+        ];
 
-      const afterLoginUrl = page.url();
-      this.log(`After login URL: ${afterLoginUrl}`);
+        const passwordSelectors = [
+          '.sidebar input[name="password"]',
+          '.sidebar input[type="password"]',
+          '[data-component="sidebar"] input[type="password"]',
+          '.modal input[type="password"]',
+          'input[name="password"]',
+          'input[type="password"]',
+          'input[id*="pass"]'
+        ];
 
-      // Check if still on login page (login failed)
-      if (afterLoginUrl.toLowerCase().includes('login')) {
-        const errorText = await page.evaluate(() => {
-          const error = document.querySelector('.error, .alert-danger, .login-error, [class*="error"]');
-          return error ? error.textContent.trim() : null;
-        });
-        throw new Error(errorText || 'Login failed - still on login page');
-      }
+        let usernameField = null;
+        let passwordField = null;
+        let attempts = 0;
+        const maxAttempts = 5;
 
-      this.log('Login successful! Extracting dashboard stats...');
+        // Try multiple times with delays (for sidebar animations)
+        while (attempts < maxAttempts && (!usernameField || !passwordField)) {
+          if (attempts > 0) {
+            this.log(`Retry ${attempts}/${maxAttempts} to find visible form fields...`);
+            await this.delay(1500);
+          }
+
+          for (const selector of usernameSelectors) {
+            const field = await page.$(selector);
+            if (field) {
+              const isVisible = await page.evaluate(el => {
+                const style = window.getComputedStyle(el);
+                const rect = el.getBoundingClientRect();
+                return style.display !== 'none' && 
+                       style.visibility !== 'hidden' && 
+                       rect.width > 0 && rect.height > 0;
+              }, field);
+              if (isVisible) {
+                usernameField = field;
+                this.log(`Found visible username field: ${selector}`);
+                break;
+              }
+            }
+          }
+
+          for (const selector of passwordSelectors) {
+            const field = await page.$(selector);
+            if (field) {
+              const isVisible = await page.evaluate(el => {
+                const style = window.getComputedStyle(el);
+                const rect = el.getBoundingClientRect();
+                return style.display !== 'none' && 
+                       style.visibility !== 'hidden' && 
+                       rect.width > 0 && rect.height > 0;
+              }, field);
+              if (isVisible) {
+                passwordField = field;
+                this.log(`Found visible password field: ${selector}`);
+                break;
+              }
+            }
+          }
+
+          attempts++;
+        }
+
+        if (!usernameField || !passwordField) {
+          throw new Error('Could not find visible login form fields');
+        }
+
+        // Fill in credentials
+        await usernameField.click({ clickCount: 3 });
+        await usernameField.type(username, { delay: 50 });
+        await passwordField.click({ clickCount: 3 });
+        await passwordField.type(password, { delay: 50 });
+
+        this.log('Filled login form, submitting...');
+
+        // Submit the form - look for submit button in sidebar/modal too
+        const submitSelectors = [
+          '.sidebar button[type="submit"]',
+          '.sidebar input[type="submit"]',
+          '.sidebar button.login',
+          '[data-component="sidebar"] button[type="submit"]',
+          '.modal button[type="submit"]',
+          'button[type="submit"]',
+          'input[type="submit"]',
+          'button.login',
+          'button.btn-primary',
+          'button[class*="login"]',
+          'button[class*="submit"]'
+        ];
+
+        let submitted = false;
+        for (const selector of submitSelectors) {
+          const button = await page.$(selector);
+          if (button) {
+            const isVisible = await page.evaluate(el => {
+              const style = window.getComputedStyle(el);
+              const rect = el.getBoundingClientRect();
+              return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0;
+            }, button);
+            if (isVisible) {
+              await button.click();
+              submitted = true;
+              this.log(`Clicked submit button: ${selector}`);
+              break;
+            }
+          }
+        }
+
+        if (!submitted) {
+          this.log('No submit button found, pressing Enter');
+          await page.keyboard.press('Enter');
+        }
+
+        // Wait for navigation after login
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+        await this.delay(3000);
+
+        const afterLoginUrl = page.url();
+        this.log(`After login URL: ${afterLoginUrl}`);
+
+        // Check if still on login page (login failed)
+        if (afterLoginUrl.toLowerCase().includes('login') || afterLoginUrl === currentUrl) {
+          const errorText = await page.evaluate(() => {
+            const error = document.querySelector('.error, .alert-danger, .login-error, [class*="error"]');
+            return error ? error.textContent.trim() : null;
+          });
+          throw new Error(errorText || 'Login failed - still on login page');
+        }
+
+        this.log('Login successful!');
+      } // End of "not already logged in" block
+
+      this.log('Extracting dashboard stats...');
 
       // Helper to extract stats from dashboard
       const extractDashboardStats = async () => {
