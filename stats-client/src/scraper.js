@@ -1,10 +1,15 @@
 /**
  * Web Scraper for affiliate platforms that don't have APIs
  * Uses Puppeteer with Electron's Chromium
+ * Includes stealth mode to avoid bot detection and CAPTCHAs
  */
 
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const path = require('path');
+
+// Add stealth plugin to avoid bot detection
+puppeteer.use(StealthPlugin());
 
 class Scraper {
   constructor(db = null, showDialogCallback = null) {
@@ -19,6 +24,38 @@ class Scraper {
   // Helper to wait/delay
   async delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Human-like random delay (variation to look less robotic)
+  async humanDelay(minMs = 500, maxMs = 1500) {
+    const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    return new Promise(resolve => setTimeout(resolve, delay));
+  }
+
+  // Simulate human-like mouse movement
+  async humanMove(page) {
+    try {
+      const x = Math.floor(Math.random() * 800) + 100;
+      const y = Math.floor(Math.random() * 600) + 100;
+      await page.mouse.move(x, y, { steps: 10 });
+    } catch (e) {
+      // Ignore mouse movement errors
+    }
+  }
+
+  // Human-like typing with random delays
+  async humanType(page, selector, text) {
+    try {
+      await page.focus(selector);
+      await this.humanDelay(100, 300);
+      
+      for (const char of text) {
+        await page.keyboard.type(char, { delay: Math.floor(Math.random() * 100) + 30 });
+      }
+    } catch (e) {
+      // Fallback to regular typing
+      await page.type(selector, text);
+    }
   }
 
   setLogCallback(callback) {
@@ -149,6 +186,15 @@ class Scraper {
         '--disable-blink-features=AutomationControlled',
         '--disable-infobars',
         '--window-size=1920,1080',
+        // Anti-detection flags
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--allow-running-insecure-content',
+        // Make browser look more human
+        '--lang=en-US,en',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
         // Ensure cookies are persisted properly
         '--enable-features=NetworkService,NetworkServiceInProcess',
         '--disable-features=SameSiteByDefaultCookies',
@@ -191,7 +237,7 @@ class Scraper {
           document.body.innerText.includes('Checking your browser'),
           document.body.innerText.includes('Just a moment'),
         ];
-        
+
         return indicators.some(indicator => !!indicator);
       });
 
@@ -205,18 +251,18 @@ class Scraper {
   // Handle reCAPTCHA by showing browser to user for manual solving
   async handleRecaptcha(page, programName = 'Unknown Program', maxWaitTime = 120000) {
     const hasRecaptcha = await this.detectRecaptcha(page);
-    
+
     if (!hasRecaptcha) {
       return { solved: true, wasPresent: false };
     }
 
     this.log(`⚠️ reCAPTCHA/Challenge detected for ${programName}!`, 'warn');
-    
+
     // If running headless, we need to make the browser visible
     if (this.headless) {
       this.log('Browser is headless - cannot show window for manual CAPTCHA solving', 'error');
       this.log('Enable "Show Browser Window" in settings to solve CAPTCHAs manually', 'info');
-      
+
       // Notify user via callback if available
       if (this.showDialog) {
         await this.showDialog({
@@ -225,13 +271,13 @@ class Scraper {
           message: `reCAPTCHA detected for ${programName}. Enable "Show Browser Window" in settings and re-sync.`
         });
       }
-      
+
       return { solved: false, wasPresent: true, error: 'CAPTCHA_REQUIRES_VISIBLE_BROWSER' };
     }
 
     // Browser is visible, wait for user to solve it
     this.log(`Waiting for user to solve CAPTCHA (max ${maxWaitTime / 1000}s)...`, 'info');
-    
+
     // Bring window to front
     try {
       await page.bringToFront();
@@ -252,13 +298,13 @@ class Scraper {
     const startTime = Date.now();
     while (Date.now() - startTime < maxWaitTime) {
       await this.delay(2000); // Check every 2 seconds
-      
+
       const stillPresent = await this.detectRecaptcha(page);
       if (!stillPresent) {
         this.log('✓ CAPTCHA solved!', 'success');
         return { solved: true, wasPresent: true };
       }
-      
+
       // Check if page navigated (CAPTCHA might have been solved and page moved on)
       try {
         const url = page.url();
@@ -278,11 +324,11 @@ class Scraper {
   // Check for reCAPTCHA after login attempt
   async checkAndHandleRecaptcha(page, programName) {
     const result = await this.handleRecaptcha(page, programName);
-    
+
     if (result.wasPresent && !result.solved) {
       throw new Error(`CAPTCHA challenge not solved: ${result.error}`);
     }
-    
+
     return result;
   }
 

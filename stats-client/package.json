@@ -18,9 +18,11 @@
     "electron-builder": "^24.9.1"
   },
   "dependencies": {
-    "sql.js": "^1.10.3",
     "electron-updater": "^6.1.7",
-    "puppeteer-core": "^21.0.0"
+    "puppeteer-core": "^21.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sql.js": "^1.10.3"
   },
   "build": {
     "appId": "com.statsfetch.client",
@@ -40,7 +42,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.ico",
@@ -51,11 +55,17 @@
       "target": [
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "assets/icon.icns",
