@@ -694,6 +694,18 @@ function setupIpcHandlers() {
     return db.upsertPayment(programId, month, data);
   });
 
+  // Open external URL in browser
+  ipcMain.handle('open-external', async (event, url) => {
+    const { shell } = require('electron');
+    try {
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to open external URL:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Auto-updater IPC handlers
   ipcMain.handle('check-for-updates', async () => {
     try {

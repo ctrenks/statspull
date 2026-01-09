@@ -837,7 +837,7 @@ class Database {
       key,
     ]);
     if (!row || !row.value) return null;
-    
+
     // Check if value looks encrypted (has IV:encrypted format)
     if (row.value.includes(':')) {
       try {

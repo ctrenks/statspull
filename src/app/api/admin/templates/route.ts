@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
         icon: body.icon || null,
         displayOrder: body.displayOrder || 0,
         isActive: body.isActive !== false,
+        referralUrl: body.referralUrl || null,
         apiKeyLabel: body.apiKeyLabel || null,
         usernameLabel: body.usernameLabel || null,
         passwordLabel: body.passwordLabel || null,

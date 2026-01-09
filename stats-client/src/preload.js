@@ -93,5 +93,8 @@ contextBridge.exposeInMainWorld('api', {
   getPaymentSummary: (monthsBack) => ipcRenderer.invoke('get-payment-summary', monthsBack),
   getProgramsWithRevenue: (month) => ipcRenderer.invoke('get-programs-with-revenue', month),
   togglePaymentStatus: (programId, month) => ipcRenderer.invoke('toggle-payment-status', programId, month),
-  updatePayment: (programId, month, data) => ipcRenderer.invoke('update-payment', programId, month, data)
+  updatePayment: (programId, month, data) => ipcRenderer.invoke('update-payment', programId, month, data),
+
+  // External links
+  openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

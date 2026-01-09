@@ -19,6 +19,7 @@ export async function GET() {
         loginUrl: true,
         description: true,
         icon: true,
+        referralUrl: true,
         apiKeyLabel: true,
         usernameLabel: true,
         passwordLabel: true,

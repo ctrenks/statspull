@@ -105,6 +105,7 @@ model ProgramTemplate {
   icon         String?  // Emoji or icon name
   displayOrder Int      @default(0)
   isActive     Boolean  @default(true)
+  referralUrl  String?  // Affiliate signup link for this program
 
   // Field labels (customize what users see)
   apiKeyLabel    String?  // e.g., "Statistic Token", "API Key"

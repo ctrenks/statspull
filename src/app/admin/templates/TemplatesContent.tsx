@@ -16,6 +16,7 @@ interface Template {
   icon: string | null;
   displayOrder: number;
   isActive: boolean;
+  referralUrl: string | null;
   apiKeyLabel: string | null;
   usernameLabel: string | null;
   passwordLabel: string | null;
@@ -67,6 +68,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
     icon: "",
     displayOrder: 0,
     isActive: true,
+    referralUrl: "",
     apiKeyLabel: "",
     usernameLabel: "",
     passwordLabel: "",
@@ -85,6 +87,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
       icon: "",
       displayOrder: 0,
       isActive: true,
+      referralUrl: "",
       apiKeyLabel: "",
       usernameLabel: "",
       passwordLabel: "",
@@ -112,6 +115,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
       icon: template.icon || "",
       displayOrder: template.displayOrder,
       isActive: template.isActive,
+      referralUrl: template.referralUrl || "",
       apiKeyLabel: template.apiKeyLabel || "",
       usernameLabel: template.usernameLabel || "",
       passwordLabel: template.passwordLabel || "",
@@ -275,6 +279,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Software</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Auth Type</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-gray-300">Signup</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-300">Actions</th>
               </tr>
@@ -282,8 +287,8 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
             <tbody className="divide-y divide-gray-700">
               {templates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                    No templates yet. Click "Add Template" to create one.
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                    No templates yet. Click &quot;Add Template&quot; to create one.
                   </td>
                 </tr>
               ) : (
@@ -307,6 +312,23 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
                       }`}>
                         {AUTH_TYPES.find(a => a.value === template.authType)?.label}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {template.referralUrl ? (
+                        <a
+                          href={template.referralUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                          title="Signup Link"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                          </svg>
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -458,6 +480,22 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
                   rows={2}
                   placeholder="Help text shown to users"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Affiliate Signup Link
+                </label>
+                <input
+                  type="url"
+                  value={formData.referralUrl}
+                  onChange={e => setFormData({ ...formData, referralUrl: e.target.value })}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                  placeholder="https://affiliate-program.com/signup?ref=YOUR_ID"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Your referral link for users who don&apos;t have this program yet
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

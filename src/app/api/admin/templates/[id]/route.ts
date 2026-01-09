@@ -64,6 +64,7 @@ export async function PATCH(
         ...(body.icon !== undefined && { icon: body.icon || null }),
         ...(body.displayOrder !== undefined && { displayOrder: body.displayOrder }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
+        ...(body.referralUrl !== undefined && { referralUrl: body.referralUrl || null }),
         ...(body.apiKeyLabel !== undefined && { apiKeyLabel: body.apiKeyLabel || null }),
         ...(body.usernameLabel !== undefined && { usernameLabel: body.usernameLabel || null }),
         ...(body.passwordLabel !== undefined && { passwordLabel: body.passwordLabel || null }),
