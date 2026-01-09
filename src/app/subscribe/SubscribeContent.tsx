@@ -278,7 +278,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
           <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold font-display">Crypto Payment</h2>
-              <button 
+              <button
                 onClick={resetModal}
                 className="text-dark-400 hover:text-white"
               >
