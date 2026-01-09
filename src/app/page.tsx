@@ -1,11 +1,17 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
+import ReferralCapture from "@/components/ReferralCapture";
 
 export default async function Home() {
   const session = await auth();
 
   return (
     <div className="min-h-screen animated-bg grid-pattern">
+      {/* Capture referral code from URL */}
+      <Suspense fallback={null}>
+        <ReferralCapture />
+      </Suspense>
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="max-w-7xl mx-auto px-6 py-4">

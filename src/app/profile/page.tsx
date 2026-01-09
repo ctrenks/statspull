@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import ProfileForm from "./ProfileForm";
 import ApiKeyManager from "./ApiKeyManager";
+import ReferralTracker from "./ReferralTracker";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -50,6 +51,9 @@ export default async function ProfilePage() {
         />
 
         <ApiKeyManager initialApiKey={user.apiKey} />
+        
+        {/* Track referral on first login */}
+        <ReferralTracker userEmail={user.email || ""} />
       </div>
     </div>
   );

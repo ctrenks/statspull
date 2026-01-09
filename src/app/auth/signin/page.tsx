@@ -1,14 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function SignIn() {
+function SignInContent() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const searchParams = useSearchParams();
+
+  // Capture referral code from URL and store it
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) {
+      localStorage.setItem("referralCode", ref);
+      console.log("Referral code saved:", ref);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,10 +27,13 @@ export default function SignIn() {
     setError("");
 
     try {
+      // Store email in localStorage so we can track referral after signin
+      localStorage.setItem("pendingSigninEmail", email);
+      
       const result = await signIn("resend", {
         email,
         redirect: false,
-        callbackUrl: "/dashboard",
+        callbackUrl: "/profile",
       });
 
       if (result?.error) {
@@ -145,5 +159,17 @@ export default function SignIn() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen animated-bg grid-pattern flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full"></div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }
