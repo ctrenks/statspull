@@ -455,34 +455,22 @@ class Scraper {
     if (this.headless) {
       this.log('CAPTCHA requires manual solving - browser is headless', 'error');
       this.log('Enable "Show Browser Window" in settings to solve CAPTCHAs manually', 'info');
-
-      if (this.showDialog) {
-        await this.showDialog({
-          type: 'captcha',
-          programName,
-          message: `CAPTCHA requires manual solving for ${programName}. Enable "Show Browser Window" in settings.`
-        });
-      }
-
+      // Don't show dialog for CAPTCHA - it's not a security code input
+      // Just return error so the sync can report it
       return { solved: false, wasPresent: true, error: 'CAPTCHA_REQUIRES_VISIBLE_BROWSER' };
     }
 
     // STEP 4: Browser is visible, wait for user to solve
     this.log(`Waiting for user to solve CAPTCHA (max ${maxWaitTime / 1000}s)...`, 'info');
-
+    this.log(`Please solve the CAPTCHA for ${programName} in the browser window.`, 'warn');
+    
     try {
       await page.bringToFront();
     } catch (e) {
       // Ignore
     }
 
-    if (this.showDialog) {
-      this.showDialog({
-        type: 'captcha',
-        programName,
-        message: `Please solve the CAPTCHA for ${programName} in the browser window.`
-      });
-    }
+    // Note: Don't show security code dialog for CAPTCHA - it's solved in the browser
 
     const startTime = Date.now();
     while (Date.now() - startTime < maxWaitTime) {
@@ -3416,7 +3404,11 @@ class Scraper {
           waitingForSecurityCode = true;
           this.log('Requesting security code from user via popup...', 'info');
 
-          const result = await this.showDialog(programName);
+          // Ensure programName is a string, not an object
+          const displayName = typeof programName === 'string' ? programName : (programName?.name || 'Unknown Program');
+          this.log(`Showing dialog for: ${displayName}`, 'info');
+          
+          const result = await this.showDialog(displayName);
           this.log(`Dialog result: clicked=${result.clicked}, code length=${result.code?.length || 0}`, 'info');
 
           if (result.clicked && result.code) {
