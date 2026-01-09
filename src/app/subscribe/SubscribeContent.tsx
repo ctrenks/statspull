@@ -295,8 +295,8 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
             </div>
 
             <div className="flex gap-4">
-              <a
-                href="mailto:support@statsfetch.com?subject=Crypto Payment Request&body=I would like to pay with crypto for a subscription.%0A%0APlan: " + selectedMonths + " months ($" + cryptoPrices[selectedMonths] + ")%0A%0AMy username: "
+              <a 
+                href={`mailto:support@statsfetch.com?subject=Crypto Payment Request&body=I would like to pay with crypto for a subscription.%0A%0APlan: ${selectedMonths} months ($${cryptoPrices[selectedMonths]})%0A%0AMy username: `}
                 className="btn-primary flex-1 text-center"
               >
                 Contact via Email
