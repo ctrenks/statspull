@@ -10,7 +10,7 @@ export const metadata = {
 
 export default async function SubscribePage() {
   const session = await auth();
-  
+
   // Get user subscription status if logged in
   let user = null;
   if (session?.user?.email) {
@@ -77,7 +77,7 @@ export default async function SubscribePage() {
             </p>
           </div>
 
-          <SubscribeContent 
+          <SubscribeContent
             isLoggedIn={!!session}
             subscription={user ? {
               status: user.subscriptionStatus,
@@ -90,4 +90,3 @@ export default async function SubscribePage() {
     </div>
   );
 }
-

@@ -21,18 +21,18 @@ model User {
   apiKeyCreatedAt DateTime?
   installationId String?   // Bound device/installation ID
   installationBoundAt DateTime?
-  
+
   // Subscription fields
   subscriptionStatus SubscriptionStatus @default(INACTIVE)
   subscriptionEndDate DateTime?
   subscriptionType   SubscriptionType?
-  
+
   // Affiliate fields
   referralCode      String?   @unique // User's unique referral code
   referredById      String?   // Who referred this user
   affiliateBalance  Int       @default(0) // Balance in cents (unpaid commissions)
   totalEarnings     Int       @default(0) // Total lifetime earnings in cents
-  
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -43,7 +43,7 @@ model User {
   payments      Payment[]
   commissionsEarned Commission[] @relation("AffiliateCommissions")
   commissionsPaid   Commission[] @relation("UserCommissions")
-  
+
   @@index([referralCode])
   @@index([referredById])
   @@index([subscriptionStatus])
@@ -328,10 +328,10 @@ model Payment {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   completedAt     DateTime?
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   commissions Commission[]
-  
+
   @@index([userId])
   @@index([status])
   @@index([paypalOrderId])
@@ -354,11 +354,11 @@ model Commission {
   isPaid       Boolean  @default(false)
   paidAt       DateTime?
   createdAt    DateTime @default(now())
-  
+
   affiliate User    @relation("AffiliateCommissions", fields: [affiliateId], references: [id], onDelete: Cascade)
   user      User    @relation("UserCommissions", fields: [userId], references: [id], onDelete: Cascade)
   payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  
+
   @@index([affiliateId])
   @@index([userId])
   @@index([paymentId])
@@ -387,7 +387,7 @@ model SubscriptionPricing {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([type])
   @@index([isActive])
 }

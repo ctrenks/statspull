@@ -111,4 +111,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to add subscription" }, { status: 500 });
   }
 }
-

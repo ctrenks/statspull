@@ -34,7 +34,7 @@ interface AffiliateContentProps {
 
 export function AffiliateContent({ user, commissionRate }: AffiliateContentProps) {
   const [copied, setCopied] = useState(false);
-  
+
   const referralLink = `https://www.statsfetch.com/?ref=${user.referralCode}`;
 
   const copyToClipboard = async () => {
@@ -73,7 +73,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
           </div>
           <div className="text-dark-500 text-xs mt-1">Unpaid commissions</div>
         </div>
-        
+
         <div className="card">
           <div className="text-dark-400 text-sm mb-2">Total Earned</div>
           <div className="text-3xl font-bold text-green-400">
@@ -81,7 +81,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
           </div>
           <div className="text-dark-500 text-xs mt-1">Lifetime earnings</div>
         </div>
-        
+
         <div className="card">
           <div className="text-dark-400 text-sm mb-2">Total Referrals</div>
           <div className="text-3xl font-bold text-white">
@@ -89,7 +89,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
           </div>
           <div className="text-dark-500 text-xs mt-1">Users signed up</div>
         </div>
-        
+
         <div className="card">
           <div className="text-dark-400 text-sm mb-2">Commission Rate</div>
           <div className="text-3xl font-bold text-yellow-400">
@@ -105,7 +105,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
         <p className="text-dark-400 mb-4">
           Share this link with others. When they sign up and subscribe, you earn {(commissionRate * 100).toFixed(0)}% of their payment!
         </p>
-        
+
         <div className="flex gap-3">
           <div className="flex-1 bg-dark-800 rounded-lg px-4 py-3 font-mono text-sm text-primary-400 overflow-x-auto">
             {referralLink}
@@ -131,7 +131,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
             )}
           </button>
         </div>
-        
+
         <div className="mt-4 p-4 bg-dark-800/50 rounded-lg">
           <div className="flex items-center gap-2 text-dark-400 text-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,7 +145,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
       {/* Recent Commissions */}
       <div className="card">
         <h2 className="text-xl font-bold font-display mb-4">Recent Commissions</h2>
-        
+
         {user.commissionsEarned.length === 0 ? (
           <div className="text-center py-12 text-dark-400">
             <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +194,7 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
       {/* Referrals List */}
       <div className="card">
         <h2 className="text-xl font-bold font-display mb-4">Your Referrals</h2>
-        
+
         {user.referrals.length === 0 ? (
           <div className="text-center py-12 text-dark-400">
             <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,4 +247,3 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
     </div>
   );
 }
-

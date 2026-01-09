@@ -141,7 +141,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
             </li>
           </ul>
           {isLoggedIn ? (
-            <button 
+            <button
               className="btn-primary w-full"
               onClick={() => alert("PayPal integration coming soon! Use crypto for now.")}
             >
@@ -188,7 +188,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
             </li>
           </ul>
           {isLoggedIn ? (
-            <button 
+            <button
               className="btn-secondary w-full"
               onClick={() => alert("PayPal integration coming soon! Use crypto for now.")}
             >
@@ -216,7 +216,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
               </p>
             </div>
           </div>
-          <button 
+          <button
             className="btn-primary bg-orange-600 hover:bg-orange-500 whitespace-nowrap"
             onClick={() => setShowCryptoModal(true)}
           >
@@ -231,7 +231,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
           <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold font-display">Crypto Payment</h2>
-              <button 
+              <button
                 onClick={() => setShowCryptoModal(false)}
                 className="text-dark-400 hover:text-white"
               >
@@ -295,13 +295,13 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
             </div>
 
             <div className="flex gap-4">
-              <a 
+              <a
                 href="mailto:support@statsfetch.com?subject=Crypto Payment Request&body=I would like to pay with crypto for a subscription.%0A%0APlan: " + selectedMonths + " months ($" + cryptoPrices[selectedMonths] + ")%0A%0AMy username: "
                 className="btn-primary flex-1 text-center"
               >
                 Contact via Email
               </a>
-              <button 
+              <button
                 onClick={() => setShowCryptoModal(false)}
                 className="btn-secondary"
               >
@@ -319,7 +319,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
           <div>
             <h4 className="font-bold text-white mb-2">What happens when my subscription expires?</h4>
             <p className="text-dark-400">
-              You&apos;ll keep all your data, but only your first 5 programs will be able to sync. 
+              You&apos;ll keep all your data, but only your first 5 programs will be able to sync.
               Resubscribe anytime to restore full access.
             </p>
           </div>
@@ -346,4 +346,3 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
     </div>
   );
 }
-

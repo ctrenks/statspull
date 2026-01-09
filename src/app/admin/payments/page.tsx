@@ -131,4 +131,3 @@ export default async function AdminPaymentsPage() {
     </div>
   );
 }
-
