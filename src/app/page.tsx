@@ -23,13 +23,21 @@ export default async function Home() {
               <Link href="/downloads" className="btn-ghost">
                 Download
               </Link>
+              <Link href="/subscribe" className="btn-ghost">
+                Pricing
+              </Link>
               <Link href="/forum" className="btn-ghost">
                 Forum
               </Link>
               {session ? (
-                <Link href="/dashboard" className="btn-primary">
-                  Dashboard
-                </Link>
+                <>
+                  <Link href="/affiliate" className="btn-ghost">
+                    Affiliate
+                  </Link>
+                  <Link href="/dashboard" className="btn-primary">
+                    Dashboard
+                  </Link>
+                </>
               ) : (
                 <>
                   <Link href="/auth/signin" className="btn-ghost">

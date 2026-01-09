@@ -49,6 +49,9 @@ async function validateKey(request: NextRequest, installationId?: string) {
       apiKeyCreatedAt: true,
       installationId: true,
       installationBoundAt: true,
+      subscriptionStatus: true,
+      subscriptionEndDate: true,
+      subscriptionType: true,
     },
   });
 
@@ -60,7 +63,6 @@ async function validateKey(request: NextRequest, installationId?: string) {
   }
 
   // Installation binding logic
-  let boundToThisDevice = true;
   if (installationId) {
     if (!user.installationId) {
       // First time: bind this installation to the API key
@@ -86,6 +88,32 @@ async function validateKey(request: NextRequest, installationId?: string) {
     }
   }
 
+  // Check subscription status
+  const now = new Date();
+  let isSubscriptionActive = false;
+  let subscriptionStatus = user.subscriptionStatus;
+
+  // Check if subscription has expired
+  if (user.subscriptionEndDate && user.subscriptionEndDate < now) {
+    // Subscription expired - update status if needed
+    if (user.subscriptionStatus === "ACTIVE" || user.subscriptionStatus === "CANCELLED") {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          subscriptionStatus: "EXPIRED",
+          role: 1, // Downgrade to demo
+        },
+      });
+      subscriptionStatus = "EXPIRED";
+    }
+  } else if (user.subscriptionStatus === "ACTIVE" || user.subscriptionStatus === "TRIAL") {
+    isSubscriptionActive = true;
+  }
+
+  // Determine program limit based on subscription
+  // Admin = unlimited, Active subscription = unlimited, Otherwise = 5
+  const programLimit = user.role === 9 || isSubscriptionActive ? -1 : 5;
+
   // Build response data
   const timestamp = Date.now();
   const data = {
@@ -96,6 +124,11 @@ async function validateKey(request: NextRequest, installationId?: string) {
     roleLabel: ROLE_LABELS[user.role] || "unknown",
     keyCreatedAt: user.apiKeyCreatedAt,
     boundToDevice: !!user.installationId || !!installationId,
+    // Subscription info
+    subscriptionActive: isSubscriptionActive,
+    subscriptionStatus: subscriptionStatus,
+    subscriptionEndDate: user.subscriptionEndDate?.toISOString() || null,
+    programLimit, // -1 = unlimited, otherwise the limit
     timestamp,
   };
 

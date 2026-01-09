@@ -21,11 +21,32 @@ model User {
   apiKeyCreatedAt DateTime?
   installationId String?   // Bound device/installation ID
   installationBoundAt DateTime?
+  
+  // Subscription fields
+  subscriptionStatus SubscriptionStatus @default(INACTIVE)
+  subscriptionEndDate DateTime?
+  subscriptionType   SubscriptionType?
+  
+  // Affiliate fields
+  referralCode      String?   @unique // User's unique referral code
+  referredById      String?   // Who referred this user
+  affiliateBalance  Int       @default(0) // Balance in cents (unpaid commissions)
+  totalEarnings     Int       @default(0) // Total lifetime earnings in cents
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   accounts      Account[]
   sessions      Session[]
+  referredBy    User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]    @relation("Referrals")
+  payments      Payment[]
+  commissionsEarned Commission[] @relation("AffiliateCommissions")
+  commissionsPaid   Commission[] @relation("UserCommissions")
+  
+  @@index([referralCode])
+  @@index([referredById])
+  @@index([subscriptionStatus])
 }
 
 model Account {
@@ -264,4 +285,109 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@index([userId, isRead])
+}
+
+// ===================================
+// Subscription & Payment System
+// ===================================
+
+enum SubscriptionStatus {
+  ACTIVE     // Paid and active
+  INACTIVE   // Not subscribed (demo mode - 5 programs max)
+  TRIAL      // Trial period
+  CANCELLED  // Cancelled but still active until end date
+  EXPIRED    // Subscription ended
+}
+
+enum SubscriptionType {
+  CRYPTO         // Manual crypto payment
+  PAYPAL_MONTHLY // PayPal monthly subscription
+  PAYPAL_YEARLY  // PayPal yearly subscription
+}
+
+enum PaymentStatus {
+  PENDING    // Waiting for confirmation
+  COMPLETED  // Payment confirmed
+  FAILED     // Payment failed
+  REFUNDED   // Payment refunded
+}
+
+model Payment {
+  id              String         @id @default(cuid())
+  userId          String
+  amount          Int            // Amount in cents
+  currency        String         @default("USD")
+  status          PaymentStatus  @default(PENDING)
+  type            SubscriptionType
+  months          Int            @default(1) // Number of months added
+  paypalOrderId   String?        // PayPal order ID if applicable
+  paypalSubscriptionId String?   // PayPal subscription ID if applicable
+  cryptoTxHash    String?        // Crypto transaction hash if applicable
+  cryptoAddress   String?        // Crypto address used
+  notes           String?        // Admin notes
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  completedAt     DateTime?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commissions Commission[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([paypalOrderId])
+  @@index([paypalSubscriptionId])
+  @@index([createdAt])
+}
+
+// ===================================
+// Affiliate System
+// ===================================
+
+model Commission {
+  id           String   @id @default(cuid())
+  affiliateId  String   // User who earns the commission
+  userId       String   // User who made the purchase
+  paymentId    String   // The payment that triggered this
+  amount       Int      // Commission amount in cents
+  rate         Float    // Commission rate at time of transaction (e.g., 0.15 for 15%)
+  tier         Int      @default(1) // Referral tier (1 = direct referral)
+  isPaid       Boolean  @default(false)
+  paidAt       DateTime?
+  createdAt    DateTime @default(now())
+  
+  affiliate User    @relation("AffiliateCommissions", fields: [affiliateId], references: [id], onDelete: Cascade)
+  user      User    @relation("UserCommissions", fields: [userId], references: [id], onDelete: Cascade)
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  @@index([affiliateId])
+  @@index([userId])
+  @@index([paymentId])
+  @@index([isPaid])
+  @@index([createdAt])
+}
+
+model AffiliateSettings {
+  id                  String   @id @default(cuid())
+  tier1CommissionRate Float    @default(0.15) // 15% default
+  tier2CommissionRate Float?   // Optional second tier
+  minPayoutAmount     Int      @default(5000) // Minimum payout in cents ($50)
+  cookieDurationDays  Int      @default(30)   // How long referral cookie lasts
+  isActive            Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}
+
+model SubscriptionPricing {
+  id          String   @id @default(cuid())
+  name        String   // "Monthly", "Yearly"
+  type        SubscriptionType
+  price       Int      // Price in cents
+  months      Int      // Number of months included
+  isActive    Boolean  @default(true)
+  paypalPlanId String? // PayPal subscription plan ID
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([type])
+  @@index([isActive])
 }
