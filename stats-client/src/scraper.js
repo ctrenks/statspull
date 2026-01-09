@@ -162,6 +162,130 @@ class Scraper {
     this.log('✓ Browser launched successfully');
   }
 
+  // Detect reCAPTCHA on the page
+  async detectRecaptcha(page) {
+    try {
+      const hasRecaptcha = await page.evaluate(() => {
+        // Check for various reCAPTCHA indicators
+        const indicators = [
+          // reCAPTCHA v2 checkbox
+          document.querySelector('iframe[src*="recaptcha"]'),
+          document.querySelector('iframe[src*="google.com/recaptcha"]'),
+          document.querySelector('.g-recaptcha'),
+          document.querySelector('[data-sitekey]'),
+          // reCAPTCHA challenge
+          document.querySelector('iframe[title*="recaptcha"]'),
+          document.querySelector('iframe[title*="reCAPTCHA"]'),
+          // hCaptcha
+          document.querySelector('iframe[src*="hcaptcha"]'),
+          document.querySelector('.h-captcha'),
+          // Cloudflare challenge
+          document.querySelector('iframe[src*="challenges.cloudflare.com"]'),
+          document.querySelector('#cf-challenge-running'),
+          document.querySelector('.cf-browser-verification'),
+          // Generic captcha indicators
+          document.querySelector('[id*="captcha"]'),
+          document.querySelector('[class*="captcha"]'),
+          // Challenge text
+          document.body.innerText.includes('Please verify you are human'),
+          document.body.innerText.includes('Checking your browser'),
+          document.body.innerText.includes('Just a moment'),
+        ];
+        
+        return indicators.some(indicator => !!indicator);
+      });
+
+      return hasRecaptcha;
+    } catch (error) {
+      this.log(`Error detecting reCAPTCHA: ${error.message}`, 'warn');
+      return false;
+    }
+  }
+
+  // Handle reCAPTCHA by showing browser to user for manual solving
+  async handleRecaptcha(page, programName = 'Unknown Program', maxWaitTime = 120000) {
+    const hasRecaptcha = await this.detectRecaptcha(page);
+    
+    if (!hasRecaptcha) {
+      return { solved: true, wasPresent: false };
+    }
+
+    this.log(`⚠️ reCAPTCHA/Challenge detected for ${programName}!`, 'warn');
+    
+    // If running headless, we need to make the browser visible
+    if (this.headless) {
+      this.log('Browser is headless - cannot show window for manual CAPTCHA solving', 'error');
+      this.log('Enable "Show Browser Window" in settings to solve CAPTCHAs manually', 'info');
+      
+      // Notify user via callback if available
+      if (this.showDialog) {
+        await this.showDialog({
+          type: 'captcha',
+          programName,
+          message: `reCAPTCHA detected for ${programName}. Enable "Show Browser Window" in settings and re-sync.`
+        });
+      }
+      
+      return { solved: false, wasPresent: true, error: 'CAPTCHA_REQUIRES_VISIBLE_BROWSER' };
+    }
+
+    // Browser is visible, wait for user to solve it
+    this.log(`Waiting for user to solve CAPTCHA (max ${maxWaitTime / 1000}s)...`, 'info');
+    
+    // Bring window to front
+    try {
+      await page.bringToFront();
+    } catch (e) {
+      // Ignore if it fails
+    }
+
+    // Notify user
+    if (this.showDialog) {
+      this.showDialog({
+        type: 'captcha',
+        programName,
+        message: `Please solve the CAPTCHA for ${programName} in the browser window.`
+      });
+    }
+
+    // Wait for reCAPTCHA to be solved (disappear from page)
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitTime) {
+      await this.delay(2000); // Check every 2 seconds
+      
+      const stillPresent = await this.detectRecaptcha(page);
+      if (!stillPresent) {
+        this.log('✓ CAPTCHA solved!', 'success');
+        return { solved: true, wasPresent: true };
+      }
+      
+      // Check if page navigated (CAPTCHA might have been solved and page moved on)
+      try {
+        const url = page.url();
+        if (url.includes('dashboard') || url.includes('stats') || url.includes('reports')) {
+          this.log('✓ Page navigated past CAPTCHA', 'success');
+          return { solved: true, wasPresent: true };
+        }
+      } catch (e) {
+        // Page might have closed/navigated
+      }
+    }
+
+    this.log('CAPTCHA solving timed out', 'error');
+    return { solved: false, wasPresent: true, error: 'CAPTCHA_TIMEOUT' };
+  }
+
+  // Check for reCAPTCHA after login attempt
+  async checkAndHandleRecaptcha(page, programName) {
+    const result = await this.handleRecaptcha(page, programName);
+    
+    if (result.wasPresent && !result.solved) {
+      throw new Error(`CAPTCHA challenge not solved: ${result.error}`);
+    }
+    
+    return result;
+  }
+
   async close() {
     if (this.browser) {
       try {
@@ -253,6 +377,12 @@ class Scraper {
 
       // Wait for page to fully load
       await this.delay(3000);
+
+      // Check for reCAPTCHA/Cloudflare challenge on initial page load
+      const initialCaptcha = await this.handleRecaptcha(page, 'CellXpert');
+      if (initialCaptcha.wasPresent && !initialCaptcha.solved) {
+        throw new Error('CAPTCHA challenge on login page. Enable "Show Browser Window" in settings to solve manually.');
+      }
 
       // Log page title and URL for debugging
       const pageTitle = await page.title();
@@ -451,6 +581,12 @@ class Scraper {
 
       // Wait for navigation after login
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+
+      // Check for reCAPTCHA/CAPTCHA challenge
+      const captchaResult = await this.handleRecaptcha(page, 'CellXpert');
+      if (captchaResult.wasPresent && !captchaResult.solved) {
+        throw new Error('CAPTCHA challenge detected and not solved. Enable "Show Browser Window" in settings to solve manually.');
+      }
 
       // Check if login was successful (no longer on login page)
       const afterLoginUrl = page.url();
@@ -2612,6 +2748,12 @@ class Scraper {
 
       await this.delay(2000);
 
+      // Check for reCAPTCHA/Cloudflare challenge on initial page load
+      const initialCaptcha = await this.handleRecaptcha(page, programName);
+      if (initialCaptcha.wasPresent && !initialCaptcha.solved) {
+        throw new Error('CAPTCHA challenge on login page. Enable "Show Browser Window" in settings to solve manually.');
+      }
+
       // DEBUG: Check cookies BEFORE login attempt
       const cookiesBefore = await page.cookies();
       this.log(`🍪 Cookies loaded: ${cookiesBefore.length} cookies found for this domain`);
@@ -3407,6 +3549,12 @@ class Scraper {
       this.log(`Navigating to login: ${loginUrl}`);
       await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await this.delay(2000);
+
+      // Check for reCAPTCHA/Cloudflare challenge on initial page load
+      const initialCaptcha = await this.handleRecaptcha(page, programName);
+      if (initialCaptcha.wasPresent && !initialCaptcha.solved) {
+        throw new Error('CAPTCHA challenge on login page. Enable "Show Browser Window" in settings to solve manually.');
+      }
 
       // Check if already logged in
       const currentUrl = page.url();

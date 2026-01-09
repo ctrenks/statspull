@@ -24,51 +24,56 @@ function SignInContent() {
     }
   }, [searchParams]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      setError("");
 
-    try {
-      // Verify reCAPTCHA if available
-      if (executeRecaptcha) {
-        const token = await executeRecaptcha("signin");
-        
-        const verifyRes = await fetch("/api/recaptcha/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, action: "signin" }),
+      try {
+        // Verify reCAPTCHA if available
+        if (executeRecaptcha) {
+          const token = await executeRecaptcha("signin");
+
+          const verifyRes = await fetch("/api/recaptcha/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, action: "signin" }),
+          });
+
+          const verifyData = await verifyRes.json();
+
+          if (!verifyData.success) {
+            setError(
+              verifyData.error || "Security check failed. Please try again."
+            );
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Store email in localStorage so we can track referral after signin
+        localStorage.setItem("pendingSigninEmail", email);
+
+        const result = await signIn("resend", {
+          email,
+          redirect: false,
+          callbackUrl: "/profile",
         });
 
-        const verifyData = await verifyRes.json();
-        
-        if (!verifyData.success) {
-          setError(verifyData.error || "Security check failed. Please try again.");
-          setLoading(false);
-          return;
+        if (result?.error) {
+          setError("Failed to send magic link. Please try again.");
+        } else {
+          setSent(true);
         }
+      } catch {
+        setError("An unexpected error occurred");
+      } finally {
+        setLoading(false);
       }
-
-      // Store email in localStorage so we can track referral after signin
-      localStorage.setItem("pendingSigninEmail", email);
-
-      const result = await signIn("resend", {
-        email,
-        redirect: false,
-        callbackUrl: "/profile",
-      });
-
-      if (result?.error) {
-        setError("Failed to send magic link. Please try again.");
-      } else {
-        setSent(true);
-      }
-    } catch {
-      setError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  }, [email, executeRecaptcha]);
+    },
+    [email, executeRecaptcha]
+  );
 
   if (sent) {
     return (

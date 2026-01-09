@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-    
+
     if (!secretKey) {
       console.warn("reCAPTCHA secret key not configured, allowing request");
       return NextResponse.json({ success: true, score: 1.0 });
@@ -84,4 +84,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
