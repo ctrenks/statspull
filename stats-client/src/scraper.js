@@ -176,7 +176,23 @@ class Scraper {
       headlessMode = false; // Show browser window for debugging
     }
 
-    this.browser = await puppeteer.launch({
+    // Check if the profile is locked (another Chrome using it)
+    const lockFile = path.join(userDataDir, 'SingletonLock');
+    const lockFileWin = path.join(userDataDir, 'lockfile');
+    
+    if (fs.existsSync(lockFile) || fs.existsSync(lockFileWin)) {
+      this.log('⚠️ Browser profile may be locked by another Chrome instance');
+      // Try to remove stale lock files
+      try {
+        if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+        if (fs.existsSync(lockFileWin)) fs.unlinkSync(lockFileWin);
+        this.log('Removed stale lock files');
+      } catch (e) {
+        this.log(`Could not remove lock files: ${e.message}`);
+      }
+    }
+
+    const launchOptions = {
       executablePath,
       headless: headlessMode, // true, false, or 'new'
       userDataDir: userDataDir, // Persist cookies and sessions
@@ -205,9 +221,33 @@ class Scraper {
       ],
       defaultViewport: null, // Use window size
       ignoreDefaultArgs: ['--enable-automation']
-    });
+    };
 
-    this.log('✓ Browser launched successfully');
+    try {
+      this.browser = await puppeteer.launch(launchOptions);
+      this.log('✓ Browser launched successfully');
+    } catch (launchError) {
+      // Provide more detailed error message
+      const errorMsg = launchError.message || launchError.toString();
+      this.log(`Browser launch failed: ${errorMsg}`, 'error');
+      
+      // If it's a profile lock issue, try without userDataDir as fallback
+      if (errorMsg.includes('user data directory') || errorMsg.includes('lock') || errorMsg.includes('undefined')) {
+        this.log('Retrying without persistent profile (cookies will not be saved)...', 'warn');
+        
+        // Remove userDataDir to use temp profile
+        delete launchOptions.userDataDir;
+        
+        try {
+          this.browser = await puppeteer.launch(launchOptions);
+          this.log('✓ Browser launched with temporary profile');
+        } catch (retryError) {
+          throw new Error(`Browser launch failed: ${retryError.message || retryError}`);
+        }
+      } else {
+        throw new Error(`Browser launch failed: ${errorMsg}`);
+      }
+    }
   }
 
   // Detect reCAPTCHA on the page

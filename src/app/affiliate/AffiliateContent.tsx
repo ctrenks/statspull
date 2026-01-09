@@ -247,3 +247,4 @@ export function AffiliateContent({ user, commissionRate }: AffiliateContentProps
     </div>
   );
 }
+

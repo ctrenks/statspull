@@ -91,3 +91,4 @@ export function truncateText(text: string, maxLength: number): string {
 export function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }
+

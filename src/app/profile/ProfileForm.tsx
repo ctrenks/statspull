@@ -178,3 +178,4 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
     </div>
   );
 }
+
