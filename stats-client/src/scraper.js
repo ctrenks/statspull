@@ -523,7 +523,7 @@ class Scraper {
     if (this.browser) {
       const browserProcess = this.browser.process();
       const pid = browserProcess ? browserProcess.pid : null;
-      
+
       try {
         // Close all pages first to trigger cookie saves
         const pages = await this.browser.pages();
@@ -544,9 +544,9 @@ class Scraper {
           this.log('⚠️ Browser close timed out after 5 seconds', 'warn');
           resolve('timeout');
         }, 5000));
-        
+
         const result = await Promise.race([closePromise, timeoutPromise]);
-        
+
         // If close timed out and we have a PID, force kill
         if (result === 'timeout' && pid) {
           this.log(`Force killing browser process (PID: ${pid})...`, 'warn');
@@ -556,7 +556,7 @@ class Scraper {
             this.log(`Could not kill process: ${killError.message}`, 'warn');
           }
         }
-        
+
         this.log('Browser closed, cookies should be persisted');
       } catch (error) {
         this.log(`Error during browser close: ${error.message}`, 'warn');

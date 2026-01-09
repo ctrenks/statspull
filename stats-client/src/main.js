@@ -385,7 +385,8 @@ async function fetchTemplates() {
               baseUrl: t.baseUrl || ''
             },
             description: t.description,
-            icon: t.icon
+            icon: t.icon,
+            referralUrl: t.referralUrl || ''  // Include referral URL for signup button
           }));
 
           resolve(templates);
@@ -763,7 +764,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', async () => {
   console.log('[CLEANUP] App quitting, cleaning up resources...');
-  
+
   // Close any running browsers from sync engine
   if (syncEngine && syncEngine.scraper) {
     try {
@@ -773,13 +774,13 @@ app.on('before-quit', async () => {
       console.error('[CLEANUP] Error closing scraper:', e.message);
     }
   }
-  
+
   // Close database
   if (db) {
     console.log('[CLEANUP] Closing database...');
     db.close();
   }
-  
+
   console.log('[CLEANUP] Cleanup complete');
 });
 
