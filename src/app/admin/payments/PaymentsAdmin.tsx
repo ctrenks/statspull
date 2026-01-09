@@ -222,7 +222,7 @@ export function PaymentsAdmin({
                         const m = Number(e.target.value);
                         setMonths(m);
                         // Auto-calculate price
-                        const prices: Record<number, number> = { 1: 25, 3: 70, 6: 130, 12: 250, 24: 450 };
+                        const prices: Record<number, number> = { 1: 30, 3: 85, 6: 160, 12: 300, 24: 540 };
                         setAmount(prices[m] || m * 25);
                       }}
                       className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3"

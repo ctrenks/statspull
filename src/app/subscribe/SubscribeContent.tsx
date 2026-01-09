@@ -18,16 +18,16 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
 
   const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIAL";
 
-  const monthlyPrice = 25;
-  const yearlyPrice = 250; // ~17% discount
+  const monthlyPrice = 30;
+  const yearlyPrice = 300; // ~17% discount
   const yearlyMonthly = (yearlyPrice / 12).toFixed(2);
 
   const cryptoPrices: Record<number, number> = {
-    1: 25,
-    3: 70, // ~7% off
-    6: 130, // ~13% off
-    12: 250, // ~17% off
-    24: 450, // ~25% off
+    1: 30,
+    3: 85, // ~6% off
+    6: 160, // ~11% off
+    12: 300, // ~17% off
+    24: 540, // ~25% off
   };
 
   return (

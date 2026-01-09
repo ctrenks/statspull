@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const payment = await prisma.payment.create({
       data: {
         userId,
-        amount: amount || months * 2500, // Default $25/month
+        amount: amount || months * 3000, // Default $30/month
         type: type || "CRYPTO",
         months,
         status: "COMPLETED",
