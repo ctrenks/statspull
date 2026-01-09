@@ -10,7 +10,7 @@ export default function ReferralTracker({ userEmail }: ReferralTrackerProps) {
   useEffect(() => {
     const trackReferral = async () => {
       const referralCode = localStorage.getItem("referralCode");
-      
+
       if (!referralCode) return;
 
       try {
@@ -40,4 +40,3 @@ export default function ReferralTracker({ userEmail }: ReferralTrackerProps) {
   // This component doesn't render anything
   return null;
 }
-

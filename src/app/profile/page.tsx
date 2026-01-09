@@ -51,7 +51,7 @@ export default async function ProfilePage() {
         />
 
         <ApiKeyManager initialApiKey={user.apiKey} />
-        
+
         {/* Track referral on first login */}
         <ReferralTracker userEmail={user.email || ""} />
       </div>
