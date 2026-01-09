@@ -48,7 +48,7 @@ class Scraper {
     try {
       await page.focus(selector);
       await this.humanDelay(100, 300);
-      
+
       for (const char of text) {
         await page.keyboard.type(char, { delay: Math.floor(Math.random() * 100) + 30 });
       }
@@ -229,6 +229,8 @@ class Scraper {
           document.querySelector('iframe[src*="challenges.cloudflare.com"]'),
           document.querySelector('#cf-challenge-running'),
           document.querySelector('.cf-browser-verification'),
+          document.querySelector('#challenge-running'),
+          document.querySelector('.cf-turnstile'),
           // Generic captcha indicators
           document.querySelector('[id*="captcha"]'),
           document.querySelector('[class*="captcha"]'),
@@ -236,8 +238,9 @@ class Scraper {
           document.body.innerText.includes('Please verify you are human'),
           document.body.innerText.includes('Checking your browser'),
           document.body.innerText.includes('Just a moment'),
+          document.body.innerText.includes('Verify you are human'),
         ];
-
+        
         return indicators.some(indicator => !!indicator);
       });
 
@@ -248,44 +251,231 @@ class Scraper {
     }
   }
 
-  // Handle reCAPTCHA by showing browser to user for manual solving
+  // Try to automatically click CAPTCHA checkbox/button
+  async tryAutoSolveCaptcha(page) {
+    this.log('Attempting to auto-solve CAPTCHA...');
+    
+    try {
+      // Simulate human-like mouse movement first
+      await this.humanMove(page);
+      await this.humanDelay(500, 1000);
+
+      // Try clicking Cloudflare Turnstile checkbox
+      const clickedTurnstile = await page.evaluate(() => {
+        // Look for Cloudflare Turnstile iframe
+        const turnstileFrame = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
+        if (turnstileFrame) {
+          return 'turnstile_iframe';
+        }
+        
+        // Look for verify button
+        const verifyBtn = document.querySelector('input[type="checkbox"][name*="turnstile"], .cf-turnstile input');
+        if (verifyBtn) {
+          verifyBtn.click();
+          return 'turnstile_checkbox';
+        }
+        
+        return null;
+      });
+
+      if (clickedTurnstile === 'turnstile_iframe') {
+        // Click inside the Turnstile iframe
+        const frames = page.frames();
+        for (const frame of frames) {
+          const url = frame.url();
+          if (url.includes('challenges.cloudflare.com')) {
+            try {
+              this.log('Found Cloudflare Turnstile iframe, attempting to click...');
+              // The checkbox is usually in the center of the iframe
+              const checkbox = await frame.$('input[type="checkbox"], .mark, #challenge-stage');
+              if (checkbox) {
+                await this.humanDelay(300, 600);
+                await checkbox.click();
+                this.log('✓ Clicked Turnstile checkbox');
+                await this.delay(3000); // Wait for verification
+                return true;
+              }
+            } catch (e) {
+              this.log(`Turnstile click failed: ${e.message}`);
+            }
+          }
+        }
+      }
+
+      // Try clicking reCAPTCHA v2 checkbox
+      const recaptchaFrame = page.frames().find(frame => 
+        frame.url().includes('google.com/recaptcha')
+      );
+      
+      if (recaptchaFrame) {
+        this.log('Found reCAPTCHA iframe, attempting to click checkbox...');
+        try {
+          // Human-like movement before clicking
+          await this.humanDelay(500, 1000);
+          
+          // The checkbox has class "recaptcha-checkbox"
+          const checkbox = await recaptchaFrame.$('.recaptcha-checkbox-border, .recaptcha-checkbox, #recaptcha-anchor');
+          if (checkbox) {
+            // Get checkbox position and move mouse there naturally
+            const box = await checkbox.boundingBox();
+            if (box) {
+              // Move mouse to checkbox with human-like movement
+              await page.mouse.move(
+                box.x + box.width / 2 + (Math.random() * 10 - 5),
+                box.y + box.height / 2 + (Math.random() * 10 - 5),
+                { steps: 25 }
+              );
+              await this.humanDelay(100, 300);
+            }
+            
+            await checkbox.click();
+            this.log('✓ Clicked reCAPTCHA checkbox');
+            await this.delay(3000); // Wait for verification
+            
+            // Check if a challenge appeared
+            const challengeAppeared = await page.evaluate(() => {
+              return !!document.querySelector('iframe[title*="challenge"]');
+            });
+            
+            if (challengeAppeared) {
+              this.log('⚠️ Image challenge appeared after clicking', 'warn');
+              return false; // Challenge requires manual solving
+            }
+            
+            return true;
+          }
+        } catch (e) {
+          this.log(`reCAPTCHA click failed: ${e.message}`);
+        }
+      }
+
+      // Try clicking hCaptcha checkbox
+      const hcaptchaFrame = page.frames().find(frame => 
+        frame.url().includes('hcaptcha.com')
+      );
+      
+      if (hcaptchaFrame) {
+        this.log('Found hCaptcha iframe, attempting to click...');
+        try {
+          const checkbox = await hcaptchaFrame.$('#checkbox, .check');
+          if (checkbox) {
+            await this.humanDelay(300, 600);
+            await checkbox.click();
+            this.log('✓ Clicked hCaptcha checkbox');
+            await this.delay(3000);
+            return true;
+          }
+        } catch (e) {
+          this.log(`hCaptcha click failed: ${e.message}`);
+        }
+      }
+
+      // Try clicking any visible "Verify" or "I'm not a robot" button
+      const clickedButton = await page.evaluate(() => {
+        const buttons = document.querySelectorAll('button, input[type="submit"], input[type="button"], .btn');
+        for (const btn of buttons) {
+          const text = (btn.textContent || btn.value || '').toLowerCase();
+          if (text.includes('verify') || text.includes('not a robot') || text.includes('human')) {
+            btn.click();
+            return text;
+          }
+        }
+        return null;
+      });
+
+      if (clickedButton) {
+        this.log(`✓ Clicked verify button: "${clickedButton}"`);
+        await this.delay(3000);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      this.log(`Auto-solve CAPTCHA error: ${error.message}`, 'warn');
+      return false;
+    }
+  }
+
+  // Handle reCAPTCHA by trying auto-solve first, then falling back to manual
   async handleRecaptcha(page, programName = 'Unknown Program', maxWaitTime = 120000) {
     const hasRecaptcha = await this.detectRecaptcha(page);
-
+    
     if (!hasRecaptcha) {
       return { solved: true, wasPresent: false };
     }
 
-    this.log(`⚠️ reCAPTCHA/Challenge detected for ${programName}!`, 'warn');
+    this.log(`⚠️ CAPTCHA/Challenge detected for ${programName}!`, 'warn');
+    
+    // STEP 1: Try to auto-solve by clicking the checkbox
+    this.log('Attempting automatic CAPTCHA solving...', 'info');
+    const autoSolved = await this.tryAutoSolveCaptcha(page);
+    
+    if (autoSolved) {
+      // Wait a moment and check if CAPTCHA is gone
+      await this.delay(2000);
+      const stillPresent = await this.detectRecaptcha(page);
+      if (!stillPresent) {
+        this.log('✓ CAPTCHA auto-solved successfully!', 'success');
+        return { solved: true, wasPresent: true, autoSolved: true };
+      }
+      this.log('Auto-click done but challenge still present...', 'warn');
+    }
 
-    // If running headless, we need to make the browser visible
+    // STEP 2: Wait for Cloudflare "Just a moment" to pass automatically
+    const isCloudflare = await page.evaluate(() => {
+      return document.body.innerText.includes('Just a moment') ||
+             document.body.innerText.includes('Checking your browser') ||
+             !!document.querySelector('#challenge-running');
+    });
+
+    if (isCloudflare) {
+      this.log('Cloudflare challenge detected, waiting for automatic verification...', 'info');
+      // Cloudflare usually auto-verifies within 5-10 seconds
+      for (let i = 0; i < 10; i++) {
+        await this.delay(2000);
+        const stillCloudflare = await page.evaluate(() => {
+          return document.body.innerText.includes('Just a moment') ||
+                 document.body.innerText.includes('Checking your browser') ||
+                 !!document.querySelector('#challenge-running');
+        });
+        if (!stillCloudflare) {
+          this.log('✓ Cloudflare challenge passed!', 'success');
+          return { solved: true, wasPresent: true, autoSolved: true };
+        }
+      }
+    }
+
+    // STEP 3: If still present and headless, can't proceed
+    const stillHasCaptcha = await this.detectRecaptcha(page);
+    if (!stillHasCaptcha) {
+      this.log('✓ CAPTCHA resolved!', 'success');
+      return { solved: true, wasPresent: true };
+    }
+
     if (this.headless) {
-      this.log('Browser is headless - cannot show window for manual CAPTCHA solving', 'error');
+      this.log('CAPTCHA requires manual solving - browser is headless', 'error');
       this.log('Enable "Show Browser Window" in settings to solve CAPTCHAs manually', 'info');
-
-      // Notify user via callback if available
+      
       if (this.showDialog) {
         await this.showDialog({
           type: 'captcha',
           programName,
-          message: `reCAPTCHA detected for ${programName}. Enable "Show Browser Window" in settings and re-sync.`
+          message: `CAPTCHA requires manual solving for ${programName}. Enable "Show Browser Window" in settings.`
         });
       }
-
+      
       return { solved: false, wasPresent: true, error: 'CAPTCHA_REQUIRES_VISIBLE_BROWSER' };
     }
 
-    // Browser is visible, wait for user to solve it
+    // STEP 4: Browser is visible, wait for user to solve
     this.log(`Waiting for user to solve CAPTCHA (max ${maxWaitTime / 1000}s)...`, 'info');
-
-    // Bring window to front
+    
     try {
       await page.bringToFront();
     } catch (e) {
-      // Ignore if it fails
+      // Ignore
     }
 
-    // Notify user
     if (this.showDialog) {
       this.showDialog({
         type: 'captcha',
@@ -294,18 +484,16 @@ class Scraper {
       });
     }
 
-    // Wait for reCAPTCHA to be solved (disappear from page)
     const startTime = Date.now();
     while (Date.now() - startTime < maxWaitTime) {
-      await this.delay(2000); // Check every 2 seconds
-
+      await this.delay(2000);
+      
       const stillPresent = await this.detectRecaptcha(page);
       if (!stillPresent) {
         this.log('✓ CAPTCHA solved!', 'success');
         return { solved: true, wasPresent: true };
       }
-
-      // Check if page navigated (CAPTCHA might have been solved and page moved on)
+      
       try {
         const url = page.url();
         if (url.includes('dashboard') || url.includes('stats') || url.includes('reports')) {
@@ -313,7 +501,7 @@ class Scraper {
           return { solved: true, wasPresent: true };
         }
       } catch (e) {
-        // Page might have closed/navigated
+        // Page might have navigated
       }
     }
 
