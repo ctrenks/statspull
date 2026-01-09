@@ -221,7 +221,7 @@ async function validateApiKey(apiKey) {
 
 // Check license and disable programs if invalid
 async function checkLicenseOnStartup() {
-  const apiKey = db.getSetting('api_key');
+  const apiKey = db.getSecureSetting('api_key');
   if (!apiKey) {
     console.log('[LICENSE] No API key configured');
     sendLicenseStatus({ valid: false, error: 'No API key configured' });
@@ -271,7 +271,7 @@ function startLicenseCheckTimer() {
   }
 
   licenseCheckTimer = setInterval(async () => {
-    const apiKey = db.getSetting('api_key');
+    const apiKey = db.getSecureSetting('api_key');
     if (apiKey) {
       const result = await validateApiKey(apiKey);
       if (!result.valid && !result.cached) {
@@ -638,8 +638,8 @@ function setupIpcHandlers() {
 
   // License/API key handlers
   ipcMain.handle('validate-api-key', async (event, apiKey) => {
-    // Save the API key first
-    db.setSetting('api_key', apiKey);
+    // Save the API key first (encrypted)
+    db.setSecureSetting('api_key', apiKey);
     // Validate it
     const result = await validateApiKey(apiKey);
     return result;
@@ -657,11 +657,11 @@ function setupIpcHandlers() {
   });
 
   ipcMain.handle('get-api-key', async () => {
-    return db.getSetting('api_key') || '';
+    return db.getSecureSetting('api_key') || '';
   });
 
   ipcMain.handle('clear-api-key', async () => {
-    db.setSetting('api_key', '');
+    db.setSecureSetting('api_key', '');
     licenseInfo.valid = false;
     licenseInfo.role = 0;
     licenseInfo.maxPrograms = 5;

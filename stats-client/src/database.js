@@ -828,6 +828,56 @@ class Database {
     return true;
   }
 
+  // Sensitive settings that need encryption (API keys, tokens, etc.)
+  SENSITIVE_KEYS = ['api_key', 'installation_id', 'license_data'];
+
+  // Get encrypted setting
+  getSecureSetting(key) {
+    const row = this.queryOne("SELECT value FROM settings WHERE key = ?", [
+      key,
+    ]);
+    if (!row || !row.value) return null;
+    
+    // Check if value looks encrypted (has IV:encrypted format)
+    if (row.value.includes(':')) {
+      try {
+        const decrypted = this.decrypt(row.value);
+        return decrypted;
+      } catch (e) {
+        // If decryption fails, return raw value (legacy unencrypted data)
+        return row.value;
+      }
+    }
+    // Return raw value for legacy unencrypted data
+    return row.value;
+  }
+
+  // Set encrypted setting
+  setSecureSetting(key, value) {
+    const encrypted = this.encrypt(value);
+    this.run("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [
+      key,
+      encrypted,
+    ]);
+    return true;
+  }
+
+  // Smart getter - uses encryption for sensitive keys
+  getSettingSmart(key) {
+    if (this.SENSITIVE_KEYS.includes(key)) {
+      return this.getSecureSetting(key);
+    }
+    return this.getSetting(key);
+  }
+
+  // Smart setter - uses encryption for sensitive keys
+  setSettingSmart(key, value) {
+    if (this.SENSITIVE_KEYS.includes(key)) {
+      return this.setSecureSetting(key, value);
+    }
+    return this.setSetting(key, value);
+  }
+
   // Get programs categorized by status
   getProgramsByStatus() {
     const allPrograms = this.getPrograms();
