@@ -233,7 +233,7 @@ class Scraper {
 
         // Check for full-page challenge text (Cloudflare interstitial)
         const bodyText = document.body ? document.body.innerText : '';
-        const isCloudflareChallenge = 
+        const isCloudflareChallenge =
           (bodyText.includes('Checking your browser') && bodyText.length < 500) ||
           (bodyText.includes('Just a moment') && bodyText.length < 500) ||
           (bodyText.includes('Verify you are human') && document.querySelector('#challenge-running'));
@@ -521,32 +521,54 @@ class Scraper {
 
   async close() {
     if (this.browser) {
+      const browserProcess = this.browser.process();
+      const pid = browserProcess ? browserProcess.pid : null;
+      
       try {
         // Close all pages first to trigger cookie saves
         const pages = await this.browser.pages();
         for (const page of pages) {
           if (!page.isClosed()) {
-            await page.close();
+            await page.close().catch(() => {});
           }
         }
 
         // Brief wait to ensure all cookies/localStorage are flushed to disk
-        // Chrome writes cookies incrementally, so this is just a safety buffer
         this.log('Waiting for cookies to be saved to disk...');
         await this.delay(500);
 
         this.log('Closing browser...');
         // Add timeout to prevent hanging on browser close
-        await Promise.race([
-          this.browser.close(),
-          new Promise((resolve) => setTimeout(() => {
-            this.log('⚠️ Browser close timed out after 5 seconds, forcing closure', 'warn');
-            resolve();
-          }, 5000))
-        ]);
+        const closePromise = this.browser.close().catch(() => {});
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => {
+          this.log('⚠️ Browser close timed out after 5 seconds', 'warn');
+          resolve('timeout');
+        }, 5000));
+        
+        const result = await Promise.race([closePromise, timeoutPromise]);
+        
+        // If close timed out and we have a PID, force kill
+        if (result === 'timeout' && pid) {
+          this.log(`Force killing browser process (PID: ${pid})...`, 'warn');
+          try {
+            process.kill(pid, 'SIGKILL');
+          } catch (killError) {
+            this.log(`Could not kill process: ${killError.message}`, 'warn');
+          }
+        }
+        
         this.log('Browser closed, cookies should be persisted');
       } catch (error) {
         this.log(`Error during browser close: ${error.message}`, 'warn');
+        // Try to force kill if we have a PID
+        if (pid) {
+          try {
+            process.kill(pid, 'SIGKILL');
+            this.log(`Force killed browser process (PID: ${pid})`);
+          } catch (killError) {
+            // Process may already be dead
+          }
+        }
       } finally {
         this.browser = null;
         this.launchPromise = null; // Reset launch promise

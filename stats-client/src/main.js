@@ -761,8 +761,37 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
+  console.log('[CLEANUP] App quitting, cleaning up resources...');
+  
+  // Close any running browsers from sync engine
+  if (syncEngine && syncEngine.scraper) {
+    try {
+      console.log('[CLEANUP] Closing scraper browser...');
+      await syncEngine.scraper.close();
+    } catch (e) {
+      console.error('[CLEANUP] Error closing scraper:', e.message);
+    }
+  }
+  
+  // Close database
   if (db) {
+    console.log('[CLEANUP] Closing database...');
     db.close();
   }
+  
+  console.log('[CLEANUP] Cleanup complete');
+});
+
+// Also handle uncaught exceptions to ensure cleanup
+process.on('uncaughtException', async (error) => {
+  console.error('[FATAL] Uncaught exception:', error);
+  if (syncEngine && syncEngine.scraper) {
+    try {
+      await syncEngine.scraper.close();
+    } catch (e) {
+      // Ignore
+    }
+  }
+  process.exit(1);
 });
