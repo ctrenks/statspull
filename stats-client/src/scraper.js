@@ -213,40 +213,49 @@ class Scraper {
   // Detect reCAPTCHA on the page
   async detectRecaptcha(page) {
     try {
-      const hasRecaptcha = await page.evaluate(() => {
-        // Check for various reCAPTCHA indicators
-        const indicators = [
-          // reCAPTCHA v2 checkbox
-          document.querySelector('iframe[src*="recaptcha"]'),
-          document.querySelector('iframe[src*="google.com/recaptcha"]'),
-          document.querySelector('.g-recaptcha'),
-          document.querySelector('[data-sitekey]'),
-          // reCAPTCHA challenge
-          document.querySelector('iframe[title*="recaptcha"]'),
-          document.querySelector('iframe[title*="reCAPTCHA"]'),
-          // hCaptcha
-          document.querySelector('iframe[src*="hcaptcha"]'),
-          document.querySelector('.h-captcha'),
-          // Cloudflare challenge
-          document.querySelector('iframe[src*="challenges.cloudflare.com"]'),
+      const result = await page.evaluate(() => {
+        // Check for BLOCKING captcha indicators (not just any captcha element)
+        const blockingIndicators = [
+          // reCAPTCHA visible challenge iframe
+          document.querySelector('iframe[src*="google.com/recaptcha/api2/anchor"]'),
+          document.querySelector('iframe[src*="google.com/recaptcha/api2/bframe"]'),
+          // reCAPTCHA v2 visible checkbox container
+          document.querySelector('.g-recaptcha:not([data-size="invisible"])'),
+          // hCaptcha visible
+          document.querySelector('iframe[src*="hcaptcha.com/captcha"]'),
+          // Cloudflare challenge page (full page takeover)
           document.querySelector('#cf-challenge-running'),
           document.querySelector('.cf-browser-verification'),
           document.querySelector('#challenge-running'),
-          document.querySelector('.cf-turnstile'),
-          // Generic captcha indicators
-          document.querySelector('[id*="captcha"]'),
-          document.querySelector('[class*="captcha"]'),
-          // Challenge text
-          document.body.innerText.includes('Please verify you are human'),
-          document.body.innerText.includes('Checking your browser'),
-          document.body.innerText.includes('Just a moment'),
-          document.body.innerText.includes('Verify you are human'),
+          // Cloudflare Turnstile (visible)
+          document.querySelector('.cf-turnstile iframe'),
         ];
 
-        return indicators.some(indicator => !!indicator);
+        // Check for full-page challenge text (Cloudflare interstitial)
+        const bodyText = document.body ? document.body.innerText : '';
+        const isCloudflareChallenge = 
+          (bodyText.includes('Checking your browser') && bodyText.length < 500) ||
+          (bodyText.includes('Just a moment') && bodyText.length < 500) ||
+          (bodyText.includes('Verify you are human') && document.querySelector('#challenge-running'));
+
+        const hasBlockingCaptcha = blockingIndicators.some(indicator => !!indicator) || isCloudflareChallenge;
+
+        return {
+          hasBlockingCaptcha,
+          bodyLength: bodyText.length,
+          debug: {
+            hasRecaptchaIframe: !!document.querySelector('iframe[src*="recaptcha"]'),
+            hasCfChallenge: !!document.querySelector('#cf-challenge-running'),
+            bodyPreview: bodyText.substring(0, 100)
+          }
+        };
       });
 
-      return hasRecaptcha;
+      if (result.hasBlockingCaptcha) {
+        this.log(`CAPTCHA detected - body length: ${result.bodyLength}`, 'warn');
+      }
+
+      return result.hasBlockingCaptcha;
     } catch (error) {
       this.log(`Error detecting reCAPTCHA: ${error.message}`, 'warn');
       return false;
@@ -3801,18 +3810,36 @@ class Scraper {
         // STEP 1: Check if we need to click a login button to reveal the form (sidebar pattern)
         this.log('Checking for login button to reveal form...');
 
+        // Debug: Log what buttons are on the page
+        const pageButtons = await page.evaluate(() => {
+          const buttons = document.querySelectorAll('a, button, .btn, .btn-getstarted, [id*="login"]');
+          return Array.from(buttons).slice(0, 10).map(b => ({
+            tag: b.tagName,
+            id: b.id,
+            class: b.className,
+            text: (b.textContent || '').trim().substring(0, 30),
+            href: b.href || ''
+          }));
+        });
+        this.log(`Found ${pageButtons.length} potential buttons: ${JSON.stringify(pageButtons.slice(0, 5))}`);
+
         // Try clicking login button by ID first (Gwages uses #login_btn)
         let loginButtonClicked = false;
         try {
           const loginBtnById = await page.$('#login_btn, #loginBtn, #login-btn');
           if (loginBtnById) {
+            this.log('Found login button by ID, clicking...');
+            // Use human-like click
+            await this.humanDelay(200, 500);
             await loginBtnById.click();
             loginButtonClicked = true;
             this.log('✓ Clicked login button by ID');
             await this.delay(2000); // Wait for sidebar animation
+          } else {
+            this.log('No login button found by ID selectors');
           }
         } catch (e) {
-          this.log(`ID button click attempt: ${e.message}`);
+          this.log(`ID button click attempt failed: ${e.message}`, 'warn');
         }
 
         // If no ID button, try finding by text
