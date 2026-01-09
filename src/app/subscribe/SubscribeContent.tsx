@@ -15,6 +15,11 @@ interface SubscribeContentProps {
 export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentProps) {
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [selectedMonths, setSelectedMonths] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState("Bitcoin (BTC)");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIAL";
 
@@ -28,6 +33,48 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
     6: 160, // ~11% off
     12: 300, // ~17% off
     24: 540, // ~25% off
+  };
+
+  const sendPaymentRequest = async () => {
+    if (!isLoggedIn) {
+      setError("You must be logged in to request payment");
+      return;
+    }
+
+    setSending(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/payment-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          months: selectedMonths,
+          price: cryptoPrices[selectedMonths],
+          paymentMethod,
+          message,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSent(true);
+      } else {
+        setError(data.error || "Failed to send request");
+      }
+    } catch (err) {
+      setError("Failed to send request. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const resetModal = () => {
+    setShowCryptoModal(false);
+    setSent(false);
+    setError("");
+    setMessage("");
   };
 
   return (
@@ -231,8 +278,8 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
           <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold font-display">Crypto Payment</h2>
-              <button
-                onClick={() => setShowCryptoModal(false)}
+              <button 
+                onClick={resetModal}
                 className="text-dark-400 hover:text-white"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -241,73 +288,162 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
               </button>
             </div>
 
-            <p className="text-dark-400 mb-6">
-              Select your subscription length and follow the instructions to pay with cryptocurrency.
-            </p>
+            {/* Success State */}
+            {sent ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Request Sent!</h3>
+                <p className="text-dark-400 mb-6">
+                  Check your email for payment instructions. We&apos;ll activate your subscription within 24 hours of receiving payment.
+                </p>
+                <button onClick={resetModal} className="btn-primary">
+                  Close
+                </button>
+              </div>
+            ) : !isLoggedIn ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Sign In Required</h3>
+                <p className="text-dark-400 mb-6">
+                  Please sign in to your account before requesting a payment.
+                </p>
+                <div className="flex gap-4 justify-center">
+                  <Link href="/auth/signin" className="btn-primary">
+                    Sign In
+                  </Link>
+                  <button onClick={resetModal} className="btn-secondary">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-dark-400 mb-6">
+                  Select your subscription length and we&apos;ll send you payment instructions via email.
+                </p>
 
-            {/* Duration Selection */}
-            <div className="space-y-3 mb-6">
-              {Object.entries(cryptoPrices).map(([months, price]) => (
-                <label
-                  key={months}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    selectedMonths === Number(months)
-                      ? "border-primary-500 bg-primary-500/10"
-                      : "border-dark-700 hover:border-dark-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="months"
-                      value={months}
-                      checked={selectedMonths === Number(months)}
-                      onChange={() => setSelectedMonths(Number(months))}
-                      className="sr-only"
-                    />
-                    <span className="font-medium">
-                      {months} {Number(months) === 1 ? "Month" : "Months"}
-                    </span>
-                    {Number(months) > 1 && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">
-                        Save {Math.round((1 - price / (Number(months) * 25)) * 100)}%
-                      </span>
+                {/* Duration Selection */}
+                <div className="space-y-3 mb-6">
+                  {Object.entries(cryptoPrices).map(([months, price]) => (
+                    <label
+                      key={months}
+                      className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedMonths === Number(months)
+                          ? "border-primary-500 bg-primary-500/10"
+                          : "border-dark-700 hover:border-dark-600"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="months"
+                          value={months}
+                          checked={selectedMonths === Number(months)}
+                          onChange={() => setSelectedMonths(Number(months))}
+                          className="sr-only"
+                        />
+                        <span className="font-medium">
+                          {months} {Number(months) === 1 ? "Month" : "Months"}
+                        </span>
+                        {Number(months) > 1 && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">
+                            Save {Math.round((1 - price / (Number(months) * 30)) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-primary-400">${price}</div>
+                        <div className="text-xs text-dark-400">${(price / Number(months)).toFixed(2)}/mo</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Payment Method */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                    Preferred Payment Method
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3"
+                  >
+                    <option>Bitcoin (BTC)</option>
+                    <option>Ethereum (ETH)</option>
+                    <option>USDT (TRC20)</option>
+                    <option>USDC</option>
+                    <option>Litecoin (LTC)</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                {/* Optional Message */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-dark-300 mb-2">
+                    Message (optional)
+                  </label>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Any additional info..."
+                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 h-20"
+                  />
+                </div>
+
+                {/* Error Display */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                {/* Summary */}
+                <div className="bg-dark-800 rounded-lg p-4 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="text-dark-400">Total</span>
+                    <span className="text-2xl font-bold text-primary-400">${cryptoPrices[selectedMonths]}</span>
+                  </div>
+                  <div className="text-dark-500 text-sm mt-1">
+                    for {selectedMonths} {selectedMonths === 1 ? "month" : "months"} of unlimited access
+                  </div>
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    onClick={sendPaymentRequest}
+                    disabled={sending}
+                    className="btn-primary flex-1"
+                  >
+                    {sending ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Sending...
+                      </>
+                    ) : (
+                      "Request Payment Instructions"
                     )}
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-primary-400">${price}</div>
-                    <div className="text-xs text-dark-400">${(price / Number(months)).toFixed(2)}/mo</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            {/* Instructions */}
-            <div className="bg-dark-800 rounded-lg p-4 mb-6">
-              <h4 className="font-bold mb-3">How to Pay:</h4>
-              <ol className="space-y-2 text-dark-300 text-sm list-decimal list-inside">
-                <li>Contact us via email or forum with your payment choice</li>
-                <li>We&apos;ll send you the wallet address for your chosen crypto</li>
-                <li>Send exactly <strong className="text-white">${cryptoPrices[selectedMonths]}</strong> worth</li>
-                <li>Reply with the transaction ID/hash</li>
-                <li>We&apos;ll activate your subscription within 24 hours</li>
-              </ol>
-            </div>
-
-            <div className="flex gap-4">
-              <a
-                href={`mailto:support@statsfetch.com?subject=Crypto Payment Request&body=I would like to pay with crypto for a subscription.%0A%0APlan: ${selectedMonths} months ($${cryptoPrices[selectedMonths]})%0A%0AMy username: `}
-                className="btn-primary flex-1 text-center"
-              >
-                Contact via Email
-              </a>
-              <button
-                onClick={() => setShowCryptoModal(false)}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
+                  </button>
+                  <button
+                    onClick={resetModal}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
