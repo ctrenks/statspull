@@ -240,7 +240,7 @@ class Scraper {
           document.body.innerText.includes('Just a moment'),
           document.body.innerText.includes('Verify you are human'),
         ];
-        
+
         return indicators.some(indicator => !!indicator);
       });
 
@@ -254,7 +254,7 @@ class Scraper {
   // Try to automatically click CAPTCHA checkbox/button
   async tryAutoSolveCaptcha(page) {
     this.log('Attempting to auto-solve CAPTCHA...');
-    
+
     try {
       // Simulate human-like mouse movement first
       await this.humanMove(page);
@@ -267,14 +267,14 @@ class Scraper {
         if (turnstileFrame) {
           return 'turnstile_iframe';
         }
-        
+
         // Look for verify button
         const verifyBtn = document.querySelector('input[type="checkbox"][name*="turnstile"], .cf-turnstile input');
         if (verifyBtn) {
           verifyBtn.click();
           return 'turnstile_checkbox';
         }
-        
+
         return null;
       });
 
@@ -303,16 +303,16 @@ class Scraper {
       }
 
       // Try clicking reCAPTCHA v2 checkbox
-      const recaptchaFrame = page.frames().find(frame => 
+      const recaptchaFrame = page.frames().find(frame =>
         frame.url().includes('google.com/recaptcha')
       );
-      
+
       if (recaptchaFrame) {
         this.log('Found reCAPTCHA iframe, attempting to click checkbox...');
         try {
           // Human-like movement before clicking
           await this.humanDelay(500, 1000);
-          
+
           // The checkbox has class "recaptcha-checkbox"
           const checkbox = await recaptchaFrame.$('.recaptcha-checkbox-border, .recaptcha-checkbox, #recaptcha-anchor');
           if (checkbox) {
@@ -327,21 +327,21 @@ class Scraper {
               );
               await this.humanDelay(100, 300);
             }
-            
+
             await checkbox.click();
             this.log('✓ Clicked reCAPTCHA checkbox');
             await this.delay(3000); // Wait for verification
-            
+
             // Check if a challenge appeared
             const challengeAppeared = await page.evaluate(() => {
               return !!document.querySelector('iframe[title*="challenge"]');
             });
-            
+
             if (challengeAppeared) {
               this.log('⚠️ Image challenge appeared after clicking', 'warn');
               return false; // Challenge requires manual solving
             }
-            
+
             return true;
           }
         } catch (e) {
@@ -350,10 +350,10 @@ class Scraper {
       }
 
       // Try clicking hCaptcha checkbox
-      const hcaptchaFrame = page.frames().find(frame => 
+      const hcaptchaFrame = page.frames().find(frame =>
         frame.url().includes('hcaptcha.com')
       );
-      
+
       if (hcaptchaFrame) {
         this.log('Found hCaptcha iframe, attempting to click...');
         try {
@@ -399,17 +399,17 @@ class Scraper {
   // Handle reCAPTCHA by trying auto-solve first, then falling back to manual
   async handleRecaptcha(page, programName = 'Unknown Program', maxWaitTime = 120000) {
     const hasRecaptcha = await this.detectRecaptcha(page);
-    
+
     if (!hasRecaptcha) {
       return { solved: true, wasPresent: false };
     }
 
     this.log(`⚠️ CAPTCHA/Challenge detected for ${programName}!`, 'warn');
-    
+
     // STEP 1: Try to auto-solve by clicking the checkbox
     this.log('Attempting automatic CAPTCHA solving...', 'info');
     const autoSolved = await this.tryAutoSolveCaptcha(page);
-    
+
     if (autoSolved) {
       // Wait a moment and check if CAPTCHA is gone
       await this.delay(2000);
@@ -455,7 +455,7 @@ class Scraper {
     if (this.headless) {
       this.log('CAPTCHA requires manual solving - browser is headless', 'error');
       this.log('Enable "Show Browser Window" in settings to solve CAPTCHAs manually', 'info');
-      
+
       if (this.showDialog) {
         await this.showDialog({
           type: 'captcha',
@@ -463,13 +463,13 @@ class Scraper {
           message: `CAPTCHA requires manual solving for ${programName}. Enable "Show Browser Window" in settings.`
         });
       }
-      
+
       return { solved: false, wasPresent: true, error: 'CAPTCHA_REQUIRES_VISIBLE_BROWSER' };
     }
 
     // STEP 4: Browser is visible, wait for user to solve
     this.log(`Waiting for user to solve CAPTCHA (max ${maxWaitTime / 1000}s)...`, 'info');
-    
+
     try {
       await page.bringToFront();
     } catch (e) {
@@ -487,13 +487,13 @@ class Scraper {
     const startTime = Date.now();
     while (Date.now() - startTime < maxWaitTime) {
       await this.delay(2000);
-      
+
       const stillPresent = await this.detectRecaptcha(page);
       if (!stillPresent) {
         this.log('✓ CAPTCHA solved!', 'success');
         return { solved: true, wasPresent: true };
       }
-      
+
       try {
         const url = page.url();
         if (url.includes('dashboard') || url.includes('stats') || url.includes('reports')) {
