@@ -4,11 +4,13 @@
  * Includes stealth mode to avoid bot detection and CAPTCHAs
  */
 
-const puppeteer = require('puppeteer-extra');
+const puppeteerCore = require('puppeteer-core');
+const { addExtra } = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const path = require('path');
 
-// Add stealth plugin to avoid bot detection
+// Wrap puppeteer-core with puppeteer-extra and add stealth plugin
+const puppeteer = addExtra(puppeteerCore);
 puppeteer.use(StealthPlugin());
 
 class Scraper {
@@ -463,7 +465,7 @@ class Scraper {
     // STEP 4: Browser is visible, wait for user to solve
     this.log(`Waiting for user to solve CAPTCHA (max ${maxWaitTime / 1000}s)...`, 'info');
     this.log(`Please solve the CAPTCHA for ${programName} in the browser window.`, 'warn');
-    
+
     try {
       await page.bringToFront();
     } catch (e) {
@@ -3407,7 +3409,7 @@ class Scraper {
           // Ensure programName is a string, not an object
           const displayName = typeof programName === 'string' ? programName : (programName?.name || 'Unknown Program');
           this.log(`Showing dialog for: ${displayName}`, 'info');
-          
+
           const result = await this.showDialog(displayName);
           this.log(`Dialog result: clicked=${result.clicked}, code length=${result.code?.length || 0}`, 'info');
 
