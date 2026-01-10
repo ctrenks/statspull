@@ -179,7 +179,7 @@ class Scraper {
     // Check if the profile is locked (another Chrome using it)
     const lockFile = path.join(userDataDir, 'SingletonLock');
     const lockFileWin = path.join(userDataDir, 'lockfile');
-    
+
     if (fs.existsSync(lockFile) || fs.existsSync(lockFileWin)) {
       this.log('⚠️ Browser profile may be locked by another Chrome instance');
       // Try to remove stale lock files
@@ -230,14 +230,14 @@ class Scraper {
       // Provide more detailed error message
       const errorMsg = launchError.message || launchError.toString();
       this.log(`Browser launch failed: ${errorMsg}`, 'error');
-      
+
       // If it's a profile lock issue, try without userDataDir as fallback
       if (errorMsg.includes('user data directory') || errorMsg.includes('lock') || errorMsg.includes('undefined')) {
         this.log('Retrying without persistent profile (cookies will not be saved)...', 'warn');
-        
+
         // Remove userDataDir to use temp profile
         delete launchOptions.userDataDir;
-        
+
         try {
           this.browser = await puppeteer.launch(launchOptions);
           this.log('✓ Browser launched with temporary profile');
@@ -250,42 +250,49 @@ class Scraper {
     }
   }
 
-  // Detect reCAPTCHA on the page
+  // Detect reCAPTCHA on the page - only for TRULY blocking CAPTCHAs
   async detectRecaptcha(page) {
     try {
       const result = await page.evaluate(() => {
-        // Check for BLOCKING captcha indicators (not just any captcha element)
-        const blockingIndicators = [
-          // reCAPTCHA visible challenge iframe
-          document.querySelector('iframe[src*="google.com/recaptcha/api2/anchor"]'),
-          document.querySelector('iframe[src*="google.com/recaptcha/api2/bframe"]'),
-          // reCAPTCHA v2 visible checkbox container
-          document.querySelector('.g-recaptcha:not([data-size="invisible"])'),
-          // hCaptcha visible
-          document.querySelector('iframe[src*="hcaptcha.com/captcha"]'),
-          // Cloudflare challenge page (full page takeover)
-          document.querySelector('#cf-challenge-running'),
-          document.querySelector('.cf-browser-verification'),
-          document.querySelector('#challenge-running'),
-          // Cloudflare Turnstile (visible)
-          document.querySelector('.cf-turnstile iframe'),
-        ];
-
-        // Check for full-page challenge text (Cloudflare interstitial)
         const bodyText = document.body ? document.body.innerText : '';
+        
+        // ONLY detect truly blocking scenarios:
+        
+        // 1. Cloudflare challenge page (full page takeover with minimal content)
         const isCloudflareChallenge =
-          (bodyText.includes('Checking your browser') && bodyText.length < 500) ||
-          (bodyText.includes('Just a moment') && bodyText.length < 500) ||
+          (bodyText.includes('Checking your browser') && bodyText.length < 1000) ||
+          (bodyText.includes('Just a moment') && bodyText.length < 1000) ||
           (bodyText.includes('Verify you are human') && document.querySelector('#challenge-running'));
-
-        const hasBlockingCaptcha = blockingIndicators.some(indicator => !!indicator) || isCloudflareChallenge;
+        
+        // 2. Cloudflare challenge elements actively running
+        const hasCfChallenge = !!(
+          document.querySelector('#cf-challenge-running') ||
+          document.querySelector('.cf-browser-verification') ||
+          document.querySelector('#challenge-running')
+        );
+        
+        // 3. reCAPTCHA v2 challenge popup (the actual puzzle, not just the checkbox)
+        const hasRecaptchaPuzzle = !!document.querySelector('iframe[src*="google.com/recaptcha/api2/bframe"]');
+        
+        // 4. hCaptcha challenge popup
+        const hasHcaptchaPuzzle = !!document.querySelector('iframe[src*="hcaptcha.com/captcha"][style*="visible"]');
+        
+        // DON'T detect:
+        // - reCAPTCHA anchor iframe (just the checkbox, not blocking)
+        // - Invisible reCAPTCHA (runs silently in background)
+        // - .g-recaptcha elements (form protection, not blocking)
+        // - Normal pages with reCAPTCHA scripts loaded
+        
+        const hasBlockingCaptcha = isCloudflareChallenge || hasCfChallenge || hasRecaptchaPuzzle || hasHcaptchaPuzzle;
 
         return {
           hasBlockingCaptcha,
           bodyLength: bodyText.length,
           debug: {
-            hasRecaptchaIframe: !!document.querySelector('iframe[src*="recaptcha"]'),
-            hasCfChallenge: !!document.querySelector('#cf-challenge-running'),
+            isCloudflareChallenge,
+            hasCfChallenge,
+            hasRecaptchaPuzzle,
+            hasHcaptchaPuzzle,
             bodyPreview: bodyText.substring(0, 100)
           }
         };
@@ -293,6 +300,7 @@ class Scraper {
 
       if (result.hasBlockingCaptcha) {
         this.log(`CAPTCHA detected - body length: ${result.bodyLength}`, 'warn');
+        this.log(`Debug: CF=${result.debug.isCloudflareChallenge || result.debug.hasCfChallenge}, reCAPTCHA=${result.debug.hasRecaptchaPuzzle}, hCaptcha=${result.debug.hasHcaptchaPuzzle}`, 'warn');
       }
 
       return result.hasBlockingCaptcha;
