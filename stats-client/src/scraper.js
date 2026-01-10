@@ -255,34 +255,34 @@ class Scraper {
     try {
       const result = await page.evaluate(() => {
         const bodyText = document.body ? document.body.innerText : '';
-        
+
         // ONLY detect truly blocking scenarios:
-        
+
         // 1. Cloudflare challenge page (full page takeover with minimal content)
         const isCloudflareChallenge =
           (bodyText.includes('Checking your browser') && bodyText.length < 1000) ||
           (bodyText.includes('Just a moment') && bodyText.length < 1000) ||
           (bodyText.includes('Verify you are human') && document.querySelector('#challenge-running'));
-        
+
         // 2. Cloudflare challenge elements actively running
         const hasCfChallenge = !!(
           document.querySelector('#cf-challenge-running') ||
           document.querySelector('.cf-browser-verification') ||
           document.querySelector('#challenge-running')
         );
-        
+
         // 3. reCAPTCHA v2 challenge popup (the actual puzzle, not just the checkbox)
         const hasRecaptchaPuzzle = !!document.querySelector('iframe[src*="google.com/recaptcha/api2/bframe"]');
-        
+
         // 4. hCaptcha challenge popup
         const hasHcaptchaPuzzle = !!document.querySelector('iframe[src*="hcaptcha.com/captcha"][style*="visible"]');
-        
+
         // DON'T detect:
         // - reCAPTCHA anchor iframe (just the checkbox, not blocking)
         // - Invisible reCAPTCHA (runs silently in background)
         // - .g-recaptcha elements (form protection, not blocking)
         // - Normal pages with reCAPTCHA scripts loaded
-        
+
         const hasBlockingCaptcha = isCloudflareChallenge || hasCfChallenge || hasRecaptchaPuzzle || hasHcaptchaPuzzle;
 
         return {
@@ -680,12 +680,6 @@ class Scraper {
 
       // Wait for page to fully load
       await this.delay(3000);
-
-      // Check for reCAPTCHA/Cloudflare challenge on initial page load
-      const initialCaptcha = await this.handleRecaptcha(page, 'CellXpert');
-      if (initialCaptcha.wasPresent && !initialCaptcha.solved) {
-        throw new Error('CAPTCHA challenge on login page. Enable "Show Browser Window" in settings to solve manually.');
-      }
 
       // Log page title and URL for debugging
       const pageTitle = await page.title();
@@ -3051,12 +3045,6 @@ class Scraper {
 
       await this.delay(2000);
 
-      // Check for reCAPTCHA/Cloudflare challenge on initial page load
-      const initialCaptcha = await this.handleRecaptcha(page, programName);
-      if (initialCaptcha.wasPresent && !initialCaptcha.solved) {
-        throw new Error('CAPTCHA challenge on login page. Enable "Show Browser Window" in settings to solve manually.');
-      }
-
       // DEBUG: Check cookies BEFORE login attempt
       const cookiesBefore = await page.cookies();
       this.log(`🍪 Cookies loaded: ${cookiesBefore.length} cookies found for this domain`);
@@ -3856,12 +3844,6 @@ class Scraper {
       this.log(`Navigating to login: ${loginUrl}`);
       await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await this.delay(2000);
-
-      // Check for reCAPTCHA/Cloudflare challenge on initial page load
-      const initialCaptcha = await this.handleRecaptcha(page, programName);
-      if (initialCaptcha.wasPresent && !initialCaptcha.solved) {
-        throw new Error('CAPTCHA challenge on login page. Enable "Show Browser Window" in settings to solve manually.');
-      }
 
       // Check if already logged in
       const currentUrl = page.url();
