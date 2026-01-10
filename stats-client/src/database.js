@@ -256,7 +256,20 @@ class Database {
 
   // Programs CRUD
   getPrograms() {
-    return this.query("SELECT * FROM programs ORDER BY name");
+    // Get programs with credential status
+    const programs = this.query("SELECT * FROM programs ORDER BY name");
+    
+    // Add has_credentials flag for each program
+    return programs.map(p => {
+      const creds = this.queryOne(
+        "SELECT id FROM credentials WHERE program_id = ?",
+        [p.id]
+      );
+      return {
+        ...p,
+        has_credentials: !!creds
+      };
+    });
   }
 
   getProgram(id) {

@@ -584,7 +584,7 @@ async function loadPrograms() {
   updateProgramsSelect();
 }
 
-// Render programs list (sorted alphabetically)
+// Render programs list (sorted by status: needs setup → errors → working)
 function renderPrograms() {
   if (programs.length === 0) {
     elements.programsList.innerHTML = `
@@ -601,10 +601,26 @@ function renderPrograms() {
     return;
   }
 
-  // Sort programs alphabetically by name
-  const sortedPrograms = [...programs].sort((a, b) =>
-    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-  );
+  // Sort programs by status priority, then alphabetically within each group
+  // Priority: 1. No credentials (needs setup), 2. Has errors, 3. Working
+  const sortedPrograms = [...programs].sort((a, b) => {
+    // Get status priority (lower = higher priority = shown first)
+    const getPriority = (p) => {
+      if (!p.has_credentials) return 1; // Needs setup
+      if (p.last_error) return 2;       // Has errors
+      return 3;                          // Working
+    };
+    
+    const priorityA = getPriority(a);
+    const priorityB = getPriority(b);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    
+    // Same priority, sort alphabetically
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  });
 
   elements.programsList.innerHTML = renderProgramCards(sortedPrograms);
   attachProgramEventHandlers();
@@ -618,9 +634,11 @@ function renderProgramCards(programList) {
         ? new Date(p.last_sync).toLocaleDateString()
         : "Never";
       const hasError = p.last_error ? "has-error" : "";
+      const needsSetup = !p.has_credentials ? "needs-setup" : "";
+      const cardClass = `program-card ${hasError} ${needsSetup}`.trim();
 
       return `
-    <div class="program-card ${hasError}" data-id="${p.id}">
+    <div class="${cardClass}" data-id="${p.id}">
       <div class="program-info">
         <span class="program-name">${escapeHtml(p.name)}</span>
         <div class="program-meta">
@@ -631,13 +649,18 @@ function renderProgramCards(programList) {
           <span class="program-sync-status">Last sync: ${lastSync}</span>
         </div>
         ${
+          !p.has_credentials
+            ? `<div class="program-warning">⚠️ Needs credentials - click Edit to add login info</div>`
+            : ""
+        }
+        ${
           p.last_error
             ? `<div class="program-error">${escapeHtml(p.last_error)}</div>`
             : ""
         }
       </div>
       <div class="program-actions">
-        <button class="btn btn-sm sync-btn" data-id="${p.id}" title="Sync this program">
+        <button class="btn btn-sm sync-btn" data-id="${p.id}" title="Sync this program" ${!p.has_credentials ? 'disabled' : ''}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <path d="M23 4v6h-6"/>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>

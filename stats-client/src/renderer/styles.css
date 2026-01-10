@@ -1317,6 +1317,20 @@ body {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.program-card.needs-setup {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.program-warning {
+  font-size: 12px;
+  color: var(--accent-warning);
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: var(--radius-sm);
+}
+
 /* Toast info type */
 .toast.info {
   border-color: var(--accent-secondary);
