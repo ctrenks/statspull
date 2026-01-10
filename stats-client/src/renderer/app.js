@@ -917,9 +917,14 @@ async function editProgram(id) {
   elements.programLoginUrl.value = program.login_url || "";
   elements.programApiUrl.value = program.api_url || "";
 
-  // Update credential field visibility based on provider (edit mode - don't overwrite URLs)
-  const provider = providers.find(p => p.code === program.provider);
-  updateCredentialFields(provider, true);
+  // Update credential field visibility based on program's own auth_type
+  // Create a provider object with the program's stored authType
+  const providerInfo = providers.find(p => p.code === program.provider) || {};
+  const programWithAuthType = {
+    ...providerInfo,
+    authType: program.auth_type || providerInfo.authType || 'CREDENTIALS'
+  };
+  updateCredentialFields(programWithAuthType, true);
 
   // Load credentials
   try {
