@@ -1701,12 +1701,11 @@ async function syncProgram(programId) {
   const program = programs.find((p) => p.id === programId);
   if (!program) return;
 
-  const programIndex = programs.indexOf(program);
   log(`Starting sync for ${program.name}...`, "info");
 
-  // Find and update the specific program's sync button
+  // Find and update the specific program's sync button by data-id
   const getSyncButton = () =>
-    document.querySelector(`.sync-btn[data-index="${programIndex}"]`);
+    document.querySelector(`.sync-btn[data-id="${programId}"]`);
 
   let syncButton = getSyncButton();
   if (syncButton) {
