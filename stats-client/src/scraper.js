@@ -5112,7 +5112,7 @@ class Scraper {
     try {
       // Navigate to login page
       this.log(`Navigating to Rival login: ${loginUrl}`);
-      await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 120000 }); // 2 minute timeout for slow pages
       await this.delay(2000);
 
       // Check if we need to click a login button first
@@ -5243,10 +5243,11 @@ class Scraper {
         await page.keyboard.press('Enter');
       }
 
-      // Wait for navigation
+      // Wait for navigation - Rival first-time logins can be slow
+      this.log('Waiting for login to complete (this may take a while on first login)...');
       await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }),
-        this.delay(3000)
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 120000 }), // 2 minutes
+        this.delay(30000) // Wait at least 30 seconds for slow first-time logins
       ]);
 
       const currentUrl = page.url();

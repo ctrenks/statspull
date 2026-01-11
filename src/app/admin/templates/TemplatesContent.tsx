@@ -57,6 +57,42 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'name' | 'softwareType' | 'displayOrder'>('displayOrder');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Sorted templates
+  const sortedTemplates = [...templates].sort((a, b) => {
+    let comparison = 0;
+    
+    if (sortBy === 'name') {
+      comparison = a.name.localeCompare(b.name);
+    } else if (sortBy === 'softwareType') {
+      comparison = a.softwareType.localeCompare(b.softwareType);
+    } else if (sortBy === 'displayOrder') {
+      comparison = a.displayOrder - b.displayOrder;
+    }
+    
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
+
+  const handleSort = (column: 'name' | 'softwareType' | 'displayOrder') => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  };
+
+  const SortIcon = ({ column }: { column: string }) => (
+    sortBy === column ? (
+      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+    ) : (
+      <span className="ml-1 text-gray-500">↕</span>
+    )
+  );
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -275,9 +311,24 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
           <table className="w-full">
             <thead className="bg-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Order</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Software</th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white select-none"
+                  onClick={() => handleSort('displayOrder')}
+                >
+                  Order <SortIcon column="displayOrder" />
+                </th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white select-none"
+                  onClick={() => handleSort('name')}
+                >
+                  Name <SortIcon column="name" />
+                </th>
+                <th 
+                  className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white select-none"
+                  onClick={() => handleSort('softwareType')}
+                >
+                  Software <SortIcon column="softwareType" />
+                </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Auth Type</th>
                 <th className="px-4 py-3 text-center text-sm font-medium text-gray-300">Signup</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
@@ -292,7 +343,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
                   </td>
                 </tr>
               ) : (
-                templates.map((template) => (
+                sortedTemplates.map((template) => (
                   <tr key={template.id} className="hover:bg-gray-750">
                     <td className="px-4 py-3 text-sm text-gray-400">{template.displayOrder}</td>
                     <td className="px-4 py-3">
