@@ -290,20 +290,20 @@ function startLicenseCheckTimer() {
 // Get the next scheduled sync time
 function getNextScheduledSync() {
   if (!db) return null;
-  
+
   const schedules = db.getEnabledSchedules();
   if (schedules.length === 0) return null;
-  
+
   const now = new Date();
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  
+
   // Find the next scheduled time
   for (const schedule of schedules) {
     if (schedule.time > currentTime) {
       return { time: schedule.time, isToday: true };
     }
   }
-  
+
   // All scheduled times are earlier today, so next is tomorrow's first schedule
   return { time: schedules[0].time, isToday: false };
 }
@@ -315,16 +315,16 @@ function startScheduler() {
   }
 
   console.log('[SCHEDULER] Starting scheduler...');
-  
+
   // Check every 60 seconds
   schedulerInterval = setInterval(async () => {
     if (!db) return;
-    
+
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    
+
     const schedules = db.getEnabledSchedules();
-    
+
     for (const schedule of schedules) {
       if (schedule.time === currentTime) {
         // Check if already ran this minute
@@ -332,15 +332,15 @@ function startScheduler() {
         if (lastRun && (now - lastRun) < 60000) {
           continue; // Skip if ran within last minute
         }
-        
+
         console.log(`[SCHEDULER] Triggering scheduled sync at ${currentTime}`);
         db.updateScheduleLastRun(schedule.id, now.toISOString());
-        
+
         // Notify renderer
         if (mainWindow && mainWindow.webContents) {
           mainWindow.webContents.send('scheduled-sync-started', { time: currentTime });
         }
-        
+
         // Run sync
         try {
           if (syncEngine) {
@@ -349,17 +349,17 @@ function startScheduler() {
         } catch (err) {
           console.error('[SCHEDULER] Sync failed:', err);
         }
-        
+
         // Notify renderer sync completed
         if (mainWindow && mainWindow.webContents) {
           mainWindow.webContents.send('scheduled-sync-completed', { time: currentTime });
         }
-        
+
         break; // Only run once per minute even if multiple schedules match
       }
     }
   }, 60000); // Every minute
-  
+
   console.log('[SCHEDULER] Scheduler started');
 }
 

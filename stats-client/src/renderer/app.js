@@ -2284,13 +2284,13 @@ async function togglePaymentStatus(programId, month) {
 async function loadSchedules() {
   const schedules = await window.api.getSchedules();
   const list = document.getElementById('schedulesList');
-  
+
   if (schedules.length === 0) {
     list.innerHTML = '<p class="no-schedules">No scheduled syncs. Add a time above to get started.</p>';
     document.getElementById('nextScheduledSync').style.display = 'none';
     return;
   }
-  
+
   list.innerHTML = schedules.map(s => `
     <div class="schedule-item ${s.enabled ? '' : 'disabled'}" data-id="${s.id}">
       <div class="schedule-time">${formatTime12h(s.time)}</div>
@@ -2304,7 +2304,7 @@ async function loadSchedules() {
       </div>
     </div>
   `).join('');
-  
+
   // Attach event handlers
   list.querySelectorAll('.toggle-schedule-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -2314,7 +2314,7 @@ async function loadSchedules() {
       showToast('Schedule updated', 'success');
     });
   });
-  
+
   list.querySelectorAll('.remove-schedule-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.target.dataset.id;
@@ -2323,7 +2323,7 @@ async function loadSchedules() {
       showToast('Schedule removed', 'success');
     });
   });
-  
+
   // Update next sync display
   await updateNextSyncDisplay();
 }
@@ -2342,7 +2342,7 @@ async function updateNextSyncDisplay() {
   const nextSync = await window.api.getNextScheduledSync();
   const container = document.getElementById('nextScheduledSync');
   const timeEl = document.getElementById('nextSyncTime');
-  
+
   if (nextSync) {
     const dayLabel = nextSync.isToday ? 'Today' : 'Tomorrow';
     timeEl.textContent = `${dayLabel} at ${formatTime12h(nextSync.time)}`;
@@ -2356,14 +2356,14 @@ async function updateNextSyncDisplay() {
 async function addSchedule() {
   const input = document.getElementById('scheduleTimeInput');
   const time = input.value;
-  
+
   if (!time) {
     showToast('Please select a time', 'error');
     return;
   }
-  
+
   const result = await window.api.addSchedule(time);
-  
+
   if (result.success) {
     input.value = '';
     await loadSchedules();
@@ -2380,7 +2380,7 @@ function initSchedulerUI() {
   if (addBtn) {
     addBtn.addEventListener('click', addSchedule);
   }
-  
+
   // Allow Enter key in time input
   const timeInput = document.getElementById('scheduleTimeInput');
   if (timeInput) {
@@ -2390,13 +2390,13 @@ function initSchedulerUI() {
       }
     });
   }
-  
+
   // Listen for scheduled sync events
   window.api.onScheduledSyncStarted((data) => {
     showToast(`Scheduled sync started (${formatTime12h(data.time)})`, 'info');
     log(`Scheduled sync started at ${data.time}`, 'info');
   });
-  
+
   window.api.onScheduledSyncCompleted((data) => {
     showToast('Scheduled sync completed!', 'success');
     loadDashboardData();
@@ -2411,7 +2411,7 @@ function initSidebarSyncButton() {
     sidebarSyncBtn.addEventListener('click', async () => {
       sidebarSyncBtn.classList.add('syncing');
       sidebarSyncBtn.disabled = true;
-      
+
       try {
         await syncAllPrograms();
       } finally {
