@@ -95,6 +95,19 @@ contextBridge.exposeInMainWorld('api', {
   togglePaymentStatus: (programId, month) => ipcRenderer.invoke('toggle-payment-status', programId, month),
   updatePayment: (programId, month, data) => ipcRenderer.invoke('update-payment', programId, month, data),
 
+  // Scheduler
+  getSchedules: () => ipcRenderer.invoke('get-schedules'),
+  addSchedule: (time) => ipcRenderer.invoke('add-schedule', time),
+  removeSchedule: (id) => ipcRenderer.invoke('remove-schedule', id),
+  toggleSchedule: (id) => ipcRenderer.invoke('toggle-schedule', id),
+  getNextScheduledSync: () => ipcRenderer.invoke('get-next-scheduled-sync'),
+  onScheduledSyncStarted: (callback) => {
+    ipcRenderer.on('scheduled-sync-started', (event, data) => callback(data));
+  },
+  onScheduledSyncCompleted: (callback) => {
+    ipcRenderer.on('scheduled-sync-completed', (event, data) => callback(data));
+  },
+
   // External links
   openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

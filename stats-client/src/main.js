@@ -82,6 +82,7 @@ let licenseInfo = {
 // Check interval (24 hours in ms)
 const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 let licenseCheckTimer = null;
+let schedulerInterval = null;
 
 // Configure auto-updater
 autoUpdater.autoDownload = false; // Don't auto-download, ask user first
@@ -282,6 +283,86 @@ function startLicenseCheckTimer() {
   }, LICENSE_CHECK_INTERVAL);
 }
 
+// =====================
+// Scheduler Functions
+// =====================
+
+// Get the next scheduled sync time
+function getNextScheduledSync() {
+  if (!db) return null;
+  
+  const schedules = db.getEnabledSchedules();
+  if (schedules.length === 0) return null;
+  
+  const now = new Date();
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  
+  // Find the next scheduled time
+  for (const schedule of schedules) {
+    if (schedule.time > currentTime) {
+      return { time: schedule.time, isToday: true };
+    }
+  }
+  
+  // All scheduled times are earlier today, so next is tomorrow's first schedule
+  return { time: schedules[0].time, isToday: false };
+}
+
+// Start the scheduler - checks every minute
+function startScheduler() {
+  if (schedulerInterval) {
+    clearInterval(schedulerInterval);
+  }
+
+  console.log('[SCHEDULER] Starting scheduler...');
+  
+  // Check every 60 seconds
+  schedulerInterval = setInterval(async () => {
+    if (!db) return;
+    
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const schedules = db.getEnabledSchedules();
+    
+    for (const schedule of schedules) {
+      if (schedule.time === currentTime) {
+        // Check if already ran this minute
+        const lastRun = schedule.last_run ? new Date(schedule.last_run) : null;
+        if (lastRun && (now - lastRun) < 60000) {
+          continue; // Skip if ran within last minute
+        }
+        
+        console.log(`[SCHEDULER] Triggering scheduled sync at ${currentTime}`);
+        db.updateScheduleLastRun(schedule.id, now.toISOString());
+        
+        // Notify renderer
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('scheduled-sync-started', { time: currentTime });
+        }
+        
+        // Run sync
+        try {
+          if (syncEngine) {
+            await syncEngine.syncAll();
+          }
+        } catch (err) {
+          console.error('[SCHEDULER] Sync failed:', err);
+        }
+        
+        // Notify renderer sync completed
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('scheduled-sync-completed', { time: currentTime });
+        }
+        
+        break; // Only run once per minute even if multiple schedules match
+      }
+    }
+  }, 60000); // Every minute
+  
+  console.log('[SCHEDULER] Scheduler started');
+}
+
 // Check if can add more programs (based on role)
 function canAddProgram() {
   const currentCount = db.getPrograms().length;
@@ -466,6 +547,9 @@ async function initialize() {
 
   // Start periodic license check (every 24 hours)
   startLicenseCheckTimer();
+
+  // Start the sync scheduler
+  startScheduler();
 }
 
 // IPC Handlers
@@ -693,6 +777,36 @@ function setupIpcHandlers() {
 
   ipcMain.handle('update-payment', async (event, programId, month, data) => {
     return db.upsertPayment(programId, month, data);
+  });
+
+  // Schedule handlers
+  ipcMain.handle('get-schedules', async () => {
+    return db.getSchedules();
+  });
+
+  ipcMain.handle('add-schedule', async (event, time) => {
+    const result = db.addSchedule(time);
+    if (result.success) {
+      // Restart scheduler to pick up new schedule
+      startScheduler();
+    }
+    return result;
+  });
+
+  ipcMain.handle('remove-schedule', async (event, id) => {
+    const result = db.removeSchedule(id);
+    startScheduler(); // Restart scheduler
+    return result;
+  });
+
+  ipcMain.handle('toggle-schedule', async (event, id) => {
+    const result = db.toggleSchedule(id);
+    startScheduler(); // Restart scheduler
+    return result;
+  });
+
+  ipcMain.handle('get-next-scheduled-sync', async () => {
+    return getNextScheduledSync();
   });
 
   // Open external URL in browser

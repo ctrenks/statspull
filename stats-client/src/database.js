@@ -179,6 +179,17 @@ class Database {
     } catch (e) {
       // Index may already exist
     }
+
+    // Scheduled syncs table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS schedules (
+        id TEXT PRIMARY KEY,
+        time TEXT NOT NULL,
+        enabled INTEGER DEFAULT 1,
+        last_run TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   }
 
   save() {
@@ -1076,6 +1087,59 @@ class Database {
     }
 
     return months;
+  }
+
+  // =====================
+  // Schedule Management
+  // =====================
+
+  // Get all schedules
+  getSchedules() {
+    return this.query("SELECT * FROM schedules ORDER BY time ASC");
+  }
+
+  // Add a new schedule
+  addSchedule(time) {
+    // Check if time already exists
+    const existing = this.queryOne("SELECT id FROM schedules WHERE time = ?", [time]);
+    if (existing) {
+      return { success: false, error: "This time is already scheduled" };
+    }
+
+    const id = this.generateId();
+    this.run(
+      "INSERT INTO schedules (id, time, enabled) VALUES (?, ?, 1)",
+      [id, time]
+    );
+    return { success: true, id, time };
+  }
+
+  // Remove a schedule
+  removeSchedule(id) {
+    this.run("DELETE FROM schedules WHERE id = ?", [id]);
+    return { success: true };
+  }
+
+  // Toggle schedule enabled/disabled
+  toggleSchedule(id) {
+    const schedule = this.queryOne("SELECT * FROM schedules WHERE id = ?", [id]);
+    if (!schedule) {
+      return { success: false, error: "Schedule not found" };
+    }
+
+    const newEnabled = schedule.enabled ? 0 : 1;
+    this.run("UPDATE schedules SET enabled = ? WHERE id = ?", [newEnabled, id]);
+    return { success: true, enabled: !!newEnabled };
+  }
+
+  // Update last run time for a schedule
+  updateScheduleLastRun(id, lastRun) {
+    this.run("UPDATE schedules SET last_run = ? WHERE id = ?", [lastRun, id]);
+  }
+
+  // Get enabled schedules only
+  getEnabledSchedules() {
+    return this.query("SELECT * FROM schedules WHERE enabled = 1 ORDER BY time ASC");
   }
 
   close() {

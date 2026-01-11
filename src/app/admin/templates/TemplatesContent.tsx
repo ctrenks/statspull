@@ -64,7 +64,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
   // Sorted templates
   const sortedTemplates = [...templates].sort((a, b) => {
     let comparison = 0;
-    
+
     if (sortBy === 'name') {
       comparison = a.name.localeCompare(b.name);
     } else if (sortBy === 'softwareType') {
@@ -72,7 +72,7 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
     } else if (sortBy === 'displayOrder') {
       comparison = a.displayOrder - b.displayOrder;
     }
-    
+
     return sortOrder === 'asc' ? comparison : -comparison;
   });
 
@@ -311,19 +311,19 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
           <table className="w-full">
             <thead className="bg-gray-700">
               <tr>
-                <th 
+                <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white select-none"
                   onClick={() => handleSort('displayOrder')}
                 >
                   Order <SortIcon column="displayOrder" />
                 </th>
-                <th 
+                <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white select-none"
                   onClick={() => handleSort('name')}
                 >
                   Name <SortIcon column="name" />
                 </th>
-                <th 
+                <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white select-none"
                   onClick={() => handleSort('softwareType')}
                 >

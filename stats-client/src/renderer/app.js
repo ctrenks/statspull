@@ -124,6 +124,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
   setupSyncListeners();
   renderTemplates(); // Show built-in configured programs
+  initSchedulerUI(); // Initialize scheduler
+  initSidebarSyncButton(); // Initialize sidebar sync button
+  await loadSchedules(); // Load scheduled syncs
 
   // Listen for security code input requests from main process
   window.api.onShowSecurityCodeInput((data) => {
@@ -2270,5 +2273,151 @@ async function togglePaymentStatus(programId, month) {
     showToast("Payment status updated", "success");
   } catch (error) {
     showToast("Failed to update payment: " + error.message, "error");
+  }
+}
+
+// =====================
+// Scheduler Functions
+// =====================
+
+// Load and render schedules
+async function loadSchedules() {
+  const schedules = await window.api.getSchedules();
+  const list = document.getElementById('schedulesList');
+  
+  if (schedules.length === 0) {
+    list.innerHTML = '<p class="no-schedules">No scheduled syncs. Add a time above to get started.</p>';
+    document.getElementById('nextScheduledSync').style.display = 'none';
+    return;
+  }
+  
+  list.innerHTML = schedules.map(s => `
+    <div class="schedule-item ${s.enabled ? '' : 'disabled'}" data-id="${s.id}">
+      <div class="schedule-time">${formatTime12h(s.time)}</div>
+      <div class="schedule-actions">
+        <button class="btn btn-sm ${s.enabled ? 'btn-secondary' : 'btn-primary'} toggle-schedule-btn" data-id="${s.id}">
+          ${s.enabled ? 'Disable' : 'Enable'}
+        </button>
+        <button class="btn btn-sm btn-danger remove-schedule-btn" data-id="${s.id}">
+          Remove
+        </button>
+      </div>
+    </div>
+  `).join('');
+  
+  // Attach event handlers
+  list.querySelectorAll('.toggle-schedule-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      await window.api.toggleSchedule(id);
+      await loadSchedules();
+      showToast('Schedule updated', 'success');
+    });
+  });
+  
+  list.querySelectorAll('.remove-schedule-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      await window.api.removeSchedule(id);
+      await loadSchedules();
+      showToast('Schedule removed', 'success');
+    });
+  });
+  
+  // Update next sync display
+  await updateNextSyncDisplay();
+}
+
+// Format 24h time to 12h format
+function formatTime12h(time24) {
+  const [h, m] = time24.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
+}
+
+// Update the "next scheduled sync" display
+async function updateNextSyncDisplay() {
+  const nextSync = await window.api.getNextScheduledSync();
+  const container = document.getElementById('nextScheduledSync');
+  const timeEl = document.getElementById('nextSyncTime');
+  
+  if (nextSync) {
+    const dayLabel = nextSync.isToday ? 'Today' : 'Tomorrow';
+    timeEl.textContent = `${dayLabel} at ${formatTime12h(nextSync.time)}`;
+    container.style.display = 'flex';
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+// Add schedule
+async function addSchedule() {
+  const input = document.getElementById('scheduleTimeInput');
+  const time = input.value;
+  
+  if (!time) {
+    showToast('Please select a time', 'error');
+    return;
+  }
+  
+  const result = await window.api.addSchedule(time);
+  
+  if (result.success) {
+    input.value = '';
+    await loadSchedules();
+    showToast(`Scheduled sync at ${formatTime12h(time)}`, 'success');
+  } else {
+    showToast(result.error || 'Failed to add schedule', 'error');
+  }
+}
+
+// Initialize scheduler UI
+function initSchedulerUI() {
+  // Add schedule button
+  const addBtn = document.getElementById('addScheduleBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', addSchedule);
+  }
+  
+  // Allow Enter key in time input
+  const timeInput = document.getElementById('scheduleTimeInput');
+  if (timeInput) {
+    timeInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        addSchedule();
+      }
+    });
+  }
+  
+  // Listen for scheduled sync events
+  window.api.onScheduledSyncStarted((data) => {
+    showToast(`Scheduled sync started (${formatTime12h(data.time)})`, 'info');
+    log(`Scheduled sync started at ${data.time}`, 'info');
+  });
+  
+  window.api.onScheduledSyncCompleted((data) => {
+    showToast('Scheduled sync completed!', 'success');
+    loadDashboardData();
+    loadPrograms();
+  });
+}
+
+// Sidebar sync button handler
+function initSidebarSyncButton() {
+  const sidebarSyncBtn = document.getElementById('sidebarSyncBtn');
+  if (sidebarSyncBtn) {
+    sidebarSyncBtn.addEventListener('click', async () => {
+      sidebarSyncBtn.classList.add('syncing');
+      sidebarSyncBtn.disabled = true;
+      
+      try {
+        await syncAllPrograms();
+      } finally {
+        sidebarSyncBtn.classList.remove('syncing');
+        sidebarSyncBtn.disabled = false;
+      }
+    });
   }
 }

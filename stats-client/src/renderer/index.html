@@ -23,6 +23,15 @@
           </div>
           <span class="logo-text">Stats Fetch</span>
         </div>
+        <!-- Quick Sync All Button -->
+        <button class="sidebar-sync-btn" id="sidebarSyncBtn" title="Sync All Programs">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6"/>
+            <path d="M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          <span>Sync All</span>
+        </button>
       </div>
 
       <nav class="nav">
@@ -372,6 +381,37 @@
               </select>
             </div>
             <p class="settings-note">Number of programs to sync simultaneously. Higher values are faster but use more memory. Each program maintains its own cookies/session.</p>
+          </div>
+
+          <div class="settings-section">
+            <h2 class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Scheduled Syncs
+            </h2>
+            <p class="settings-note" style="margin-bottom: 12px;">Automatically sync all programs at specific times (uses your local system time).</p>
+            
+            <div class="schedule-add-form">
+              <input type="time" id="scheduleTimeInput" class="input" style="width: 130px;">
+              <button class="btn btn-primary" id="addScheduleBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px;">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add Schedule
+              </button>
+            </div>
+            
+            <div id="schedulesList" class="schedules-list">
+              <p class="no-schedules">No scheduled syncs. Add a time above to get started.</p>
+            </div>
+            
+            <div id="nextScheduledSync" class="next-sync-info" style="display: none;">
+              <span class="next-sync-label">Next sync:</span>
+              <span class="next-sync-time" id="nextSyncTime">--:--</span>
+            </div>
           </div>
 
           <div class="settings-section">
