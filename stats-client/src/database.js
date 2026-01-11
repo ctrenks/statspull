@@ -258,7 +258,7 @@ class Database {
   getPrograms() {
     // Get programs with credential status
     const programs = this.query("SELECT * FROM programs ORDER BY name");
-    
+
     // Add has_credentials flag for each program
     return programs.map(p => {
       const creds = this.queryOne(

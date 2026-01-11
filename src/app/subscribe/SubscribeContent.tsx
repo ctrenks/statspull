@@ -23,16 +23,16 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
 
   const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIAL";
 
-  const monthlyPrice = 30;
-  const yearlyPrice = 300; // ~17% discount
+  const monthlyPrice = 25;
+  const yearlyPrice = 275; // 1 month free (11 months)
   const yearlyMonthly = (yearlyPrice / 12).toFixed(2);
 
   const cryptoPrices: Record<number, number> = {
-    1: 30,
-    3: 85, // ~6% off
-    6: 160, // ~11% off
-    12: 300, // ~17% off
-    24: 540, // ~25% off
+    1: 25,
+    3: 70, // ~7% off
+    6: 135, // ~10% off
+    12: 275, // 1 month free
+    24: 500, // ~17% off
   };
 
   const sendPaymentRequest = async () => {
@@ -231,7 +231,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
               <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              2 months free
+              1 month free
             </li>
           </ul>
           {isLoggedIn ? (
@@ -355,7 +355,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
                         </span>
                         {Number(months) > 1 && (
                           <span className="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">
-                            Save {Math.round((1 - price / (Number(months) * 30)) * 100)}%
+                            Save {Math.round((1 - price / (Number(months) * 25)) * 100)}%
                           </span>
                         )}
                       </div>

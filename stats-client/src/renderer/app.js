@@ -610,14 +610,14 @@ function renderPrograms() {
       if (p.last_error) return 2;       // Has errors
       return 3;                          // Working
     };
-    
+
     const priorityA = getPriority(a);
     const priorityB = getPriority(b);
-    
+
     if (priorityA !== priorityB) {
       return priorityA - priorityB;
     }
-    
+
     // Same priority, sort alphabetically
     return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
   });

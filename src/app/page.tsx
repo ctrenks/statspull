@@ -139,9 +139,12 @@ export default async function Home() {
                 POPULAR
               </div>
               <div className="text-primary-400 text-sm font-semibold uppercase tracking-wider mb-2">Full Access</div>
-              <div className="flex items-baseline justify-center gap-1 mb-4">
-                <span className="text-5xl font-bold font-display">$30</span>
+              <div className="flex items-baseline justify-center gap-1 mb-2">
+                <span className="text-5xl font-bold font-display">$25</span>
                 <span className="text-dark-400 text-lg">/ month</span>
+              </div>
+              <div className="text-dark-400 text-sm mb-4">
+                or <span className="text-primary-400 font-semibold">$275/year</span> (1 month free)
               </div>
               <div className="text-2xl font-bold text-white mb-6">Unlimited Programs</div>
               <ul className="text-left space-y-3 mb-8">
@@ -294,7 +297,7 @@ export default async function Home() {
                   </tr>
                   {/* US only */}
                   <tr className="border-b border-dark-800 bg-primary-500/5">
-                    <td className="py-4 px-6 text-dark-200 font-medium">Low monthly price ($30/mo)</td>
+                    <td className="py-4 px-6 text-dark-200 font-medium">Low monthly price ($25/mo or $275/yr)</td>
                     <td className="py-4 px-6 text-center">
                       <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
