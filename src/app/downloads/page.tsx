@@ -11,22 +11,22 @@ async function getLatestRelease() {
     const res = await fetch('https://api.github.com/repos/ctrenks/statspull/releases/latest', {
       next: { revalidate: 300 } // Cache for 5 minutes
     });
-    
+
     if (!res.ok) return null;
-    
+
     const release = await res.json();
-    
+
     // Find the Windows .exe and Mac .dmg files
-    const windowsAsset = release.assets.find((asset: any) => 
+    const windowsAsset = release.assets.find((asset: any) =>
       asset.name.endsWith('.exe') && asset.name.includes('win')
     );
-    const macDmgAsset = release.assets.find((asset: any) => 
+    const macDmgAsset = release.assets.find((asset: any) =>
       asset.name.endsWith('.dmg')
     );
-    const macZipAsset = release.assets.find((asset: any) => 
+    const macZipAsset = release.assets.find((asset: any) =>
       asset.name.endsWith('.zip') && asset.name.toLowerCase().includes('mac')
     );
-    
+
     return {
       version: release.tag_name.replace('v', ''),
       windowsUrl: windowsAsset?.browser_download_url || null,
