@@ -9,7 +9,10 @@ interface ProfileFormProps {
   email: string;
 }
 
-export default function ProfileForm({ currentUsername, email }: ProfileFormProps) {
+export default function ProfileForm({
+  currentUsername,
+  email,
+}: ProfileFormProps) {
   const router = useRouter();
   const { update } = useSession();
   const [username, setUsername] = useState(currentUsername || "");
@@ -26,7 +29,9 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
 
     setChecking(true);
     try {
-      const res = await fetch(`/api/profile/check-username?username=${encodeURIComponent(value)}`);
+      const res = await fetch(
+        `/api/profile/check-username?username=${encodeURIComponent(value)}`
+      );
       const data = await res.json();
       setAvailable(data.available);
     } catch {
@@ -103,19 +108,27 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
         )}
 
         <div>
-          <label htmlFor="username" className="block text-sm font-medium text-dark-300 mb-2">
+          <label
+            htmlFor="username"
+            className="block text-sm font-medium text-dark-300 mb-2"
+          >
             Username <span className="text-red-400">*</span>
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-500">@</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-500">
+              @
+            </span>
             <input
               id="username"
               type="text"
               value={username}
               onChange={handleUsernameChange}
               className={`input-field pl-8 ${
-                available === true ? "border-green-500/50 focus:border-green-500" :
-                available === false ? "border-red-500/50 focus:border-red-500" : ""
+                available === true
+                  ? "border-green-500/50 focus:border-green-500"
+                  : available === false
+                    ? "border-red-500/50 focus:border-red-500"
+                    : ""
               }`}
               placeholder="username"
               minLength={3}
@@ -125,23 +138,58 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
             />
             {checking && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <svg className="animate-spin w-5 h-5 text-dark-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <svg
+                  className="animate-spin w-5 h-5 text-dark-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
               </div>
             )}
             {!checking && available === true && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-5 h-5 text-green-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
             )}
             {!checking && available === false && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-5 h-5 text-red-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </div>
             )}
@@ -150,10 +198,14 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
             3-20 characters. Letters, numbers, and underscores only.
           </p>
           {available === false && (
-            <p className="mt-1 text-red-400 text-sm">This username is already taken</p>
+            <p className="mt-1 text-red-400 text-sm">
+              This username is already taken
+            </p>
           )}
           {available === true && (
-            <p className="mt-1 text-green-400 text-sm">Username is available!</p>
+            <p className="mt-1 text-green-400 text-sm">
+              Username is available!
+            </p>
           )}
         </div>
 
@@ -164,9 +216,24 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="animate-spin w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
               Saving...
             </span>
@@ -178,5 +245,3 @@ export default function ProfileForm({ currentUsername, email }: ProfileFormProps
     </div>
   );
 }
-
-
