@@ -6,8 +6,44 @@ export const metadata = {
   description: "Download Stats Fetch desktop app for Windows and Mac. Collect your iGaming affiliate stats automatically.",
 };
 
+async function getLatestRelease() {
+  try {
+    const res = await fetch('https://api.github.com/repos/ctrenks/statspull/releases/latest', {
+      next: { revalidate: 300 } // Cache for 5 minutes
+    });
+    
+    if (!res.ok) return null;
+    
+    const release = await res.json();
+    
+    // Find the Windows .exe and Mac .dmg files
+    const windowsAsset = release.assets.find((asset: any) => 
+      asset.name.endsWith('.exe') && asset.name.includes('win')
+    );
+    const macDmgAsset = release.assets.find((asset: any) => 
+      asset.name.endsWith('.dmg')
+    );
+    const macZipAsset = release.assets.find((asset: any) => 
+      asset.name.endsWith('.zip') && asset.name.toLowerCase().includes('mac')
+    );
+    
+    return {
+      version: release.tag_name.replace('v', ''),
+      windowsUrl: windowsAsset?.browser_download_url || null,
+      windowsSize: windowsAsset ? `~${Math.round(windowsAsset.size / 1024 / 1024)} MB` : '~85 MB',
+      macDmgUrl: macDmgAsset?.browser_download_url || null,
+      macZipUrl: macZipAsset?.browser_download_url || null,
+      macSize: macDmgAsset ? `~${Math.round(macDmgAsset.size / 1024 / 1024)} MB` : '~90 MB',
+    };
+  } catch (error) {
+    console.error('Failed to fetch latest release:', error);
+    return null;
+  }
+}
+
 export default async function DownloadsPage() {
   const session = await auth();
+  const release = await getLatestRelease();
 
   return (
     <div className="min-h-screen animated-bg grid-pattern">
@@ -68,7 +104,7 @@ export default async function DownloadsPage() {
               <h2 className="text-2xl font-bold font-display mb-2">Windows</h2>
               <p className="text-dark-400 mb-6">Windows 10 or later (64-bit)</p>
               <a
-                href="https://github.com/ctrenks/stats-client/releases/latest"
+                href={release?.windowsUrl || "https://github.com/ctrenks/statspull/releases/latest"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
@@ -78,7 +114,9 @@ export default async function DownloadsPage() {
                 </svg>
                 Download for Windows
               </a>
-              <p className="text-dark-500 text-sm mt-4">v1.3.0 • ~85 MB • Installer (.exe)</p>
+              <p className="text-dark-500 text-sm mt-4">
+                {release ? `v${release.version} • ${release.windowsSize} • Installer (.exe)` : 'Loading...'}
+              </p>
             </div>
 
             {/* Mac */}
@@ -91,7 +129,7 @@ export default async function DownloadsPage() {
               <h2 className="text-2xl font-bold font-display mb-2">macOS</h2>
               <p className="text-dark-400 mb-6">macOS 10.15 or later (Intel & Apple Silicon)</p>
               <a
-                href="https://github.com/ctrenks/stats-client/releases/latest"
+                href={release?.macDmgUrl || release?.macZipUrl || "https://github.com/ctrenks/statspull/releases/latest"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
@@ -101,7 +139,9 @@ export default async function DownloadsPage() {
                 </svg>
                 Download for Mac
               </a>
-              <p className="text-dark-500 text-sm mt-4">v1.3.0 • ~90 MB • DMG or ZIP</p>
+              <p className="text-dark-500 text-sm mt-4">
+                {release ? `v${release.version} • ${release.macSize} • ${release.macDmgUrl ? 'DMG' : 'ZIP'}` : 'Loading...'}
+              </p>
             </div>
           </div>
 
@@ -148,7 +188,7 @@ export default async function DownloadsPage() {
                 <h4 className="font-semibold text-white mb-3">Windows</h4>
                 <ol className="text-dark-400 space-y-2 text-sm list-decimal list-inside">
                   <li>Download the .exe installer</li>
-                  <li>Run the installer (you may need to click &quot;More info&quot; → &quot;Run anyway&quot;)</li>
+                  <li>Run the installer (digitally signed - no warnings!)</li>
                   <li>Follow the installation wizard</li>
                   <li>Launch Stats Fetch from the Start menu</li>
                 </ol>
@@ -168,7 +208,7 @@ export default async function DownloadsPage() {
           {/* All Releases Link */}
           <div className="text-center">
             <a
-              href="https://github.com/ctrenks/stats-client/releases"
+              href="https://github.com/ctrenks/statspull/releases"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 font-medium"
