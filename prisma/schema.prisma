@@ -218,9 +218,7 @@ model ForumPrivateMessage {
   content   String   @db.Text
   createdAt DateTime @default(now())
 
-  participants ForumMessageParticipant[]
-
-  @@index([senderId])
+  participants ForumMessageParticipant[]  @@index([senderId])
   @@index([createdAt])
 }
 

@@ -4,3 +4,4 @@ export default function SignUp() {
   redirect("/auth/signin");
 }
 
+

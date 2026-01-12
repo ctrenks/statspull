@@ -31,3 +31,4 @@ export default async function TemplatesPage() {
   return <TemplatesContent templates={templates} />;
 }
 
+

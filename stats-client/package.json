@@ -47,7 +47,6 @@
           ]
         }
       ],
-      "icon": "assets/icon.ico",
       "signAndEditExecutable": false
     },
     "forceCodeSigning": false,
@@ -68,14 +67,12 @@
           ]
         }
       ],
-      "icon": "assets/icon.icns",
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "assets/icon.png"
+      "target": "AppImage"
     }
   }
 }
