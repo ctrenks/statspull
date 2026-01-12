@@ -47,3 +47,11 @@ stats-client/node_modules/
 stats-client/dist/
 *.exe
 *.blockmap
+
+# Code signing certificates and keys (NEVER commit these!)
+*.p12
+*.cer
+*.key
+*.csr
+developer_id.*
+developerID_application.*
