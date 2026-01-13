@@ -196,6 +196,20 @@ export default function AdminContent({
             </div>
           </Link>
           <Link
+            href="/admin/statsdrone"
+            className="card flex items-center gap-3 px-6 py-4 hover:border-primary-500/30 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium">StatsDrone Import</p>
+              <p className="text-sm text-dark-400">Import 2100+ affiliate programs</p>
+            </div>
+          </Link>
+          <Link
             href="/admin/forum"
             className="card flex items-center gap-3 px-6 py-4 hover:border-primary-500/30 transition-colors"
           >

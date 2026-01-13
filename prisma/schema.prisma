@@ -413,12 +413,12 @@ model StatsDrone_Program {
   scrapedAt         DateTime @default(now())
   lastCheckedAt     DateTime @default(now())
   isActive          Boolean  @default(true)
-  
+
   // Mapped to our system
   mappedToTemplate  Boolean  @default(false)
   templateId        String?
   template          ProgramTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  
+
   @@index([software])
   @@index([category])
   @@index([apiSupport])
@@ -435,7 +435,7 @@ model StatsDrone_ScrapingLog {
   error       String?
   startedAt   DateTime @default(now())
   completedAt DateTime?
-  
+
   @@index([software])
   @@index([status])
   @@index([startedAt])
