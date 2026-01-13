@@ -227,20 +227,25 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         const href = nameLink.attr('href');
         const slug = href?.split('/').filter(Boolean).pop() || '';
         const joinHref = joinLink.attr('href') || null;
-
+        
+        // Construct full sourceUrl
+        const sourceUrl = href && !href.startsWith('http') 
+          ? `https://statsdrone.com${href}` 
+          : (href || `https://statsdrone.com/affiliate-programs/${slug}`);
+        
         if (page === 1 && i === 0) {
-          console.log(`  First row: name="${name}", slug="${slug}", joinUrl="${joinHref}"`);
+          console.log(`  First row: name="${name}", slug="${slug}", sourceUrl="${sourceUrl}", joinUrl="${joinHref}"`);
         }
-
+        
         if (!slug || !name) {
           if (page === 1 && i < 3) {
-            console.log(`  Skipping row ${i} - missing slug or name`);
+            console.log(`  Skipping row ${i} - missing slug (${slug}) or name (${name})`);
           }
           return;
         }
 
         const program = {
-          name: name || '',
+          name: name,
           slug: slug,
           software: softwareCell.text().trim() || null,
           commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
@@ -250,7 +255,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           logoUrl: logo.attr('src') || null,
           reviewUrl: reviewLink.attr('href') || null,
           joinUrl: joinHref,
-          sourceUrl: href || '',
+          sourceUrl: sourceUrl,
         };
 
         if (page === 1 && i === 0) {
@@ -285,15 +290,49 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
     for (let i = 0; i < programsToSave.length; i++) {
       const program = programsToSave[i];
+      
+      if (i < 3) {
+        console.log(`Saving program ${i}:`, JSON.stringify(program));
+      }
+      
       try {
+        // Validate required fields
+        if (!program.slug || !program.name || !program.sourceUrl) {
+          console.error(`Skipping program ${i} - missing required fields:`, {
+            slug: program.slug,
+            name: program.name,
+            sourceUrl: program.sourceUrl
+          });
+          continue;
+        }
+        
         await prisma.statsDrone_Program.upsert({
           where: { slug: program.slug },
           update: {
-            ...program,
+            name: program.name,
+            software: program.software,
+            commission: program.commission,
+            apiSupport: program.apiSupport,
+            availableInSD: program.availableInSD,
+            category: program.category,
+            logoUrl: program.logoUrl,
+            reviewUrl: program.reviewUrl,
+            joinUrl: program.joinUrl,
+            sourceUrl: program.sourceUrl,
             lastCheckedAt: new Date(),
           },
           create: {
-            ...program,
+            slug: program.slug,
+            name: program.name,
+            software: program.software,
+            commission: program.commission,
+            apiSupport: program.apiSupport,
+            availableInSD: program.availableInSD,
+            category: program.category,
+            logoUrl: program.logoUrl,
+            reviewUrl: program.reviewUrl,
+            joinUrl: program.joinUrl,
+            sourceUrl: program.sourceUrl,
           },
         });
         savedCount++;
@@ -309,8 +348,12 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           });
           console.log(`Progress: ${savedCount}/${programsToSave.length}`);
         }
-      } catch (error) {
-        console.error(`Error saving ${program?.name || 'unknown'}:`, error);
+      } catch (error: any) {
+        console.error(`Error saving program ${i} "${program?.name}":`, error.message);
+        console.error(`Program data:`, JSON.stringify(program));
+        if (i < 5) {
+          console.error(`Full error:`, error);
+        }
       }
     }
 
