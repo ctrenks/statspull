@@ -130,7 +130,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     $('table tbody tr').each((i, row) => {
       const cells = $(row).find('td');
       console.log(`Row ${i}: ${cells.length} cells`);
-      
+
       if (cells.length < 7) {
         console.log(`  Skipping row ${i} - not enough cells`);
         return;
@@ -140,12 +140,12 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       // 0: Logo, 1: Name, 2: Software, 3: Commissions, 4: Available, 5: API, 6: Category, 7: ?, 8: Actions
       const logoCell = $(cells[0]);
       const nameCell = $(cells[1]);
-      
+
       // Debug: Show cell HTML for first row
       if (i === 0) {
         console.log(`  First row nameCell HTML:`, nameCell.html()?.substring(0, 300));
       }
-      
+
       const nameLink = nameCell.find('a').first();
       const logo = logoCell.find('img').first();
 
@@ -156,15 +156,26 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       const categoryCell = $(cells[6]);
       const actionCell = $(cells[8] || cells[7]); // Join button might be in 7 or 8
 
+      // Debug: Show action cell for first row
+      if (i === 0) {
+        console.log(`  First row actionCell (cell 8) HTML:`, $(cells[8]).html()?.substring(0, 500));
+        console.log(`  First row cell 7 HTML:`, $(cells[7]).html()?.substring(0, 500));
+      }
+      
       const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
-      const joinLink = actionCell.find('a[href*="glm"]').first();
+      const joinLink = actionCell.find('a').filter((i, el) => {
+        const href = $(el).attr('href') || '';
+        return href.includes('glm') || href.includes('join') || $(el).text().toLowerCase().includes('join');
+      }).first();
 
       const name = nameLink.text().trim();
       const href = nameLink.attr('href');
       const slug = href?.split('/').filter(Boolean).pop() || '';
+      const joinHref = joinLink.attr('href') || null;
       
       console.log(`  Row ${i}: name="${name}", href="${href}", slug="${slug}"`);
       console.log(`  Row ${i}: software="${softwareCell.text().trim()}", api="${apiCell.text().trim()}"`);
+      console.log(`  Row ${i}: joinUrl="${joinHref}"`);
       
       if (!slug || !name) {
         console.log(`  Skipping row ${i} - missing slug or name`);
@@ -175,17 +186,14 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         name: name || '',
         slug: slug,
         software: softwareCell.text().trim() || null,
-        commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
+        commissions: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
         apiSupport: apiCell.text().trim().toLowerCase() === 'yes',
-        availableInSD: availableCell.text().trim().toLowerCase() === 'yes',
         category: categoryCell.text().trim() || null,
-        logoUrl: logo.attr('src') || null,
         reviewUrl: reviewLink.attr('href') || null,
-        joinUrl: joinLink.attr('href') || null,
-        sourceUrl: href || '',
+        joinUrl: joinHref,
       };
-
-      console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 200));
+      
+      console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 300));
       programs.push(program);
     });
 
