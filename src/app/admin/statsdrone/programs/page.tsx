@@ -134,7 +134,9 @@ export default function StatsDroneProgramsPage() {
     }
   };
 
-  const uniqueSoftware = Array.from(new Set(programs.map(p => p.software).filter(Boolean))).sort();
+  const uniqueSoftware = Array.from(
+    new Set(programs.map(p => p.software).filter((s): s is string => s !== null && s !== undefined))
+  ).sort();
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <span className="text-dark-600">⇅</span>;
