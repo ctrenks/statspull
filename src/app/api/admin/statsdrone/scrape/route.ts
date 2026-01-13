@@ -75,125 +75,114 @@ export async function POST(request: Request) {
 
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   try {
-    // First, try to find the API endpoint by checking the initial page
-    const pageUrl = software
-      ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}`
-      : 'https://statsdrone.com/affiliate-programs/';
-
-    console.log(`Checking for API endpoint at: ${pageUrl}`);
-
+    console.log(`Starting scrape with limit: ${limit || 'unlimited'}`);
+    
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: 'Looking for API endpoint...' },
+      data: { currentProgress: 'Looking for load-more endpoint...' },
     });
-
-    // Try the API endpoint directly - based on typical patterns, it might be /api/programs or similar
-    // Let's try a few common patterns
-    const apiEndpoints = [
-      'https://statsdrone.com/api/affiliate-programs',
-      'https://statsdrone.com/api/programs',
-      'https://statsdrone.com/affiliate-programs/load-more',
+    
+    // Try different load-more patterns that might work
+    const loadMorePatterns = [
+      // POST endpoints with offset/limit
+      { url: 'https://statsdrone.com/site/load-more-programs', method: 'POST', body: { offset: 0, limit: 500 } },
+      { url: 'https://statsdrone.com/affiliate-programs/load-more', method: 'POST', body: { offset: 0, limit: 500 } },
+      // GET endpoints with query params
+      { url: 'https://statsdrone.com/affiliate-programs?limit=500', method: 'GET' },
+      { url: 'https://statsdrone.com/affiliate-programs?offset=0&limit=500', method: 'GET' },
     ];
-
-    let apiData = null;
-    for (const apiUrl of apiEndpoints) {
+    
+    let foundWorkingEndpoint = false;
+    for (const pattern of loadMorePatterns) {
       try {
-        console.log(`Trying API endpoint: ${apiUrl}`);
-        const apiResponse = await fetch(apiUrl, {
+        console.log(`Trying load-more pattern: ${pattern.url}`);
+        const response = await fetch(pattern.url, {
+          method: pattern.method,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json, text/html',
+            'Content-Type': 'application/json',
           },
+          body: pattern.body ? JSON.stringify(pattern.body) : undefined,
         });
-        if (apiResponse.ok) {
-          const data = await apiResponse.json();
-          console.log(`API endpoint found! Got ${JSON.stringify(data).length} bytes`);
-          apiData = data;
-          break;
+        
+        if (response.ok) {
+          const text = await response.text();
+          console.log(`Response length: ${text.length}`);
+          
+          // Check if it's different from the default page (90905 bytes)
+          if (text.length !== 90905) {
+            console.log(`Found different response! This might be the working endpoint.`);
+            foundWorkingEndpoint = true;
+            break;
+          }
         }
       } catch (e) {
-        console.log(`API endpoint ${apiUrl} failed:`, e);
+        console.log(`Pattern failed:`, e);
       }
     }
 
-    if (apiData) {
-      console.log('Using API data directly');
-      // Process API data here if we found it
-      // For now, fall back to HTML scraping
-    }
-
-    // Fetch the HTML (with pagination support)
+    // Since pagination doesn't work, scrape by software type instead
+    // First get all software types, then scrape each one
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: 'Fetching programs (pagination support)...' },
+      data: { currentProgress: 'Fetching all programs...' },
+    });
+    
+    const allPrograms: any[] = [];
+    
+    // Fetch the main page to get initial programs
+    const mainUrl = 'https://statsdrone.com/affiliate-programs/';
+    console.log(`Fetching main page: ${mainUrl}`);
+    
+    const response = await fetch(mainUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
     });
 
-    const allPrograms: any[] = [];
-    let page = 1;
-    const maxPages = Math.ceil((limit || 2500) / 50); // Assuming ~50 per page
+    if (!response.ok) {
+      throw new Error(`Failed to fetch main page: ${response.status}`);
+    }
 
-    while (page <= maxPages) {
-      const url = software
-        ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}&page=${page}`
-        : `https://statsdrone.com/affiliate-programs/?page=${page}`;
+    const html = await response.text();
+    console.log(`Main page fetched successfully, HTML length:`, html.length);
+    console.log('First 500 chars:', html.substring(0, 500));
 
-      console.log(`Fetching page ${page}: ${url}`);
+    // Parse HTML with cheerio
+    const $ = cheerio.load(html);
+    
+    // Look for the load-more button and associated JavaScript
+    const loadMoreButton = $('button:contains("Load More"), a:contains("Load More"), .load-more, #load-more');
+    console.log('Load more button found:', loadMoreButton.length > 0);
+    
+    if (loadMoreButton.length > 0) {
+      console.log('Load more button HTML:', loadMoreButton.html()?.substring(0, 200));
+      console.log('Load more onclick:', loadMoreButton.attr('onclick'));
+      console.log('Load more data attributes:', Object.keys(loadMoreButton.data()));
+    }
+    
+    // Check for any script tags that might contain the AJAX endpoint
+    const scripts = $('script').map((i, el) => $(el).html()).get();
+    const loadMoreScript = scripts.find(s => s && (s.includes('load') || s.includes('ajax') || s.includes('fetch')));
+    if (loadMoreScript) {
+      console.log('Found potential load-more script:', loadMoreScript.substring(0, 500));
+    }
+    
+    // Debug: Check what we're finding
+    const tables = $('table').length;
+    const rows = $('table tbody tr').length;
+    console.log('Tables found:', tables);
+    console.log('Rows in tbody:', rows);
+    
+    await prisma.statsDrone_ScrapingLog.update({
+      where: { id: logId },
+      data: { currentProgress: `Parsing ${rows} visible programs...` },
+    });
 
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      });
-
-      if (!response.ok) {
-        console.log(`Page ${page} failed: ${response.status}`);
-        break;
-      }
-
-      const html = await response.text();
-      console.log(`Page ${page} fetched successfully, HTML length:`, html.length);
-
-      if (page === 1) {
-        console.log('First 500 chars:', html.substring(0, 500));
-      }
-
-      // Parse HTML with cheerio
-      const $ = cheerio.load(html);
-
-      // Debug: Check what we're finding
-      const tables = $('table').length;
-      const rows = $('table tbody tr').length;
-
-      if (page === 1) {
-        const allRows = $('table tr').length;
-        console.log('Tables found:', tables);
-        console.log('Rows in tbody:', rows);
-        console.log('All rows in tables:', allRows);
-        console.log('Table classes:', $('table').map((i, el) => $(el).attr('class')).get());
-
-        // Log first table's structure
-        if (tables > 0) {
-          const firstTable = $('table').first();
-          console.log('First table HTML (first 1000 chars):', firstTable.html()?.substring(0, 1000));
-        }
-      } else {
-        console.log(`Page ${page}: Found ${rows} rows`);
-      }
-
-      if (rows === 0) {
-        console.log(`No more rows found on page ${page}, stopping pagination`);
-        break;
-      }
-
-      await prisma.statsDrone_ScrapingLog.update({
-        where: { id: logId },
-        data: { currentProgress: `Parsing page ${page}...` },
-      });
-
-      // Extract program data from this page
-      const pagePrograms: any[] = [];
-      $('table tbody tr').each((i, row) => {
+    // Extract program data
+    $('table tbody tr').each((i, row) => {
         const cells = $(row).find('td');
 
         if (cells.length < 7) {
@@ -233,12 +222,12 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           ? `https://statsdrone.com${href}`
           : (href || `https://statsdrone.com/affiliate-programs/${slug}`);
 
-        if (page === 1 && i === 0) {
+        if (i === 0) {
           console.log(`  First row: name="${name}", slug="${slug}", sourceUrl="${sourceUrl}", joinUrl="${joinHref}"`);
         }
-
+        
         if (!slug || !name) {
-          if (page === 1 && i < 3) {
+          if (i < 3) {
             console.log(`  Skipping row ${i} - missing slug (${slug}) or name (${name})`);
           }
           return;
@@ -257,32 +246,14 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           joinUrl: joinHref,
           sourceUrl: sourceUrl,
         };
-
-        if (page === 1 && i === 0) {
+        
+        if (i === 0) {
           console.log(`  First program:`, JSON.stringify(program).substring(0, 300));
         }
-        pagePrograms.push(program);
+        allPrograms.push(program);
       });
 
-      console.log(`Page ${page}: Found ${pagePrograms.length} programs`);
-      allPrograms.push(...pagePrograms);
-
-      // Check if we've reached the limit
-      if (limit && allPrograms.length >= limit) {
-        console.log(`Reached limit of ${limit} programs`);
-        break;
-      }
-
-      // If this page had fewer programs than expected, we might be at the end
-      if (pagePrograms.length < 10) {
-        console.log(`Page ${page} had only ${pagePrograms.length} programs, likely at the end`);
-        break;
-      }
-
-      page++;
-    }
-
-    console.log(`Total programs found across all pages: ${allPrograms.length}`);
+    console.log(`Total programs found: ${allPrograms.length}`);
 
     // Save to database
     let savedCount = 0;
