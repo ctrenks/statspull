@@ -183,10 +183,10 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
     // Extract program data
     $('table tbody tr').each((i, row) => {
-        const cells = $(row).find('td');
-
+      const cells = $(row).find('td');
+        
         if (cells.length < 7) {
-          if (page === 1 && i === 0) {
+          if (i === 0) {
             console.log(`  Skipping row ${i} - not enough cells (${cells.length})`);
           }
           return;
