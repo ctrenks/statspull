@@ -186,11 +186,14 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         name: name || '',
         slug: slug,
         software: softwareCell.text().trim() || null,
-        commissions: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
+        commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
         apiSupport: apiCell.text().trim().toLowerCase() === 'yes',
+        availableInSD: availableCell.text().trim().toLowerCase() === 'yes',
         category: categoryCell.text().trim() || null,
+        logoUrl: logo.attr('src') || null,
         reviewUrl: reviewLink.attr('href') || null,
         joinUrl: joinHref,
+        sourceUrl: href || '',
       };
 
       console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 300));
