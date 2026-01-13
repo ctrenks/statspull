@@ -76,13 +76,13 @@ export async function POST(request: Request) {
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   try {
     console.log(`Starting scrape with limit: ${limit || 'unlimited'}`);
-    
+
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: 'Looking for load-more endpoint...' },
     });
-    
+
     // Try different load-more patterns that might work
     const loadMorePatterns = [
       // POST endpoints with offset/limit
@@ -92,7 +92,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       { url: 'https://statsdrone.com/affiliate-programs?limit=500', method: 'GET' },
       { url: 'https://statsdrone.com/affiliate-programs?offset=0&limit=500', method: 'GET' },
     ];
-    
+
     let foundWorkingEndpoint = false;
     for (const pattern of loadMorePatterns) {
       try {
@@ -106,11 +106,11 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           },
           body: pattern.body ? JSON.stringify(pattern.body) : undefined,
         });
-        
+
         if (response.ok) {
           const text = await response.text();
           console.log(`Response length: ${text.length}`);
-          
+
           // Check if it's different from the default page (90905 bytes)
           if (text.length !== 90905) {
             console.log(`Found different response! This might be the working endpoint.`);
@@ -129,13 +129,13 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       where: { id: logId },
       data: { currentProgress: 'Fetching all programs...' },
     });
-    
+
     const allPrograms: any[] = [];
-    
+
     // Fetch the main page to get initial programs
     const mainUrl = 'https://statsdrone.com/affiliate-programs/';
     console.log(`Fetching main page: ${mainUrl}`);
-    
+
     const response = await fetch(mainUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -152,30 +152,30 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
     // Parse HTML with cheerio
     const $ = cheerio.load(html);
-    
+
     // Look for the load-more button and associated JavaScript
     const loadMoreButton = $('button:contains("Load More"), a:contains("Load More"), .load-more, #load-more');
     console.log('Load more button found:', loadMoreButton.length > 0);
-    
+
     if (loadMoreButton.length > 0) {
       console.log('Load more button HTML:', loadMoreButton.html()?.substring(0, 200));
       console.log('Load more onclick:', loadMoreButton.attr('onclick'));
       console.log('Load more data attributes:', Object.keys(loadMoreButton.data()));
     }
-    
+
     // Check for any script tags that might contain the AJAX endpoint
     const scripts = $('script').map((i, el) => $(el).html()).get();
     const loadMoreScript = scripts.find(s => s && (s.includes('load') || s.includes('ajax') || s.includes('fetch')));
     if (loadMoreScript) {
       console.log('Found potential load-more script:', loadMoreScript.substring(0, 500));
     }
-    
+
     // Debug: Check what we're finding
     const tables = $('table').length;
     const rows = $('table tbody tr').length;
     console.log('Tables found:', tables);
     console.log('Rows in tbody:', rows);
-    
+
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: `Parsing ${rows} visible programs...` },
@@ -225,7 +225,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         if (i === 0) {
           console.log(`  First row: name="${name}", slug="${slug}", sourceUrl="${sourceUrl}", joinUrl="${joinHref}"`);
         }
-        
+
         if (!slug || !name) {
           if (i < 3) {
             console.log(`  Skipping row ${i} - missing slug (${slug}) or name (${name})`);
@@ -246,7 +246,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           joinUrl: joinHref,
           sourceUrl: sourceUrl,
         };
-        
+
         if (i === 0) {
           console.log(`  First program:`, JSON.stringify(program).substring(0, 300));
         }
