@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
+// Allow this route to run for up to 60 seconds (Vercel Pro limit)
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     console.log('POST /api/admin/statsdrone/scrape - Starting');
@@ -29,17 +32,38 @@ export async function POST(request: Request) {
     });
     console.log('Log created:', log.id);
 
-    // Start scraping in background (don't await)
-    console.log('Starting background scrape...');
-    scrapeInBackground(log.id, software, limit).catch(err => {
-      console.error('Background scrape failed:', err);
-    });
+    // For small scrapes (< 50), run synchronously to avoid Vercel serverless timeout issues
+    // For large scrapes, start in background (may be terminated by Vercel)
+    console.log('Starting scrape...');
+    
+    if (limit && limit < 50) {
+      // Run synchronously for small scrapes
+      console.log('Running synchronous scrape for small limit');
+      await scrapeInBackground(log.id, software, limit);
+      
+      const updatedLog = await prisma.statsDrone_ScrapingLog.findUnique({
+        where: { id: log.id },
+      });
+      
+      return NextResponse.json({
+        success: true,
+        logId: log.id,
+        status: updatedLog?.status,
+        programsFound: updatedLog?.programsFound,
+        message: 'Scraping completed'
+      });
+    } else {
+      // Run asynchronously for large scrapes (may timeout on Vercel)
+      scrapeInBackground(log.id, software, limit).catch(err => {
+        console.error('Background scrape failed:', err);
+      });
 
-    return NextResponse.json({
-      success: true,
-      logId: log.id,
-      message: 'Scraping started in background'
-    });
+      return NextResponse.json({
+        success: true,
+        logId: log.id,
+        message: 'Scraping started (large scrape may timeout on Vercel serverless - consider running locally)'
+      });
+    }
 
   } catch (error: any) {
     console.error('Scrape API POST error:', error);
@@ -56,17 +80,34 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
   try {
     console.log('Starting browser...');
+    
+    // Set a timeout for browser launch
+    const launchTimeout = setTimeout(() => {
+      throw new Error('Browser launch timed out after 30 seconds');
+    }, 30000);
+
     const executablePath = await chromium.executablePath();
     console.log('Executable path:', executablePath);
 
     browser = await puppeteer.launch({
-      args: [...chromium.args, '--disable-gpu', '--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        ...chromium.args,
+        '--disable-gpu',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-software-rasterizer',
+        '--single-process',
+      ],
       defaultViewport: chromium.defaultViewport,
       executablePath,
       headless: true,
+      timeout: 30000,
     });
 
+    clearTimeout(launchTimeout);
     console.log('Browser launched successfully');
+    
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
@@ -75,8 +116,16 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       : 'https://statsdrone.com/affiliate-programs/';
 
     console.log(`Scraping: ${url}`);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    // Update progress
+    await prisma.statsDrone_ScrapingLog.update({
+      where: { id: logId },
+      data: { currentProgress: 'Loading page...' },
+    });
+    
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
     await page.waitForSelector('table', { timeout: 10000 });
+    console.log('Page loaded successfully');
 
     // Extract program data
     const programs = await page.evaluate(() => {

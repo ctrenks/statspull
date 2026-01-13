@@ -9,7 +9,7 @@ export default function StatsDroneAdmin() {
   const [scraping, setScraping] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportResults, setExportResults] = useState<any>(null);
-  const [customLimit, setCustomLimit] = useState<string>('100');
+  const [customLimit, setCustomLimit] = useState<string>('25');
   const [currentProgress, setCurrentProgress] = useState<string>('');
 
   useEffect(() => {
@@ -54,9 +54,19 @@ export default function StatsDroneAdmin() {
       const data = await res.json();
 
       if (data.success) {
+        // If completed synchronously (small scrape < 50)
+        if (data.status !== 'running') {
+          setScraping(false);
+          setCurrentProgress('');
+          loadStats();
+          loadLogs();
+          alert(`Scraping ${data.status}! Found ${data.programsFound || 0} programs.`);
+          return;
+        }
+
         loadLogs();
 
-        // Poll for completion
+        // Poll for completion (async scrape)
         const logId = data.logId;
         const interval = setInterval(async () => {
           const logRes = await fetch(`/api/admin/statsdrone/scrape?logId=${logId}`);
@@ -143,6 +153,17 @@ export default function StatsDroneAdmin() {
       <div className="card p-6 mb-8">
         <h2 className="text-xl font-bold mb-4">Scrape Programs</h2>
 
+        {/* Vercel Limitation Warning */}
+        <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded">
+          <div className="flex items-start gap-2">
+            <span className="text-yellow-400 text-lg">⚠️</span>
+            <div className="text-sm text-yellow-400">
+              <strong>Serverless Limitation:</strong> Scrapes over 50 programs may timeout on Vercel (60s limit). 
+              For large scrapes, consider running the scraper locally or use smaller batches.
+            </div>
+          </div>
+        </div>
+
         {/* Progress Display */}
         {scraping && currentProgress && (
           <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded">
@@ -177,19 +198,28 @@ export default function StatsDroneAdmin() {
 
         <div className="flex flex-wrap gap-4">
           <button
-            onClick={() => startScrape(50)}
+            onClick={() => startScrape(10)}
             disabled={scraping}
-            className="btn-ghost"
+            className="btn-primary"
           >
-            {scraping ? '⏳ Scraping...' : '🔄 Scrape 50 (Quick Test)'}
+            {scraping ? '⏳ Scraping...' : '✅ Scrape 10 (Fast)'}
           </button>
 
           <button
-            onClick={() => startScrape()}
+            onClick={() => startScrape(25)}
             disabled={scraping}
-            className="btn-ghost"
+            className="btn-primary"
           >
-            {scraping ? '⏳ Scraping...' : '🚀 Scrape All (~2100)'}
+            {scraping ? '⏳ Scraping...' : '✅ Scrape 25 (Recommended)'}
+          </button>
+
+          <button
+            onClick={() => startScrape(100)}
+            disabled={scraping}
+            className="btn-ghost opacity-50"
+            title="May timeout on Vercel"
+          >
+            {scraping ? '⏳ Scraping...' : '⚠️ Scrape 100 (May Timeout)'}
           </button>
 
           <button
