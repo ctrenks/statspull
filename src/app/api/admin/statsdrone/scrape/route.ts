@@ -76,17 +76,17 @@ export async function POST(request: Request) {
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   try {
     console.log(`Starting scrape with limit: ${limit || 'unlimited'}`);
-    
+
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: 'Fetching all programs from load-more endpoint...' },
     });
-    
+
     // Use the load-more endpoint that returns all programs
     const loadMoreUrl = 'https://statsdrone.com/affiliate-programs/load-more';
     console.log(`Fetching from load-more endpoint: ${loadMoreUrl}`);
-    
+
     const response = await fetch(loadMoreUrl, {
       method: 'POST',
       headers: {
@@ -104,15 +104,15 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     const html = await response.text();
     console.log(`Load-more response fetched successfully, HTML length:`, html.length);
     console.log('First 500 chars:', html.substring(0, 500));
-    
+
     const allPrograms: any[] = [];
 
     // Parse HTML with cheerio
     const $ = cheerio.load(html);
-    
+
     const rows = $('table tbody tr').length;
     console.log('Rows in response:', rows);
-    
+
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: `Parsing ${rows} programs...` },
