@@ -219,7 +219,7 @@ model ForumPrivateMessage {
   createdAt DateTime @default(now())
 
   participants ForumMessageParticipant[]
-  
+
   @@index([senderId])
   @@index([createdAt])
 }
