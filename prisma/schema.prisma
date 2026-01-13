@@ -119,6 +119,8 @@ model ProgramTemplate {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  statsDronePrograms StatsDrone_Program[]
+
   @@index([softwareType])
   @@index([isActive])
   @@index([displayOrder])
@@ -391,4 +393,50 @@ model SubscriptionPricing {
 
   @@index([type])
   @@index([isActive])
+}
+
+// StatsDrone scraped data - separate tables for imported programs
+model StatsDrone_Program {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  software          String?
+  commission        String?
+  apiSupport        Boolean  @default(false)
+  availableInSD     Boolean  @default(false)
+  category          String?
+  logoUrl           String?
+  reviewUrl         String?
+  joinUrl           String?
+  exclusiveOffer    String?
+  sourceUrl         String   // Original StatsDrone URL
+  scrapedAt         DateTime @default(now())
+  lastCheckedAt     DateTime @default(now())
+  isActive          Boolean  @default(true)
+  
+  // Mapped to our system
+  mappedToTemplate  Boolean  @default(false)
+  templateId        String?
+  template          ProgramTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  
+  @@index([software])
+  @@index([category])
+  @@index([apiSupport])
+  @@index([mappedToTemplate])
+  @@index([scrapedAt])
+}
+
+model StatsDrone_ScrapingLog {
+  id          String   @id @default(cuid())
+  software    String?  // Which software filter was being scraped
+  page        Int?
+  status      String   // "success", "error", "partial"
+  programsFound Int    @default(0)
+  error       String?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  @@index([software])
+  @@index([status])
+  @@index([startedAt])
 }

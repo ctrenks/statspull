@@ -1,0 +1,15 @@
+{
+  "name": "statsdrone-scraper",
+  "version": "1.0.0",
+  "description": "Scraper for StatsDrone affiliate program data",
+  "main": "scraper.js",
+  "scripts": {
+    "scrape": "node scraper.js",
+    "view": "node view-data.js",
+    "export": "node export-to-templates.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.1",
+    "puppeteer": "^21.0.0"
+  }
+}
