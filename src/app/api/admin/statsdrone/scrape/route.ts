@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer';
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -24,8 +24,8 @@ export async function POST(request: Request) {
     // Start scraping in background (don't await)
     scrapeInBackground(log.id, software, limit);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       logId: log.id,
       message: 'Scraping started in background'
     });
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   let browser;
-  
+
   try {
     browser = await puppeteer.launch({
       headless: 'new',
@@ -51,7 +51,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
-    const url = software 
+    const url = software
       ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}`
       : 'https://statsdrone.com/affiliate-programs/';
 
@@ -62,26 +62,26 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     // Extract program data
     const programs = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll('table tbody tr'));
-      
+
       return rows.map(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length < 6) return null;
-        
+
         const nameCell = cells[0];
         const nameLink = nameCell.querySelector('a');
         const logo = nameCell.querySelector('img');
-        
+
         const softwareCell = cells[1];
         const commissionCell = cells[2];
         const apiCell = cells[3];
         const availableCell = cells[4];
         const categoryCell = cells[5];
         const actionCell = cells[6];
-        
+
         const reviewLink = actionCell?.querySelector('a[href*="/affiliate-programs/"]');
         const joinLink = actionCell?.querySelector('a[href*="glm"]');
         const exclusiveOffer = commissionCell?.querySelector('img[alt*="exclusive"]')?.nextSibling?.textContent?.trim();
-        
+
         return {
           name: nameLink?.textContent.trim() || '',
           slug: nameLink?.getAttribute('href')?.split('/').filter(Boolean).pop() || '',
@@ -137,7 +137,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
   } catch (error: any) {
     console.error('Background scraping error:', error);
-    
+
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: {
@@ -157,7 +157,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 export async function GET(request: Request) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

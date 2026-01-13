@@ -5,22 +5,22 @@ import prisma from '@/lib/prisma';
 export async function GET() {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get statistics
     const total = await prisma.statsDrone_Program.count();
-    
+
     const withAPI = await prisma.statsDrone_Program.count({
       where: { apiSupport: true }
     });
-    
+
     const availableInSD = await prisma.statsDrone_Program.count({
       where: { availableInSD: true }
     });
-    
+
     const mapped = await prisma.statsDrone_Program.count({
       where: { mappedToTemplate: true }
     });

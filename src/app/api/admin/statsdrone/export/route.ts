@@ -19,7 +19,7 @@ const SOFTWARE_MAPPING: Record<string, string> = {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       mappedToTemplate: false,
       isActive: true,
     };
-    
+
     if (onlyWithAPI) {
       where.apiSupport = true;
     }
@@ -52,12 +52,12 @@ export async function POST(request: Request) {
     for (const program of programs) {
       try {
         // Map software type
-        const softwareType = SOFTWARE_MAPPING[program.software || ''] || 
+        const softwareType = SOFTWARE_MAPPING[program.software || ''] ||
                            (program.software?.toLowerCase() || 'other');
-        
+
         // Skip if unknown software and not proprietary
-        if (!SOFTWARE_MAPPING[program.software || ''] && 
-            program.software !== 'Proprietary' && 
+        if (!SOFTWARE_MAPPING[program.software || ''] &&
+            program.software !== 'Proprietary' &&
             program.software) {
           results.skipped++;
           results.programs.push({
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         const existing = await prisma.programTemplate.findFirst({
           where: { name: program.name }
         });
-        
+
         if (existing) {
           results.skipped++;
           results.programs.push({
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
               ].filter(Boolean).join('\n'),
             }
           });
-          
+
           // Mark as mapped
           await prisma.statsDrone_Program.update({
             where: { id: program.id },

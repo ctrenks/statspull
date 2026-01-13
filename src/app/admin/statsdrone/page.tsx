@@ -47,19 +47,19 @@ export default function StatsDroneAdmin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit }),
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
         alert('Scraping started! Check back in a few minutes.');
         loadLogs();
-        
+
         // Poll for completion
         const logId = data.logId;
         const interval = setInterval(async () => {
           const logRes = await fetch(`/api/admin/statsdrone/scrape?logId=${logId}`);
           const logData = await logRes.json();
-          
+
           if (logData.log?.status !== 'running') {
             clearInterval(interval);
             setScraping(false);
@@ -79,17 +79,17 @@ export default function StatsDroneAdmin() {
   const exportToTemplates = async (dryRun: boolean, onlyAPI = false, limit?: number) => {
     setExporting(true);
     setExportResults(null);
-    
+
     try {
       const res = await fetch('/api/admin/statsdrone/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dryRun, onlyWithAPI: onlyAPI, limit }),
       });
-      
+
       const data = await res.json();
       setExportResults(data.results);
-      
+
       if (!dryRun) {
         loadStats();
         alert(`Export complete! Created ${data.results.created} templates.`);
@@ -113,17 +113,17 @@ export default function StatsDroneAdmin() {
             <div className="text-3xl font-bold text-primary-400">{stats.stats.total}</div>
             <div className="text-dark-400">Total Programs</div>
           </div>
-          
+
           <div className="card p-6">
             <div className="text-3xl font-bold text-green-400">{stats.stats.withAPI}</div>
             <div className="text-dark-400">With API Support</div>
           </div>
-          
+
           <div className="card p-6">
             <div className="text-3xl font-bold text-blue-400">{stats.stats.mapped}</div>
             <div className="text-dark-400">Mapped to Templates</div>
           </div>
-          
+
           <div className="card p-6">
             <div className="text-3xl font-bold text-yellow-400">{stats.stats.unmapped}</div>
             <div className="text-dark-400">Ready to Export</div>
@@ -134,7 +134,7 @@ export default function StatsDroneAdmin() {
       {/* Actions */}
       <div className="card p-6 mb-8">
         <h2 className="text-xl font-bold mb-4">Actions</h2>
-        
+
         <div className="flex flex-wrap gap-4">
           <button
             onClick={() => startScrape(50)}
@@ -143,7 +143,7 @@ export default function StatsDroneAdmin() {
           >
             {scraping ? '⏳ Scraping...' : '🔄 Scrape 50 Programs (Test)'}
           </button>
-          
+
           <button
             onClick={() => startScrape()}
             disabled={scraping}
@@ -151,7 +151,7 @@ export default function StatsDroneAdmin() {
           >
             {scraping ? '⏳ Scraping...' : '🚀 Scrape All Programs (~2100)'}
           </button>
-          
+
           <button
             onClick={() => exportToTemplates(true, false, 10)}
             disabled={exporting || stats?.stats.unmapped === 0}
@@ -159,7 +159,7 @@ export default function StatsDroneAdmin() {
           >
             {exporting ? '⏳ Checking...' : '🔍 Preview Export (10)'}
           </button>
-          
+
           <button
             onClick={() => exportToTemplates(false, false, 50)}
             disabled={exporting || stats?.stats.unmapped === 0}
@@ -167,7 +167,7 @@ export default function StatsDroneAdmin() {
           >
             {exporting ? '⏳ Exporting...' : '✅ Export 50 Programs'}
           </button>
-          
+
           <button
             onClick={() => exportToTemplates(false, true)}
             disabled={exporting || stats?.stats.unmapped === 0}
@@ -175,7 +175,7 @@ export default function StatsDroneAdmin() {
           >
             {exporting ? '⏳ Exporting...' : '🔌 Export All (API Only)'}
           </button>
-          
+
           <button
             onClick={() => exportToTemplates(false, false)}
             disabled={exporting || stats?.stats.unmapped === 0}
@@ -201,7 +201,7 @@ export default function StatsDroneAdmin() {
               <span className="text-red-400 font-bold">{exportResults.errors}</span> Errors
             </div>
           </div>
-          
+
           <div className="max-h-64 overflow-y-auto">
             {exportResults.programs.slice(0, 20).map((p: any, i: number) => (
               <div key={i} className="text-sm py-1 border-b border-dark-800">
