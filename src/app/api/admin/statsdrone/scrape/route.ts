@@ -227,16 +227,16 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         const href = nameLink.attr('href');
         const slug = href?.split('/').filter(Boolean).pop() || '';
         const joinHref = joinLink.attr('href') || null;
-        
+
         // Construct full sourceUrl
-        const sourceUrl = href && !href.startsWith('http') 
-          ? `https://statsdrone.com${href}` 
+        const sourceUrl = href && !href.startsWith('http')
+          ? `https://statsdrone.com${href}`
           : (href || `https://statsdrone.com/affiliate-programs/${slug}`);
-        
+
         if (page === 1 && i === 0) {
           console.log(`  First row: name="${name}", slug="${slug}", sourceUrl="${sourceUrl}", joinUrl="${joinHref}"`);
         }
-        
+
         if (!slug || !name) {
           if (page === 1 && i < 3) {
             console.log(`  Skipping row ${i} - missing slug (${slug}) or name (${name})`);
@@ -290,11 +290,11 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
     for (let i = 0; i < programsToSave.length; i++) {
       const program = programsToSave[i];
-      
+
       if (i < 3) {
         console.log(`Saving program ${i}:`, JSON.stringify(program));
       }
-      
+
       try {
         // Validate required fields
         if (!program.slug || !program.name || !program.sourceUrl) {
@@ -305,7 +305,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           });
           continue;
         }
-        
+
         await prisma.statsDrone_Program.upsert({
           where: { slug: program.slug },
           update: {
