@@ -67,41 +67,41 @@ async function scrapePrograms(browser, software = null) {
     // Click "Load More" button repeatedly until all programs are loaded
     let loadMoreClicks = 0;
     let previousRowCount = 0;
-    
+
     while (true) {
       // Count current rows
       const currentRowCount = await page.evaluate(() => {
         return document.querySelectorAll('table tbody tr').length;
       });
-      
+
       console.log(`   Current programs visible: ${currentRowCount}`);
-      
+
       // Check if row count stopped increasing (no more to load)
       if (currentRowCount === previousRowCount && loadMoreClicks > 0) {
         console.log(`   ✅ All programs loaded (no more "Load More")`);
         break;
       }
-      
+
       previousRowCount = currentRowCount;
-      
+
       // Look for "Load More" button
       const loadMoreButton = await page.$('button:has-text("Load More"), a:has-text("Load More"), .load-more-btn, #load-more');
-      
+
       if (!loadMoreButton) {
         // Try alternative selectors
         const altButton = await page.evaluateHandle(() => {
           const buttons = Array.from(document.querySelectorAll('button, a'));
-          return buttons.find(btn => 
+          return buttons.find(btn =>
             btn.textContent.toLowerCase().includes('load more') ||
             btn.textContent.toLowerCase().includes('show more')
           );
         });
-        
+
         if (!altButton || !await altButton.asElement()) {
           console.log(`   ℹ️  No "Load More" button found`);
           break;
         }
-        
+
         // Click the alternative button
         await altButton.asElement().click();
         loadMoreClicks++;
@@ -109,15 +109,15 @@ async function scrapePrograms(browser, software = null) {
         await page.waitForTimeout(2000); // Wait for new content to load
         continue;
       }
-      
+
       // Click the load more button
       await loadMoreButton.click();
       loadMoreClicks++;
       console.log(`   🖱️  Clicked "Load More" (${loadMoreClicks} times)`);
-      
+
       // Wait for new content to load
       await page.waitForTimeout(2000);
-      
+
       // Safety limit to prevent infinite loops
       if (loadMoreClicks > 200) {
         console.log(`   ⚠️  Reached safety limit of 200 clicks`);
@@ -136,7 +136,7 @@ async function scrapePrograms(browser, software = null) {
         // Column indices: 0=Logo, 1=Name, 2=Software, 3=Commissions, 4=Available, 5=API, 6=Category, 7=?, 8=Actions
         const logoCell = cells[0];
         const logo = logoCell.querySelector('img');
-        
+
         const nameCell = cells[1];
         const nameLink = nameCell.querySelector('a');
 
@@ -167,8 +167,8 @@ async function scrapePrograms(browser, software = null) {
 
         const href = nameLink?.getAttribute('href');
         const slug = href?.split('/').filter(Boolean).pop() || '';
-        const sourceUrl = href && !href.startsWith('http') 
-          ? `https://statsdrone.com${href}` 
+        const sourceUrl = href && !href.startsWith('http')
+          ? `https://statsdrone.com${href}`
           : (href || `https://statsdrone.com/affiliate-programs/${slug}`);
 
         return {
