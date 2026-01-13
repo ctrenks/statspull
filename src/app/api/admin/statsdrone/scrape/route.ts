@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import * as cheerio from 'cheerio';
 
 // Allow this route to run for up to 60 seconds (Vercel Pro limit)
 export const maxDuration = 60;
@@ -35,16 +34,16 @@ export async function POST(request: Request) {
     // For small scrapes (< 50), run synchronously to avoid Vercel serverless timeout issues
     // For large scrapes, start in background (may be terminated by Vercel)
     console.log('Starting scrape...');
-    
+
     if (limit && limit < 50) {
       // Run synchronously for small scrapes
       console.log('Running synchronous scrape for small limit');
       await scrapeInBackground(log.id, software, limit);
-      
+
       const updatedLog = await prisma.statsDrone_ScrapingLog.findUnique({
         where: { id: log.id },
       });
-      
+
       return NextResponse.json({
         success: true,
         logId: log.id,
@@ -76,41 +75,7 @@ export async function POST(request: Request) {
 }
 
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
-  let browser;
-
   try {
-    console.log('Starting browser...');
-    
-    // Set a timeout for browser launch
-    const launchTimeout = setTimeout(() => {
-      throw new Error('Browser launch timed out after 30 seconds');
-    }, 30000);
-
-    const executablePath = await chromium.executablePath();
-    console.log('Executable path:', executablePath);
-
-    browser = await puppeteer.launch({
-      args: [
-        ...chromium.args,
-        '--disable-gpu',
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-software-rasterizer',
-        '--single-process',
-      ],
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: true,
-      timeout: 30000,
-    });
-
-    clearTimeout(launchTimeout);
-    console.log('Browser launched successfully');
-    
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-
     const url = software
       ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}`
       : 'https://statsdrone.com/affiliate-programs/';
@@ -120,51 +85,67 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: 'Loading page...' },
+      data: { currentProgress: 'Fetching page...' },
     });
     
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForSelector('table', { timeout: 10000 });
-    console.log('Page loaded successfully');
+    // Fetch the HTML
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+    }
+
+    const html = await response.text();
+    console.log('Page fetched successfully');
+
+    // Parse HTML with cheerio
+    const $ = cheerio.load(html);
+    
+    await prisma.statsDrone_ScrapingLog.update({
+      where: { id: logId },
+      data: { currentProgress: 'Parsing programs...' },
+    });
 
     // Extract program data
-    const programs = await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll('table tbody tr'));
+    const programs: any[] = [];
+    $('table tbody tr').each((i, row) => {
+      const cells = $(row).find('td');
+      if (cells.length < 6) return;
 
-      return rows.map(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 6) return null;
+      const nameCell = $(cells[0]);
+      const nameLink = nameCell.find('a').first();
+      const logo = nameCell.find('img').first();
 
-        const nameCell = cells[0];
-        const nameLink = nameCell.querySelector('a');
-        const logo = nameCell.querySelector('img');
+      const softwareCell = $(cells[1]);
+      const commissionCell = $(cells[2]);
+      const apiCell = $(cells[3]);
+      const availableCell = $(cells[4]);
+      const categoryCell = $(cells[5]);
+      const actionCell = $(cells[6]);
 
-        const softwareCell = cells[1];
-        const commissionCell = cells[2];
-        const apiCell = cells[3];
-        const availableCell = cells[4];
-        const categoryCell = cells[5];
-        const actionCell = cells[6];
+      const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
+      const joinLink = actionCell.find('a[href*="glm"]').first();
 
-        const reviewLink = actionCell?.querySelector('a[href*="/affiliate-programs/"]');
-        const joinLink = actionCell?.querySelector('a[href*="glm"]');
-        const exclusiveOffer = commissionCell?.querySelector('img[alt*="exclusive"]')?.nextSibling?.textContent?.trim();
+      const slug = nameLink.attr('href')?.split('/').filter(Boolean).pop() || '';
+      if (!slug) return;
 
-        return {
-          name: nameLink?.textContent.trim() || '',
-          slug: nameLink?.getAttribute('href')?.split('/').filter(Boolean).pop() || '',
-          software: softwareCell?.textContent.trim() || null,
-          commission: commissionCell?.textContent.replace(/\s+/g, ' ').trim() || null,
-          apiSupport: apiCell?.textContent.trim().toLowerCase() === 'yes',
-          availableInSD: availableCell?.textContent.trim().toLowerCase() === 'yes',
-          category: categoryCell?.textContent.trim() || null,
-          logoUrl: logo?.getAttribute('src') || null,
-          reviewUrl: reviewLink?.getAttribute('href') || null,
-          joinUrl: joinLink?.getAttribute('href') || null,
-          exclusiveOffer: exclusiveOffer || null,
-          sourceUrl: nameLink?.getAttribute('href') || '',
-        };
-      }).filter(Boolean);
+      programs.push({
+        name: nameLink.text().trim() || '',
+        slug: slug,
+        software: softwareCell.text().trim() || null,
+        commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
+        apiSupport: apiCell.text().trim().toLowerCase() === 'yes',
+        availableInSD: availableCell.text().trim().toLowerCase() === 'yes',
+        category: categoryCell.text().trim() || null,
+        logoUrl: logo.attr('src') || null,
+        reviewUrl: reviewLink.attr('href') || null,
+        joinUrl: joinLink.attr('href') || null,
+        sourceUrl: nameLink.attr('href') || '',
+      });
     });
 
     console.log(`Found ${programs.length} programs`);
@@ -225,20 +206,12 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         where: { id: logId },
         data: {
           status: 'error',
-          error: `${error.message} | ${error.stack?.split('\n')[0] || ''}`,
+          error: `${error.message}`,
           completedAt: new Date(),
         },
       });
     } catch (updateError) {
       console.error('Failed to update error log:', updateError);
-    }
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (closeError) {
-        console.error('Failed to close browser:', closeError);
-      }
     }
   }
 }

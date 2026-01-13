@@ -14,10 +14,9 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
     "@prisma/client": "^6.1.0",
-    "@sparticuz/chromium": "^131.0.0",
+    "cheerio": "^1.0.0-rc.12",
     "next": "^15.3.3",
     "next-auth": "^5.0.0-beta.25",
-    "puppeteer-core": "^21.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-google-recaptcha-v3": "^1.11.0",

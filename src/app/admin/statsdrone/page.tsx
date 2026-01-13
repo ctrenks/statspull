@@ -158,7 +158,7 @@ export default function StatsDroneAdmin() {
           <div className="flex items-start gap-2">
             <span className="text-yellow-400 text-lg">⚠️</span>
             <div className="text-sm text-yellow-400">
-              <strong>Serverless Limitation:</strong> Scrapes over 50 programs may timeout on Vercel (60s limit). 
+              <strong>Serverless Limitation:</strong> Scrapes over 50 programs may timeout on Vercel (60s limit).
               For large scrapes, consider running the scraper locally or use smaller batches.
             </div>
           </div>
