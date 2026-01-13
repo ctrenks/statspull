@@ -23,7 +23,7 @@ async function resolveRedirect(url: string): Promise<string> {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     });
-    
+
     // Return the final URL after all redirects
     return response.url;
   } catch (error) {
