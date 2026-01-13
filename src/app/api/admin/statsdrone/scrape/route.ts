@@ -6,24 +6,34 @@ import chromium from '@sparticuz/chromium';
 
 export async function POST(request: Request) {
   try {
+    console.log('POST /api/admin/statsdrone/scrape - Starting');
     const session = await auth();
+    console.log('Session:', session?.user?.role);
 
     if (!session?.user || session.user.role !== 9) {
+      console.log('Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { software, limit } = await request.json();
+    const body = await request.json();
+    console.log('Request body:', body);
+    const { software, limit } = body;
 
     // Create scraping log
+    console.log('Creating scraping log...');
     const log = await prisma.statsDrone_ScrapingLog.create({
       data: {
         software: software || 'all',
         status: 'running',
       },
     });
+    console.log('Log created:', log.id);
 
     // Start scraping in background (don't await)
-    scrapeInBackground(log.id, software, limit);
+    console.log('Starting background scrape...');
+    scrapeInBackground(log.id, software, limit).catch(err => {
+      console.error('Background scrape failed:', err);
+    });
 
     return NextResponse.json({
       success: true,
@@ -32,9 +42,10 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Scrape API error:', error);
+    console.error('Scrape API POST error:', error);
+    console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message, stack: error.stack },
       { status: 500 }
     );
   }
@@ -44,13 +55,18 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
   let browser;
 
   try {
+    console.log('Starting browser...');
+    const executablePath = await chromium.executablePath();
+    console.log('Executable path:', executablePath);
+
     browser = await puppeteer.launch({
-      args: chromium.args,
+      args: [...chromium.args, '--disable-gpu', '--no-sandbox', '--disable-setuid-sandbox'],
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath,
       headless: true,
     });
 
+    console.log('Browser launched successfully');
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
@@ -153,18 +169,27 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
   } catch (error: any) {
     console.error('Background scraping error:', error);
+    console.error('Error stack:', error.stack);
 
-    await prisma.statsDrone_ScrapingLog.update({
-      where: { id: logId },
-      data: {
-        status: 'error',
-        error: error.message,
-        completedAt: new Date(),
-      },
-    });
+    try {
+      await prisma.statsDrone_ScrapingLog.update({
+        where: { id: logId },
+        data: {
+          status: 'error',
+          error: `${error.message} | ${error.stack?.split('\n')[0] || ''}`,
+          completedAt: new Date(),
+        },
+      });
+    } catch (updateError) {
+      console.error('Failed to update error log:', updateError);
+    }
   } finally {
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error('Failed to close browser:', closeError);
+      }
     }
   }
 }
