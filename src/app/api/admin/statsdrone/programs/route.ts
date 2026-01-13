@@ -25,6 +25,7 @@ export async function GET(request: Request) {
         finalJoinUrl: true,
         reviewUrl: true,
         sourceUrl: true,
+        status: true,
         mappedToTemplate: true,
         templateId: true,
         scrapedAt: true,
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH - Update program status (mapped/unmapped)
+// PATCH - Update program status
 export async function PATCH(request: Request) {
   try {
     const session = await auth();
@@ -48,18 +49,34 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { programId, mappedToTemplate } = await request.json();
+    const { programId, mappedToTemplate, status } = await request.json();
 
-    if (!programId || typeof mappedToTemplate !== 'boolean') {
+    if (!programId) {
       return NextResponse.json(
-        { error: 'Invalid request data' },
+        { error: 'Program ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (typeof mappedToTemplate === 'boolean') {
+      updateData.mappedToTemplate = mappedToTemplate;
+    }
+    if (status) {
+      updateData.status = status;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No fields to update' },
         { status: 400 }
       );
     }
 
     const updated = await prisma.statsDrone_Program.update({
       where: { id: programId },
-      data: { mappedToTemplate },
+      data: updateData,
     });
 
     return NextResponse.json({ success: true, program: updated });

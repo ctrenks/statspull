@@ -15,6 +15,7 @@ interface StatsDroneProgram {
   finalJoinUrl: string | null;
   reviewUrl: string | null;
   sourceUrl: string;
+  status: string;
   mappedToTemplate: boolean;
   templateId: string | null;
   scrapedAt: string;
@@ -31,6 +32,7 @@ export default function StatsDroneProgramsPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchQuery, setSearchQuery] = useState('');
   const [softwareFilter, setSoftwareFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('active'); // 'all', 'active', 'pending', 'signed_up', 'added_as_template', 'closed'
   const [showMappedOnly, setShowMappedOnly] = useState(false);
   const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export default function StatsDroneProgramsPage() {
 
   useEffect(() => {
     filterAndSortPrograms();
-  }, [programs, searchQuery, softwareFilter, showMappedOnly, showUnmappedOnly, sortField, sortDirection]);
+  }, [programs, searchQuery, softwareFilter, statusFilter, showMappedOnly, showUnmappedOnly, sortField, sortDirection]);
 
   const loadPrograms = async () => {
     try {
@@ -57,6 +59,13 @@ export default function StatsDroneProgramsPage() {
 
   const filterAndSortPrograms = () => {
     let filtered = [...programs];
+
+    // Status filter (default to 'active' which excludes closed)
+    if (statusFilter === 'active') {
+      filtered = filtered.filter(p => p.status !== 'closed');
+    } else if (statusFilter !== 'all') {
+      filtered = filtered.filter(p => p.status === statusFilter);
+    }
 
     // Search filter
     if (searchQuery) {
@@ -141,15 +150,29 @@ export default function StatsDroneProgramsPage() {
         setPrograms(programs.map(p =>
           p.id === programId ? { ...p, finalJoinUrl: data.cleanedUrl } : p
         ));
-        alert(`Resolved!\nOriginal: ${data.originalUrl}\nFinal: ${data.cleanedUrl}`);
-      } else {
-        alert(`Failed to resolve: ${data.error}`);
       }
     } catch (error) {
       console.error('Failed to resolve redirect:', error);
-      alert('Failed to resolve redirect');
     } finally {
       setResolvingId(null);
+    }
+  };
+
+  const updateStatus = async (programId: string, newStatus: string) => {
+    try {
+      const res = await fetch('/api/admin/statsdrone/programs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programId, status: newStatus }),
+      });
+
+      if (res.ok) {
+        setPrograms(programs.map(p =>
+          p.id === programId ? { ...p, status: newStatus } : p
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
     }
   };
 
@@ -199,7 +222,50 @@ export default function StatsDroneProgramsPage() {
 
       {/* Filters */}
       <div className="card p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Status Filter Buttons */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">Status</label>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setStatusFilter('active')}
+              className={`px-4 py-2 rounded ${statusFilter === 'active' ? 'bg-primary-500 text-white' : 'bg-dark-800'}`}
+            >
+              🔵 Active (Not Closed)
+            </button>
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={`px-4 py-2 rounded ${statusFilter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-dark-800'}`}
+            >
+              ⏳ Pending
+            </button>
+            <button
+              onClick={() => setStatusFilter('signed_up')}
+              className={`px-4 py-2 rounded ${statusFilter === 'signed_up' ? 'bg-green-500 text-white' : 'bg-dark-800'}`}
+            >
+              ✅ Signed Up
+            </button>
+            <button
+              onClick={() => setStatusFilter('added_as_template')}
+              className={`px-4 py-2 rounded ${statusFilter === 'added_as_template' ? 'bg-blue-500 text-white' : 'bg-dark-800'}`}
+            >
+              📝 Added as Template
+            </button>
+            <button
+              onClick={() => setStatusFilter('closed')}
+              className={`px-4 py-2 rounded ${statusFilter === 'closed' ? 'bg-red-500 text-white' : 'bg-dark-800'}`}
+            >
+              🚫 Closed
+            </button>
+            <button
+              onClick={() => setStatusFilter('all')}
+              className={`px-4 py-2 rounded ${statusFilter === 'all' ? 'bg-dark-600 text-white' : 'bg-dark-800'}`}
+            >
+              🌐 All
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium mb-2">Search</label>
@@ -227,37 +293,13 @@ export default function StatsDroneProgramsPage() {
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Status</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setShowMappedOnly(!showMappedOnly);
-                  setShowUnmappedOnly(false);
-                }}
-                className={`px-3 py-2 rounded ${showMappedOnly ? 'bg-green-500 text-white' : 'bg-dark-800'}`}
-              >
-                ✓ Mapped
-              </button>
-              <button
-                onClick={() => {
-                  setShowUnmappedOnly(!showUnmappedOnly);
-                  setShowMappedOnly(false);
-                }}
-                className={`px-3 py-2 rounded ${showUnmappedOnly ? 'bg-yellow-500 text-white' : 'bg-dark-800'}`}
-              >
-                ⏳ Unmapped
-              </button>
-            </div>
-          </div>
-
           {/* Clear Filters */}
           <div className="flex items-end">
             <button
               onClick={() => {
                 setSearchQuery('');
                 setSoftwareFilter('');
+                setStatusFilter('active');
                 setShowMappedOnly(false);
                 setShowUnmappedOnly(false);
               }}
@@ -297,6 +339,7 @@ export default function StatsDroneProgramsPage() {
                 <th className="text-left p-3">Commission</th>
                 <th className="text-center p-3">API</th>
                 <th className="text-left p-3">Category</th>
+                <th className="text-left p-3">Status</th>
                 <th className="text-left p-3">Links</th>
               </tr>
             </thead>
@@ -305,7 +348,9 @@ export default function StatsDroneProgramsPage() {
                 <tr
                   key={program.id}
                   className={`border-t border-dark-800 hover:bg-dark-800/50 ${
-                    program.mappedToTemplate ? 'bg-green-500/5' : ''
+                    program.status === 'signed_up' ? 'bg-green-500/5' :
+                    program.status === 'added_as_template' ? 'bg-blue-500/5' :
+                    program.status === 'closed' ? 'bg-red-500/5' : ''
                   }`}
                 >
                   <td className="p-3">
@@ -330,6 +375,24 @@ export default function StatsDroneProgramsPage() {
                     {program.apiSupport ? <span className="text-green-400">✓</span> : <span className="text-dark-600">—</span>}
                   </td>
                   <td className="p-3 text-dark-400">{program.category || '—'}</td>
+                  <td className="p-3">
+                    <select
+                      value={program.status}
+                      onChange={(e) => updateStatus(program.id, e.target.value)}
+                      className={`px-2 py-1 rounded text-sm border ${
+                        program.status === 'pending' ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' :
+                        program.status === 'signed_up' ? 'bg-green-500/20 border-green-500/50 text-green-400' :
+                        program.status === 'added_as_template' ? 'bg-blue-500/20 border-blue-500/50 text-blue-400' :
+                        program.status === 'closed' ? 'bg-red-500/20 border-red-500/50 text-red-400' :
+                        'bg-dark-800 border-dark-700'
+                      }`}
+                    >
+                      <option value="pending">⏳ Pending</option>
+                      <option value="signed_up">✅ Signed Up</option>
+                      <option value="added_as_template">📝 Added as Template</option>
+                      <option value="closed">🚫 Closed</option>
+                    </select>
+                  </td>
                   <td className="p-3">
                     <div className="flex flex-col gap-1">
                       {program.finalJoinUrl ? (

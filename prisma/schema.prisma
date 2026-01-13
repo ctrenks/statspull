@@ -414,6 +414,9 @@ model StatsDrone_Program {
   scrapedAt         DateTime @default(now())
   lastCheckedAt     DateTime @default(now())
   isActive          Boolean  @default(true)
+  
+  // Status tracking
+  status            String   @default("pending") // pending, signed_up, added_as_template, closed
 
   // Mapped to our system
   mappedToTemplate  Boolean  @default(false)
@@ -425,6 +428,7 @@ model StatsDrone_Program {
   @@index([apiSupport])
   @@index([mappedToTemplate])
   @@index([scrapedAt])
+  @@index([status])
 }
 
 model StatsDrone_ScrapingLog {
