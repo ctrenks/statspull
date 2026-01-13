@@ -161,7 +161,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         console.log(`  First row actionCell (cell 8) HTML:`, $(cells[8]).html()?.substring(0, 500));
         console.log(`  First row cell 7 HTML:`, $(cells[7]).html()?.substring(0, 500));
       }
-      
+
       const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
       const joinLink = actionCell.find('a').filter((i, el) => {
         const href = $(el).attr('href') || '';
@@ -172,11 +172,11 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       const href = nameLink.attr('href');
       const slug = href?.split('/').filter(Boolean).pop() || '';
       const joinHref = joinLink.attr('href') || null;
-      
+
       console.log(`  Row ${i}: name="${name}", href="${href}", slug="${slug}"`);
       console.log(`  Row ${i}: software="${softwareCell.text().trim()}", api="${apiCell.text().trim()}"`);
       console.log(`  Row ${i}: joinUrl="${joinHref}"`);
-      
+
       if (!slug || !name) {
         console.log(`  Skipping row ${i} - missing slug or name`);
         return;
@@ -192,7 +192,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         reviewUrl: reviewLink.attr('href') || null,
         joinUrl: joinHref,
       };
-      
+
       console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 300));
       programs.push(program);
     });
