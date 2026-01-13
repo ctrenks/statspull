@@ -76,109 +76,46 @@ export async function POST(request: Request) {
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   try {
     console.log(`Starting scrape with limit: ${limit || 'unlimited'}`);
-
+    
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: 'Looking for load-more endpoint...' },
+      data: { currentProgress: 'Fetching all programs from load-more endpoint...' },
     });
-
-    // Try different load-more patterns that might work
-    const loadMorePatterns = [
-      // POST endpoints with offset/limit
-      { url: 'https://statsdrone.com/site/load-more-programs', method: 'POST', body: { offset: 0, limit: 500 } },
-      { url: 'https://statsdrone.com/affiliate-programs/load-more', method: 'POST', body: { offset: 0, limit: 500 } },
-      // GET endpoints with query params
-      { url: 'https://statsdrone.com/affiliate-programs?limit=500', method: 'GET' },
-      { url: 'https://statsdrone.com/affiliate-programs?offset=0&limit=500', method: 'GET' },
-    ];
-
-    let foundWorkingEndpoint = false;
-    for (const pattern of loadMorePatterns) {
-      try {
-        console.log(`Trying load-more pattern: ${pattern.url}`);
-        const response = await fetch(pattern.url, {
-          method: pattern.method,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/json, text/html',
-            'Content-Type': 'application/json',
-          },
-          body: pattern.body ? JSON.stringify(pattern.body) : undefined,
-        });
-
-        if (response.ok) {
-          const text = await response.text();
-          console.log(`Response length: ${text.length}`);
-
-          // Check if it's different from the default page (90905 bytes)
-          if (text.length !== 90905) {
-            console.log(`Found different response! This might be the working endpoint.`);
-            foundWorkingEndpoint = true;
-            break;
-          }
-        }
-      } catch (e) {
-        console.log(`Pattern failed:`, e);
-      }
-    }
-
-    // Since pagination doesn't work, scrape by software type instead
-    // First get all software types, then scrape each one
-    await prisma.statsDrone_ScrapingLog.update({
-      where: { id: logId },
-      data: { currentProgress: 'Fetching all programs...' },
-    });
-
-    const allPrograms: any[] = [];
-
-    // Fetch the main page to get initial programs
-    const mainUrl = 'https://statsdrone.com/affiliate-programs/';
-    console.log(`Fetching main page: ${mainUrl}`);
-
-    const response = await fetch(mainUrl, {
+    
+    // Use the load-more endpoint that returns all programs
+    const loadMoreUrl = 'https://statsdrone.com/affiliate-programs/load-more';
+    console.log(`Fetching from load-more endpoint: ${loadMoreUrl}`);
+    
+    const response = await fetch(loadMoreUrl, {
+      method: 'POST',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json, text/html',
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ offset: 0, limit: limit || 5000 }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch main page: ${response.status}`);
+      throw new Error(`Failed to fetch from load-more endpoint: ${response.status}`);
     }
 
     const html = await response.text();
-    console.log(`Main page fetched successfully, HTML length:`, html.length);
+    console.log(`Load-more response fetched successfully, HTML length:`, html.length);
     console.log('First 500 chars:', html.substring(0, 500));
+    
+    const allPrograms: any[] = [];
 
     // Parse HTML with cheerio
     const $ = cheerio.load(html);
-
-    // Look for the load-more button and associated JavaScript
-    const loadMoreButton = $('button:contains("Load More"), a:contains("Load More"), .load-more, #load-more');
-    console.log('Load more button found:', loadMoreButton.length > 0);
-
-    if (loadMoreButton.length > 0) {
-      console.log('Load more button HTML:', loadMoreButton.html()?.substring(0, 200));
-      console.log('Load more onclick:', loadMoreButton.attr('onclick'));
-      console.log('Load more data attributes:', Object.keys(loadMoreButton.data()));
-    }
-
-    // Check for any script tags that might contain the AJAX endpoint
-    const scripts = $('script').map((i, el) => $(el).html()).get();
-    const loadMoreScript = scripts.find(s => s && (s.includes('load') || s.includes('ajax') || s.includes('fetch')));
-    if (loadMoreScript) {
-      console.log('Found potential load-more script:', loadMoreScript.substring(0, 500));
-    }
-
-    // Debug: Check what we're finding
-    const tables = $('table').length;
+    
     const rows = $('table tbody tr').length;
-    console.log('Tables found:', tables);
-    console.log('Rows in tbody:', rows);
-
+    console.log('Rows in response:', rows);
+    
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: `Parsing ${rows} visible programs...` },
+      data: { currentProgress: `Parsing ${rows} programs...` },
     });
 
     // Extract program data
