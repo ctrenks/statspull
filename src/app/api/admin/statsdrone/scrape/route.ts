@@ -48,7 +48,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+      headless: true,
     });
 
     const page = await browser.newPage();
