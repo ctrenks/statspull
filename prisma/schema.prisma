@@ -414,7 +414,7 @@ model StatsDrone_Program {
   scrapedAt         DateTime @default(now())
   lastCheckedAt     DateTime @default(now())
   isActive          Boolean  @default(true)
-  
+
   // Status tracking
   status            String   @default("pending") // pending, signed_up, added_as_template, closed
 
