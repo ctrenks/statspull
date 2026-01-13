@@ -19,8 +19,8 @@ const SOFTWARE_MAPPING: Record<string, string> = {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-
-    if (!session?.user?.isAdmin) {
+    
+    if (!session?.user || session.user.role !== 9) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

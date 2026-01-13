@@ -6,8 +6,8 @@ import puppeteer from 'puppeteer';
 export async function POST(request: Request) {
   try {
     const session = await auth();
-
-    if (!session?.user?.isAdmin) {
+    
+    if (!session?.user || session.user.role !== 9) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -157,8 +157,8 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 export async function GET(request: Request) {
   try {
     const session = await auth();
-
-    if (!session?.user?.isAdmin) {
+    
+    if (!session?.user || session.user.role !== 9) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
