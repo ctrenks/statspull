@@ -12,6 +12,7 @@ interface StatsDroneProgram {
   apiSupport: boolean;
   category: string | null;
   joinUrl: string | null;
+  finalJoinUrl: string | null;
   reviewUrl: string | null;
   sourceUrl: string;
   mappedToTemplate: boolean;
@@ -32,6 +33,7 @@ export default function StatsDroneProgramsPage() {
   const [softwareFilter, setSoftwareFilter] = useState<string>('');
   const [showMappedOnly, setShowMappedOnly] = useState(false);
   const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadPrograms();
@@ -120,6 +122,34 @@ export default function StatsDroneProgramsPage() {
       }
     } catch (error) {
       console.error('Failed to update program:', error);
+    }
+  };
+
+  const resolveRedirect = async (programId: string) => {
+    setResolvingId(programId);
+    try {
+      const res = await fetch('/api/admin/statsdrone/programs/resolve-redirect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programId }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // Update the program with the resolved URL
+        setPrograms(programs.map(p =>
+          p.id === programId ? { ...p, finalJoinUrl: data.cleanedUrl } : p
+        ));
+        alert(`Resolved!\nOriginal: ${data.originalUrl}\nFinal: ${data.cleanedUrl}`);
+      } else {
+        alert(`Failed to resolve: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Failed to resolve redirect:', error);
+      alert('Failed to resolve redirect');
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -301,18 +331,38 @@ export default function StatsDroneProgramsPage() {
                   </td>
                   <td className="p-3 text-dark-400">{program.category || '—'}</td>
                   <td className="p-3">
-                    <div className="flex gap-2">
-                      {program.joinUrl && (
+                    <div className="flex flex-col gap-1">
+                      {program.finalJoinUrl ? (
                         <a
-                          href={cleanUrl(program.joinUrl) || '#'}
+                          href={program.finalJoinUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary-400 hover:text-primary-300 text-sm"
-                          title={cleanUrl(program.joinUrl) || ''}
+                          className="text-green-400 hover:text-green-300 text-sm font-medium"
+                          title={program.finalJoinUrl}
                         >
-                          Join
+                          ✓ Join (Resolved)
                         </a>
-                      )}
+                      ) : program.joinUrl ? (
+                        <div className="flex gap-2 items-center">
+                          <a
+                            href={program.joinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary-400 hover:text-primary-300 text-sm"
+                            title={program.joinUrl}
+                          >
+                            Join (Redirect)
+                          </a>
+                          <button
+                            onClick={() => resolveRedirect(program.id)}
+                            disabled={resolvingId === program.id}
+                            className="text-xs text-yellow-400 hover:text-yellow-300 underline"
+                            title="Resolve redirect to get final URL"
+                          >
+                            {resolvingId === program.id ? '...' : '🔗'}
+                          </button>
+                        </div>
+                      ) : null}
                       {program.sourceUrl && (
                         <a
                           href={cleanUrl(program.sourceUrl) || '#'}

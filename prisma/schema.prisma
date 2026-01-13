@@ -407,7 +407,8 @@ model StatsDrone_Program {
   category          String?
   logoUrl           String?
   reviewUrl         String?
-  joinUrl           String?
+  joinUrl           String?  // StatsDrone redirect URL
+  finalJoinUrl      String?  // Resolved affiliate URL (cleaned)
   exclusiveOffer    String?
   sourceUrl         String   // Original StatsDrone URL
   scrapedAt         DateTime @default(now())

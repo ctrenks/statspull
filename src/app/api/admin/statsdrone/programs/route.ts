@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         apiSupport: true,
         category: true,
         joinUrl: true,
+        finalJoinUrl: true,
         reviewUrl: true,
         sourceUrl: true,
         mappedToTemplate: true,
