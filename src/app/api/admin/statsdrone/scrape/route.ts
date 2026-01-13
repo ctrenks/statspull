@@ -75,139 +75,213 @@ export async function POST(request: Request) {
 
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   try {
-    const url = software
+    // First, try to find the API endpoint by checking the initial page
+    const pageUrl = software
       ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}`
       : 'https://statsdrone.com/affiliate-programs/';
 
-    console.log(`Scraping: ${url}`);
-
+    console.log(`Checking for API endpoint at: ${pageUrl}`);
+    
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: 'Fetching page...' },
+      data: { currentProgress: 'Looking for API endpoint...' },
     });
-
-    // Fetch the HTML
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+    
+    // Try the API endpoint directly - based on typical patterns, it might be /api/programs or similar
+    // Let's try a few common patterns
+    const apiEndpoints = [
+      'https://statsdrone.com/api/affiliate-programs',
+      'https://statsdrone.com/api/programs',
+      'https://statsdrone.com/affiliate-programs/load-more',
+    ];
+    
+    let apiData = null;
+    for (const apiUrl of apiEndpoints) {
+      try {
+        console.log(`Trying API endpoint: ${apiUrl}`);
+        const apiResponse = await fetch(apiUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+          },
+        });
+        if (apiResponse.ok) {
+          const data = await apiResponse.json();
+          console.log(`API endpoint found! Got ${JSON.stringify(data).length} bytes`);
+          apiData = data;
+          break;
+        }
+      } catch (e) {
+        console.log(`API endpoint ${apiUrl} failed:`, e);
+      }
     }
-
-    const html = await response.text();
-    console.log('Page fetched successfully, HTML length:', html.length);
-    console.log('First 500 chars:', html.substring(0, 500));
-
-    // Parse HTML with cheerio
-    const $ = cheerio.load(html);
-
-    // Debug: Check what we're finding
-    const tables = $('table').length;
-    const rows = $('table tbody tr').length;
-    const allRows = $('table tr').length;
-    console.log('Tables found:', tables);
-    console.log('Rows in tbody:', rows);
-    console.log('All rows in tables:', allRows);
-    console.log('Table classes:', $('table').map((i, el) => $(el).attr('class')).get());
-
-    // Log first table's structure
-    if (tables > 0) {
-      const firstTable = $('table').first();
-      console.log('First table HTML (first 1000 chars):', firstTable.html()?.substring(0, 1000));
+    
+    if (apiData) {
+      console.log('Using API data directly');
+      // Process API data here if we found it
+      // For now, fall back to HTML scraping
     }
-
+    
+    // Fetch the HTML (with pagination support)
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
-      data: { currentProgress: 'Parsing programs...' },
+      data: { currentProgress: 'Fetching programs (pagination support)...' },
     });
+    
+    const allPrograms: any[] = [];
+    let page = 1;
+    const maxPages = Math.ceil((limit || 2500) / 50); // Assuming ~50 per page
+    
+    while (page <= maxPages) {
+      const url = software
+        ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}&page=${page}`
+        : `https://statsdrone.com/affiliate-programs/?page=${page}`;
+      
+      console.log(`Fetching page ${page}: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
 
-    // Extract program data
-    const programs: any[] = [];
-    $('table tbody tr').each((i, row) => {
-      const cells = $(row).find('td');
-      console.log(`Row ${i}: ${cells.length} cells`);
-
-      if (cells.length < 7) {
-        console.log(`  Skipping row ${i} - not enough cells`);
-        return;
+      if (!response.ok) {
+        console.log(`Page ${page} failed: ${response.status}`);
+        break;
       }
 
-      // Column indices based on actual table structure:
-      // 0: Logo, 1: Name, 2: Software, 3: Commissions, 4: Available, 5: API, 6: Category, 7: ?, 8: Actions
-      const logoCell = $(cells[0]);
-      const nameCell = $(cells[1]);
-
-      // Debug: Show cell HTML for first row
-      if (i === 0) {
-        console.log(`  First row nameCell HTML:`, nameCell.html()?.substring(0, 300));
+      const html = await response.text();
+      console.log(`Page ${page} fetched successfully, HTML length:`, html.length);
+      
+      if (page === 1) {
+        console.log('First 500 chars:', html.substring(0, 500));
       }
 
-      const nameLink = nameCell.find('a').first();
-      const logo = logoCell.find('img').first();
-
-      const softwareCell = $(cells[2]);
-      const commissionCell = $(cells[3]);
-      const availableCell = $(cells[4]);
-      const apiCell = $(cells[5]);
-      const categoryCell = $(cells[6]);
-      const actionCell = $(cells[8] || cells[7]); // Join button might be in 7 or 8
-
-      // Debug: Show action cell for first row
-      if (i === 0) {
-        console.log(`  First row actionCell (cell 8) HTML:`, $(cells[8]).html()?.substring(0, 500));
-        console.log(`  First row cell 7 HTML:`, $(cells[7]).html()?.substring(0, 500));
+      // Parse HTML with cheerio
+      const $ = cheerio.load(html);
+      
+      // Debug: Check what we're finding
+      const tables = $('table').length;
+      const rows = $('table tbody tr').length;
+      
+      if (page === 1) {
+        const allRows = $('table tr').length;
+        console.log('Tables found:', tables);
+        console.log('Rows in tbody:', rows);
+        console.log('All rows in tables:', allRows);
+        console.log('Table classes:', $('table').map((i, el) => $(el).attr('class')).get());
+        
+        // Log first table's structure
+        if (tables > 0) {
+          const firstTable = $('table').first();
+          console.log('First table HTML (first 1000 chars):', firstTable.html()?.substring(0, 1000));
+        }
+      } else {
+        console.log(`Page ${page}: Found ${rows} rows`);
       }
-
-      const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
-      const joinLink = actionCell.find('a').filter((i, el) => {
-        const href = $(el).attr('href') || '';
-        return href.includes('glm') || href.includes('join') || $(el).text().toLowerCase().includes('join');
-      }).first();
-
-      const name = nameLink.text().trim();
-      const href = nameLink.attr('href');
-      const slug = href?.split('/').filter(Boolean).pop() || '';
-      const joinHref = joinLink.attr('href') || null;
-
-      console.log(`  Row ${i}: name="${name}", href="${href}", slug="${slug}"`);
-      console.log(`  Row ${i}: software="${softwareCell.text().trim()}", api="${apiCell.text().trim()}"`);
-      console.log(`  Row ${i}: joinUrl="${joinHref}"`);
-
-      if (!slug || !name) {
-        console.log(`  Skipping row ${i} - missing slug or name`);
-        return;
+      
+      if (rows === 0) {
+        console.log(`No more rows found on page ${page}, stopping pagination`);
+        break;
       }
+      
+      await prisma.statsDrone_ScrapingLog.update({
+        where: { id: logId },
+        data: { currentProgress: `Parsing page ${page}...` },
+      });
 
-      const program = {
-        name: name || '',
-        slug: slug,
-        software: softwareCell.text().trim() || null,
-        commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
-        apiSupport: apiCell.text().trim().toLowerCase() === 'yes',
-        availableInSD: availableCell.text().trim().toLowerCase() === 'yes',
-        category: categoryCell.text().trim() || null,
-        logoUrl: logo.attr('src') || null,
-        reviewUrl: reviewLink.attr('href') || null,
-        joinUrl: joinHref,
-        sourceUrl: href || '',
-      };
+      // Extract program data from this page
+      const pagePrograms: any[] = [];
+      $('table tbody tr').each((i, row) => {
+        const cells = $(row).find('td');
+        
+        if (cells.length < 7) {
+          if (page === 1 && i === 0) {
+            console.log(`  Skipping row ${i} - not enough cells (${cells.length})`);
+          }
+          return;
+        }
 
-      console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 300));
-      programs.push(program);
-    });
+        // Column indices based on actual table structure:
+        // 0: Logo, 1: Name, 2: Software, 3: Commissions, 4: Available, 5: API, 6: Category, 7: ?, 8: Actions
+        const logoCell = $(cells[0]);
+        const nameCell = $(cells[1]);
+        const nameLink = nameCell.find('a').first();
+        const logo = logoCell.find('img').first();
 
-    console.log(`Found ${programs.length} programs`);
-    if (programs.length > 0) {
-      console.log('First program:', JSON.stringify(programs[0]));
+        const softwareCell = $(cells[2]);
+        const commissionCell = $(cells[3]);
+        const availableCell = $(cells[4]);
+        const apiCell = $(cells[5]);
+        const categoryCell = $(cells[6]);
+        const actionCell = $(cells[8] || cells[7]); // Join button might be in 7 or 8
+        
+        const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
+        const joinLink = actionCell.find('a').filter((idx, el) => {
+          const href = $(el).attr('href') || '';
+          return href.includes('glm') || href.includes('join') || $(el).text().toLowerCase().includes('join');
+        }).first();
+
+        const name = nameLink.text().trim();
+        const href = nameLink.attr('href');
+        const slug = href?.split('/').filter(Boolean).pop() || '';
+        const joinHref = joinLink.attr('href') || null;
+        
+        if (page === 1 && i === 0) {
+          console.log(`  First row: name="${name}", slug="${slug}", joinUrl="${joinHref}"`);
+        }
+        
+        if (!slug || !name) {
+          if (page === 1 && i < 3) {
+            console.log(`  Skipping row ${i} - missing slug or name`);
+          }
+          return;
+        }
+
+        const program = {
+          name: name || '',
+          slug: slug,
+          software: softwareCell.text().trim() || null,
+          commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
+          apiSupport: apiCell.text().trim().toLowerCase() === 'yes',
+          availableInSD: availableCell.text().trim().toLowerCase() === 'yes',
+          category: categoryCell.text().trim() || null,
+          logoUrl: logo.attr('src') || null,
+          reviewUrl: reviewLink.attr('href') || null,
+          joinUrl: joinHref,
+          sourceUrl: href || '',
+        };
+        
+        if (page === 1 && i === 0) {
+          console.log(`  First program:`, JSON.stringify(program).substring(0, 300));
+        }
+        pagePrograms.push(program);
+      });
+
+      console.log(`Page ${page}: Found ${pagePrograms.length} programs`);
+      allPrograms.push(...pagePrograms);
+      
+      // Check if we've reached the limit
+      if (limit && allPrograms.length >= limit) {
+        console.log(`Reached limit of ${limit} programs`);
+        break;
+      }
+      
+      // If this page had fewer programs than expected, we might be at the end
+      if (pagePrograms.length < 10) {
+        console.log(`Page ${page} had only ${pagePrograms.length} programs, likely at the end`);
+        break;
+      }
+      
+      page++;
     }
+
+    console.log(`Total programs found across all pages: ${allPrograms.length}`);
 
     // Save to database
     let savedCount = 0;
-    const programsToSave = (limit ? programs.slice(0, limit) : programs).filter(p => p !== null);
+    const programsToSave = (limit ? allPrograms.slice(0, limit) : allPrograms).filter(p => p !== null);
 
     for (let i = 0; i < programsToSave.length; i++) {
       const program = programsToSave[i];
