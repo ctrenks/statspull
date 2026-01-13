@@ -122,7 +122,12 @@ export default function StatsDroneAdmin() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-8">StatsDrone Program Importer</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">StatsDrone Program Importer</h1>
+        <a href="/admin/statsdrone/programs" className="btn-primary">
+          📋 Manage Programs
+        </a>
+      </div>
 
       {/* Stats Overview */}
       {stats && (
