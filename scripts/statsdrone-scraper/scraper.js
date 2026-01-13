@@ -11,7 +11,7 @@
  */
 
 const puppeteer = require('puppeteer');
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('../../node_modules/@prisma/client');
 
 const prisma = new PrismaClient();
 
@@ -63,6 +63,28 @@ async function scrapePrograms(browser, software = null) {
 
     // Wait for the table to load
     await page.waitForSelector('table', { timeout: 10000 });
+    
+    // Wait a bit more for dynamic content
+    await page.waitForTimeout(3000);
+    
+    // Debug: Check what buttons/links exist
+    const allButtons = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button, a, [onclick]'));
+      return buttons.map(btn => ({
+        tag: btn.tagName,
+        text: btn.textContent.trim().substring(0, 50),
+        class: btn.className,
+        id: btn.id,
+        onclick: btn.getAttribute('onclick')?.substring(0, 50)
+      })).filter(b => 
+        b.text.toLowerCase().includes('load') ||
+        b.text.toLowerCase().includes('more') ||
+        b.text.toLowerCase().includes('show') ||
+        b.class.includes('load') ||
+        b.class.includes('more')
+      );
+    });
+    console.log('   🔍 Buttons/links with "load" or "more":', JSON.stringify(allButtons, null, 2));
 
     // Click "Load More" button repeatedly until all programs are loaded
     let loadMoreClicks = 0;
@@ -83,38 +105,29 @@ async function scrapePrograms(browser, software = null) {
       }
 
       previousRowCount = currentRowCount;
-
-      // Look for "Load More" button
-      const loadMoreButton = await page.$('button:has-text("Load More"), a:has-text("Load More"), .load-more-btn, #load-more');
-
-      if (!loadMoreButton) {
-        // Try alternative selectors
-        const altButton = await page.evaluateHandle(() => {
-          const buttons = Array.from(document.querySelectorAll('button, a'));
-          return buttons.find(btn =>
-            btn.textContent.toLowerCase().includes('load more') ||
-            btn.textContent.toLowerCase().includes('show more')
-          );
-        });
-
-        if (!altButton || !await altButton.asElement()) {
-          console.log(`   ℹ️  No "Load More" button found`);
-          break;
-        }
-
-        // Click the alternative button
-        await altButton.asElement().click();
-        loadMoreClicks++;
-        console.log(`   🖱️  Clicked "Load More" (${loadMoreClicks} times)`);
-        await page.waitForTimeout(2000); // Wait for new content to load
-        continue;
+      
+      // Look for "Find more affiliate programs" button
+      const loadMoreButton = await page.evaluateHandle(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a'));
+        return buttons.find(btn => 
+          btn.classList.contains('view-more-aff-programs') ||
+          btn.textContent.toLowerCase().includes('find more affiliate') ||
+          btn.textContent.toLowerCase().includes('load more') ||
+          btn.textContent.toLowerCase().includes('show more')
+        );
+      });
+      
+      const element = loadMoreButton.asElement();
+      if (!element) {
+        console.log(`   ℹ️  No "Load More" button found - all programs loaded`);
+        break;
       }
-
+      
       // Click the load more button
-      await loadMoreButton.click();
+      await element.click();
       loadMoreClicks++;
       console.log(`   🖱️  Clicked "Load More" (${loadMoreClicks} times)`);
-
+      
       // Wait for new content to load
       await page.waitForTimeout(2000);
 
