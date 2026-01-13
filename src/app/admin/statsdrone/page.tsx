@@ -9,7 +9,7 @@ export default function StatsDroneAdmin() {
   const [scraping, setScraping] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportResults, setExportResults] = useState<any>(null);
-  const [customLimit, setCustomLimit] = useState<string>('25');
+  const [customLimit, setCustomLimit] = useState<string>('500');
   const [currentProgress, setCurrentProgress] = useState<string>('');
 
   useEffect(() => {
@@ -153,13 +153,13 @@ export default function StatsDroneAdmin() {
       <div className="card p-6 mb-8">
         <h2 className="text-xl font-bold mb-4">Scrape Programs</h2>
 
-        {/* Vercel Limitation Warning */}
-        <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded">
+        {/* Info */}
+        <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded">
           <div className="flex items-start gap-2">
-            <span className="text-yellow-400 text-lg">⚠️</span>
-            <div className="text-sm text-yellow-400">
-              <strong>Serverless Limitation:</strong> Scrapes over 50 programs may timeout on Vercel (60s limit).
-              For large scrapes, consider running the scraper locally or use smaller batches.
+            <span className="text-blue-400 text-lg">ℹ️</span>
+            <div className="text-sm text-blue-400">
+              <strong>Fast Scraping:</strong> Using simple HTML parsing - no browser required! 
+              You can scrape hundreds of programs in seconds. For the full 2100+, use batches of 500-1000.
             </div>
           </div>
         </div>
@@ -198,28 +198,35 @@ export default function StatsDroneAdmin() {
 
         <div className="flex flex-wrap gap-4">
           <button
-            onClick={() => startScrape(10)}
+            onClick={() => startScrape(50)}
             disabled={scraping}
             className="btn-primary"
           >
-            {scraping ? '⏳ Scraping...' : '✅ Scrape 10 (Fast)'}
+            {scraping ? '⏳ Scraping...' : '🔄 Scrape 50 (Quick Test)'}
           </button>
 
           <button
-            onClick={() => startScrape(25)}
+            onClick={() => startScrape(500)}
             disabled={scraping}
             className="btn-primary"
           >
-            {scraping ? '⏳ Scraping...' : '✅ Scrape 25 (Recommended)'}
+            {scraping ? '⏳ Scraping...' : '🚀 Scrape 500'}
           </button>
 
           <button
-            onClick={() => startScrape(100)}
+            onClick={() => startScrape(1000)}
             disabled={scraping}
-            className="btn-ghost opacity-50"
-            title="May timeout on Vercel"
+            className="btn-primary"
           >
-            {scraping ? '⏳ Scraping...' : '⚠️ Scrape 100 (May Timeout)'}
+            {scraping ? '⏳ Scraping...' : '📦 Scrape 1000'}
+          </button>
+
+          <button
+            onClick={() => startScrape()}
+            disabled={scraping}
+            className="btn-ghost"
+          >
+            {scraping ? '⏳ Scraping...' : '🌐 Scrape All (~2100)'}
           </button>
 
           <button

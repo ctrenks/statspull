@@ -31,19 +31,18 @@ export async function POST(request: Request) {
     });
     console.log('Log created:', log.id);
 
-    // For small scrapes (< 50), run synchronously to avoid Vercel serverless timeout issues
-    // For large scrapes, start in background (may be terminated by Vercel)
+    // Since we're using simple fetch (not Puppeteer), we can run larger scrapes synchronously
     console.log('Starting scrape...');
-
-    if (limit && limit < 50) {
-      // Run synchronously for small scrapes
-      console.log('Running synchronous scrape for small limit');
+    
+    if (!limit || limit < 1000) {
+      // Run synchronously for smaller scrapes (< 1000)
+      console.log('Running synchronous scrape');
       await scrapeInBackground(log.id, software, limit);
-
+      
       const updatedLog = await prisma.statsDrone_ScrapingLog.findUnique({
         where: { id: log.id },
       });
-
+      
       return NextResponse.json({
         success: true,
         logId: log.id,
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
         message: 'Scraping completed'
       });
     } else {
-      // Run asynchronously for large scrapes (may timeout on Vercel)
+      // Run asynchronously for very large scrapes (1000+)
       scrapeInBackground(log.id, software, limit).catch(err => {
         console.error('Background scrape failed:', err);
       });
@@ -60,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         logId: log.id,
-        message: 'Scraping started (large scrape may timeout on Vercel serverless - consider running locally)'
+        message: 'Scraping started in background'
       });
     }
 
