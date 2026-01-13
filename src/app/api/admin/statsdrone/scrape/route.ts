@@ -104,7 +104,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
     // Parse HTML with cheerio
     const $ = cheerio.load(html);
-    
+
     // Debug: Check what we're finding
     const tables = $('table').length;
     const rows = $('table tbody tr').length;
@@ -113,13 +113,13 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     console.log('Rows in tbody:', rows);
     console.log('All rows in tables:', allRows);
     console.log('Table classes:', $('table').map((i, el) => $(el).attr('class')).get());
-    
+
     // Log first table's structure
     if (tables > 0) {
       const firstTable = $('table').first();
       console.log('First table HTML (first 1000 chars):', firstTable.html()?.substring(0, 1000));
     }
-    
+
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: 'Parsing programs...' },
@@ -131,21 +131,30 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       const cells = $(row).find('td');
       console.log(`Row ${i}: ${cells.length} cells`);
       
-      if (cells.length < 6) {
+      if (cells.length < 7) {
         console.log(`  Skipping row ${i} - not enough cells`);
         return;
       }
 
-      const nameCell = $(cells[0]);
+      // Column indices based on actual table structure:
+      // 0: Logo, 1: Name, 2: Software, 3: Commissions, 4: Available, 5: API, 6: Category, 7: ?, 8: Actions
+      const logoCell = $(cells[0]);
+      const nameCell = $(cells[1]);
+      
+      // Debug: Show cell HTML for first row
+      if (i === 0) {
+        console.log(`  First row nameCell HTML:`, nameCell.html()?.substring(0, 300));
+      }
+      
       const nameLink = nameCell.find('a').first();
-      const logo = nameCell.find('img').first();
+      const logo = logoCell.find('img').first();
 
-      const softwareCell = $(cells[1]);
-      const commissionCell = $(cells[2]);
-      const apiCell = $(cells[3]);
+      const softwareCell = $(cells[2]);
+      const commissionCell = $(cells[3]);
       const availableCell = $(cells[4]);
-      const categoryCell = $(cells[5]);
-      const actionCell = $(cells[6]);
+      const apiCell = $(cells[5]);
+      const categoryCell = $(cells[6]);
+      const actionCell = $(cells[8] || cells[7]); // Join button might be in 7 or 8
 
       const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
       const joinLink = actionCell.find('a[href*="glm"]').first();
@@ -155,9 +164,10 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       const slug = href?.split('/').filter(Boolean).pop() || '';
       
       console.log(`  Row ${i}: name="${name}", href="${href}", slug="${slug}"`);
+      console.log(`  Row ${i}: software="${softwareCell.text().trim()}", api="${apiCell.text().trim()}"`);
       
-      if (!slug) {
-        console.log(`  Skipping row ${i} - no slug found`);
+      if (!slug || !name) {
+        console.log(`  Skipping row ${i} - missing slug or name`);
         return;
       }
 
@@ -174,7 +184,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         joinUrl: joinLink.attr('href') || null,
         sourceUrl: href || '',
       };
-      
+
       console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 200));
       programs.push(program);
     });
