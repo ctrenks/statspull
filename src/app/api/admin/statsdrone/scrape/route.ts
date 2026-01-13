@@ -33,16 +33,16 @@ export async function POST(request: Request) {
 
     // Since we're using simple fetch (not Puppeteer), we can run larger scrapes synchronously
     console.log('Starting scrape...');
-    
+
     if (!limit || limit < 1000) {
       // Run synchronously for smaller scrapes (< 1000)
       console.log('Running synchronous scrape');
       await scrapeInBackground(log.id, software, limit);
-      
+
       const updatedLog = await prisma.statsDrone_ScrapingLog.findUnique({
         where: { id: log.id },
       });
-      
+
       return NextResponse.json({
         success: true,
         logId: log.id,
@@ -80,13 +80,13 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       : 'https://statsdrone.com/affiliate-programs/';
 
     console.log(`Scraping: ${url}`);
-    
+
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: 'Fetching page...' },
     });
-    
+
     // Fetch the HTML
     const response = await fetch(url, {
       headers: {
@@ -99,10 +99,26 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     }
 
     const html = await response.text();
-    console.log('Page fetched successfully');
+    console.log('Page fetched successfully, HTML length:', html.length);
+    console.log('First 500 chars:', html.substring(0, 500));
 
     // Parse HTML with cheerio
     const $ = cheerio.load(html);
+    
+    // Debug: Check what we're finding
+    const tables = $('table').length;
+    const rows = $('table tbody tr').length;
+    const allRows = $('table tr').length;
+    console.log('Tables found:', tables);
+    console.log('Rows in tbody:', rows);
+    console.log('All rows in tables:', allRows);
+    console.log('Table classes:', $('table').map((i, el) => $(el).attr('class')).get());
+    
+    // Log first table's structure
+    if (tables > 0) {
+      const firstTable = $('table').first();
+      console.log('First table HTML (first 1000 chars):', firstTable.html()?.substring(0, 1000));
+    }
     
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
@@ -113,7 +129,12 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     const programs: any[] = [];
     $('table tbody tr').each((i, row) => {
       const cells = $(row).find('td');
-      if (cells.length < 6) return;
+      console.log(`Row ${i}: ${cells.length} cells`);
+      
+      if (cells.length < 6) {
+        console.log(`  Skipping row ${i} - not enough cells`);
+        return;
+      }
 
       const nameCell = $(cells[0]);
       const nameLink = nameCell.find('a').first();
@@ -129,11 +150,19 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
       const joinLink = actionCell.find('a[href*="glm"]').first();
 
-      const slug = nameLink.attr('href')?.split('/').filter(Boolean).pop() || '';
-      if (!slug) return;
+      const name = nameLink.text().trim();
+      const href = nameLink.attr('href');
+      const slug = href?.split('/').filter(Boolean).pop() || '';
+      
+      console.log(`  Row ${i}: name="${name}", href="${href}", slug="${slug}"`);
+      
+      if (!slug) {
+        console.log(`  Skipping row ${i} - no slug found`);
+        return;
+      }
 
-      programs.push({
-        name: nameLink.text().trim() || '',
+      const program = {
+        name: name || '',
         slug: slug,
         software: softwareCell.text().trim() || null,
         commission: commissionCell.text().replace(/\s+/g, ' ').trim() || null,
@@ -143,11 +172,17 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         logoUrl: logo.attr('src') || null,
         reviewUrl: reviewLink.attr('href') || null,
         joinUrl: joinLink.attr('href') || null,
-        sourceUrl: nameLink.attr('href') || '',
-      });
+        sourceUrl: href || '',
+      };
+      
+      console.log(`  Program ${i}:`, JSON.stringify(program).substring(0, 200));
+      programs.push(program);
     });
 
     console.log(`Found ${programs.length} programs`);
+    if (programs.length > 0) {
+      console.log('First program:', JSON.stringify(programs[0]));
+    }
 
     // Save to database
     let savedCount = 0;

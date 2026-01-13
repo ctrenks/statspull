@@ -158,7 +158,7 @@ export default function StatsDroneAdmin() {
           <div className="flex items-start gap-2">
             <span className="text-blue-400 text-lg">ℹ️</span>
             <div className="text-sm text-blue-400">
-              <strong>Fast Scraping:</strong> Using simple HTML parsing - no browser required! 
+              <strong>Fast Scraping:</strong> Using simple HTML parsing - no browser required!
               You can scrape hundreds of programs in seconds. For the full 2100+, use batches of 500-1000.
             </div>
           </div>
