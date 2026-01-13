@@ -81,13 +81,13 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       : 'https://statsdrone.com/affiliate-programs/';
 
     console.log(`Checking for API endpoint at: ${pageUrl}`);
-    
+
     // Update progress
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: 'Looking for API endpoint...' },
     });
-    
+
     // Try the API endpoint directly - based on typical patterns, it might be /api/programs or similar
     // Let's try a few common patterns
     const apiEndpoints = [
@@ -95,7 +95,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       'https://statsdrone.com/api/programs',
       'https://statsdrone.com/affiliate-programs/load-more',
     ];
-    
+
     let apiData = null;
     for (const apiUrl of apiEndpoints) {
       try {
@@ -116,30 +116,30 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         console.log(`API endpoint ${apiUrl} failed:`, e);
       }
     }
-    
+
     if (apiData) {
       console.log('Using API data directly');
       // Process API data here if we found it
       // For now, fall back to HTML scraping
     }
-    
+
     // Fetch the HTML (with pagination support)
     await prisma.statsDrone_ScrapingLog.update({
       where: { id: logId },
       data: { currentProgress: 'Fetching programs (pagination support)...' },
     });
-    
+
     const allPrograms: any[] = [];
     let page = 1;
     const maxPages = Math.ceil((limit || 2500) / 50); // Assuming ~50 per page
-    
+
     while (page <= maxPages) {
       const url = software
         ? `https://statsdrone.com/affiliate-programs/?software=${encodeURIComponent(software)}&page=${page}`
         : `https://statsdrone.com/affiliate-programs/?page=${page}`;
-      
+
       console.log(`Fetching page ${page}: ${url}`);
-      
+
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -153,25 +153,25 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
       const html = await response.text();
       console.log(`Page ${page} fetched successfully, HTML length:`, html.length);
-      
+
       if (page === 1) {
         console.log('First 500 chars:', html.substring(0, 500));
       }
 
       // Parse HTML with cheerio
       const $ = cheerio.load(html);
-      
+
       // Debug: Check what we're finding
       const tables = $('table').length;
       const rows = $('table tbody tr').length;
-      
+
       if (page === 1) {
         const allRows = $('table tr').length;
         console.log('Tables found:', tables);
         console.log('Rows in tbody:', rows);
         console.log('All rows in tables:', allRows);
         console.log('Table classes:', $('table').map((i, el) => $(el).attr('class')).get());
-        
+
         // Log first table's structure
         if (tables > 0) {
           const firstTable = $('table').first();
@@ -180,12 +180,12 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       } else {
         console.log(`Page ${page}: Found ${rows} rows`);
       }
-      
+
       if (rows === 0) {
         console.log(`No more rows found on page ${page}, stopping pagination`);
         break;
       }
-      
+
       await prisma.statsDrone_ScrapingLog.update({
         where: { id: logId },
         data: { currentProgress: `Parsing page ${page}...` },
@@ -195,7 +195,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
       const pagePrograms: any[] = [];
       $('table tbody tr').each((i, row) => {
         const cells = $(row).find('td');
-        
+
         if (cells.length < 7) {
           if (page === 1 && i === 0) {
             console.log(`  Skipping row ${i} - not enough cells (${cells.length})`);
@@ -216,7 +216,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         const apiCell = $(cells[5]);
         const categoryCell = $(cells[6]);
         const actionCell = $(cells[8] || cells[7]); // Join button might be in 7 or 8
-        
+
         const reviewLink = actionCell.find('a[href*="/affiliate-programs/"]').first();
         const joinLink = actionCell.find('a').filter((idx, el) => {
           const href = $(el).attr('href') || '';
@@ -227,11 +227,11 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         const href = nameLink.attr('href');
         const slug = href?.split('/').filter(Boolean).pop() || '';
         const joinHref = joinLink.attr('href') || null;
-        
+
         if (page === 1 && i === 0) {
           console.log(`  First row: name="${name}", slug="${slug}", joinUrl="${joinHref}"`);
         }
-        
+
         if (!slug || !name) {
           if (page === 1 && i < 3) {
             console.log(`  Skipping row ${i} - missing slug or name`);
@@ -252,7 +252,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           joinUrl: joinHref,
           sourceUrl: href || '',
         };
-        
+
         if (page === 1 && i === 0) {
           console.log(`  First program:`, JSON.stringify(program).substring(0, 300));
         }
@@ -261,19 +261,19 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
       console.log(`Page ${page}: Found ${pagePrograms.length} programs`);
       allPrograms.push(...pagePrograms);
-      
+
       // Check if we've reached the limit
       if (limit && allPrograms.length >= limit) {
         console.log(`Reached limit of ${limit} programs`);
         break;
       }
-      
+
       // If this page had fewer programs than expected, we might be at the end
       if (pagePrograms.length < 10) {
         console.log(`Page ${page} had only ${pagePrograms.length} programs, likely at the end`);
         break;
       }
-      
+
       page++;
     }
 
