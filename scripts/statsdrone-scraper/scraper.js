@@ -59,10 +59,71 @@ async function scrapePrograms(browser, software = null) {
     }
 
     console.log(`\n📊 Scraping: ${url}`);
-    await page.goto(url, { waitForTimeout: 30000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
     // Wait for the table to load
     await page.waitForSelector('table', { timeout: 10000 });
+
+    // Click "Load More" button repeatedly until all programs are loaded
+    let loadMoreClicks = 0;
+    let previousRowCount = 0;
+    
+    while (true) {
+      // Count current rows
+      const currentRowCount = await page.evaluate(() => {
+        return document.querySelectorAll('table tbody tr').length;
+      });
+      
+      console.log(`   Current programs visible: ${currentRowCount}`);
+      
+      // Check if row count stopped increasing (no more to load)
+      if (currentRowCount === previousRowCount && loadMoreClicks > 0) {
+        console.log(`   ✅ All programs loaded (no more "Load More")`);
+        break;
+      }
+      
+      previousRowCount = currentRowCount;
+      
+      // Look for "Load More" button
+      const loadMoreButton = await page.$('button:has-text("Load More"), a:has-text("Load More"), .load-more-btn, #load-more');
+      
+      if (!loadMoreButton) {
+        // Try alternative selectors
+        const altButton = await page.evaluateHandle(() => {
+          const buttons = Array.from(document.querySelectorAll('button, a'));
+          return buttons.find(btn => 
+            btn.textContent.toLowerCase().includes('load more') ||
+            btn.textContent.toLowerCase().includes('show more')
+          );
+        });
+        
+        if (!altButton || !await altButton.asElement()) {
+          console.log(`   ℹ️  No "Load More" button found`);
+          break;
+        }
+        
+        // Click the alternative button
+        await altButton.asElement().click();
+        loadMoreClicks++;
+        console.log(`   🖱️  Clicked "Load More" (${loadMoreClicks} times)`);
+        await page.waitForTimeout(2000); // Wait for new content to load
+        continue;
+      }
+      
+      // Click the load more button
+      await loadMoreButton.click();
+      loadMoreClicks++;
+      console.log(`   🖱️  Clicked "Load More" (${loadMoreClicks} times)`);
+      
+      // Wait for new content to load
+      await page.waitForTimeout(2000);
+      
+      // Safety limit to prevent infinite loops
+      if (loadMoreClicks > 200) {
+        console.log(`   ⚠️  Reached safety limit of 200 clicks`);
+        break;
+      }
+    }
 
     // Extract program data from the table
     const programs = await page.evaluate(() => {
@@ -70,41 +131,49 @@ async function scrapePrograms(browser, software = null) {
 
       return rows.map(row => {
         const cells = row.querySelectorAll('td');
-        if (cells.length < 6) return null;
+        if (cells.length < 7) return null;
 
-        // Extract program name and URL
-        const nameCell = cells[0];
+        // Column indices: 0=Logo, 1=Name, 2=Software, 3=Commissions, 4=Available, 5=API, 6=Category, 7=?, 8=Actions
+        const logoCell = cells[0];
+        const logo = logoCell.querySelector('img');
+        
+        const nameCell = cells[1];
         const nameLink = nameCell.querySelector('a');
-        const logo = nameCell.querySelector('img');
 
         // Extract software
-        const softwareCell = cells[1];
+        const softwareCell = cells[2];
 
         // Extract commissions
-        const commissionCell = cells[2];
-
-        // Extract API support
-        const apiCell = cells[3];
-        const apiSupport = apiCell.textContent.trim().toLowerCase() === 'yes';
+        const commissionCell = cells[3];
 
         // Extract availability in StatsDrone
         const availableCell = cells[4];
         const availableInSD = availableCell.textContent.trim().toLowerCase() === 'yes';
 
+        // Extract API support
+        const apiCell = cells[5];
+        const apiSupport = apiCell.textContent.trim().toLowerCase() === 'yes';
+
         // Extract category
-        const categoryCell = cells[5];
+        const categoryCell = cells[6];
 
         // Extract review and join links
-        const actionCell = cells[6];
-        const reviewLink = actionCell.querySelector('a[href*="/affiliate-programs/"]');
-        const joinLink = actionCell.querySelector('a[href*="glm"]') || actionCell.querySelector('a:last-child');
+        const actionCell = cells[8] || cells[7];
+        const reviewLink = actionCell?.querySelector('a[href*="/affiliate-programs/"]');
+        const joinLink = actionCell?.querySelector('a[href*="glm"]') || actionCell?.querySelector('a:last-child');
 
         // Check for exclusive offer
         const exclusiveOffer = commissionCell.querySelector('img[alt*="exclusive"]')?.nextSibling?.textContent?.trim();
 
+        const href = nameLink?.getAttribute('href');
+        const slug = href?.split('/').filter(Boolean).pop() || '';
+        const sourceUrl = href && !href.startsWith('http') 
+          ? `https://statsdrone.com${href}` 
+          : (href || `https://statsdrone.com/affiliate-programs/${slug}`);
+
         return {
           name: nameLink?.textContent.trim() || '',
-          slug: nameLink?.getAttribute('href')?.split('/').filter(Boolean).pop() || '',
+          slug: slug,
           software: softwareCell?.textContent.trim() || null,
           commission: commissionCell?.textContent.replace(/\s+/g, ' ').trim() || null,
           apiSupport,
@@ -114,7 +183,7 @@ async function scrapePrograms(browser, software = null) {
           reviewUrl: reviewLink?.getAttribute('href') || null,
           joinUrl: joinLink?.getAttribute('href') || null,
           exclusiveOffer: exclusiveOffer || null,
-          sourceUrl: nameLink?.getAttribute('href') || '',
+          sourceUrl: sourceUrl,
         };
       }).filter(Boolean);
     });
@@ -179,6 +248,10 @@ async function main() {
   console.log('   - StatsDrone Terms of Service');
   console.log('   - robots.txt compliance');
   console.log('   - Consider contacting them for data partnership\n');
+  console.log('Usage:');
+  console.log('   node scraper.js           - Scrape all programs (clicks "Load More")');
+  console.log('   node scraper.js --all     - Same as above');
+  console.log('   node scraper.js --by-software - Scrape by each software filter\n');
 
   const browser = await puppeteer.launch({
     headless: 'new',
@@ -188,18 +261,26 @@ async function main() {
   try {
     let totalPrograms = 0;
 
-    // Option 1: Scrape all programs (no filter)
-    console.log('📥 Starting scrape of all programs...');
-    const count = await scrapePrograms(browser);
-    totalPrograms += count;
+    // Check if user wants to scrape just one software or all
+    const args = process.argv.slice(2);
+    const scrapeBySoftware = args.includes('--by-software');
+    const scrapeAll = !scrapeBySoftware;
 
-    // Option 2: Scrape by software (uncomment if you want to filter)
-    // for (const software of SOFTWARE_FILTERS) {
-    //   console.log(`\n📥 Scraping programs using ${software}...`);
-    //   await randomDelay(); // Respectful delay between requests
-    //   const count = await scrapePrograms(browser, software);
-    //   totalPrograms += count;
-    // }
+    if (scrapeAll) {
+      // Scrape all programs (no filter) - will use "Load More" to get everything
+      console.log('📥 Starting scrape of ALL programs (using "Load More")...');
+      const count = await scrapePrograms(browser);
+      totalPrograms += count;
+    } else {
+      // Scrape by each software filter
+      console.log('📥 Starting scrape by software filters...');
+      for (const software of SOFTWARE_FILTERS) {
+        console.log(`\n📥 Scraping programs using ${software}...`);
+        await randomDelay(); // Respectful delay between requests
+        const count = await scrapePrograms(browser, software);
+        totalPrograms += count;
+      }
+    }
 
     console.log('\n' + '='.repeat(50));
     console.log(`✅ Scraping complete!`);
