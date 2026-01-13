@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   let browser;
-  
+
   try {
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -108,7 +108,8 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
     let savedCount = 0;
     const programsToSave = (limit ? programs.slice(0, limit) : programs).filter(p => p !== null);
 
-    for (const program of programsToSave) {
+    for (let i = 0; i < programsToSave.length; i++) {
+      const program = programsToSave[i];
       try {
         await prisma.statsDrone_Program.upsert({
           where: { slug: program.slug },
@@ -121,6 +122,18 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
           },
         });
         savedCount++;
+
+        // Update progress every 10 programs
+        if (savedCount % 10 === 0 || savedCount === programsToSave.length) {
+          await prisma.statsDrone_ScrapingLog.update({
+            where: { id: logId },
+            data: {
+              currentProgress: `Saved ${savedCount}/${programsToSave.length} programs`,
+              programsFound: savedCount,
+            },
+          });
+          console.log(`Progress: ${savedCount}/${programsToSave.length}`);
+        }
       } catch (error) {
         console.error(`Error saving ${program?.name || 'unknown'}:`, error);
       }

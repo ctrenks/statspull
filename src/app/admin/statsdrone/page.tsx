@@ -9,6 +9,8 @@ export default function StatsDroneAdmin() {
   const [scraping, setScraping] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportResults, setExportResults] = useState<any>(null);
+  const [customLimit, setCustomLimit] = useState<string>('100');
+  const [currentProgress, setCurrentProgress] = useState<string>('');
 
   useEffect(() => {
     loadStats();
@@ -41,6 +43,7 @@ export default function StatsDroneAdmin() {
     }
 
     setScraping(true);
+    setCurrentProgress('Starting scrape...');
     try {
       const res = await fetch('/api/admin/statsdrone/scrape', {
         method: 'POST',
@@ -51,7 +54,6 @@ export default function StatsDroneAdmin() {
       const data = await res.json();
 
       if (data.success) {
-        alert('Scraping started! Check back in a few minutes.');
         loadLogs();
 
         // Poll for completion
@@ -60,19 +62,25 @@ export default function StatsDroneAdmin() {
           const logRes = await fetch(`/api/admin/statsdrone/scrape?logId=${logId}`);
           const logData = await logRes.json();
 
+          if (logData.log?.currentProgress) {
+            setCurrentProgress(logData.log.currentProgress);
+          }
+
           if (logData.log?.status !== 'running') {
             clearInterval(interval);
             setScraping(false);
+            setCurrentProgress('');
             loadStats();
             loadLogs();
             alert(`Scraping ${logData.log?.status}! Found ${logData.log?.programsFound} programs.`);
           }
-        }, 5000);
+        }, 2000); // Poll every 2 seconds for live updates
       }
     } catch (error) {
       console.error('Scrape error:', error);
       alert('Failed to start scraping');
       setScraping(false);
+      setCurrentProgress('');
     }
   };
 
@@ -133,23 +141,55 @@ export default function StatsDroneAdmin() {
 
       {/* Actions */}
       <div className="card p-6 mb-8">
-        <h2 className="text-xl font-bold mb-4">Actions</h2>
+        <h2 className="text-xl font-bold mb-4">Scrape Programs</h2>
+
+        {/* Progress Display */}
+        {scraping && currentProgress && (
+          <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin">⏳</div>
+              <span className="text-blue-400 font-medium">{currentProgress}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Limit Input */}
+        <div className="mb-4 flex items-center gap-4">
+          <label className="text-dark-300 font-medium">Custom Limit:</label>
+          <input
+            type="number"
+            min="1"
+            max="2500"
+            value={customLimit}
+            onChange={(e) => setCustomLimit(e.target.value)}
+            disabled={scraping}
+            className="px-3 py-2 bg-dark-800 border border-dark-700 rounded w-32"
+            placeholder="100"
+          />
+          <button
+            onClick={() => startScrape(parseInt(customLimit))}
+            disabled={scraping || !customLimit || parseInt(customLimit) < 1}
+            className="btn-primary"
+          >
+            {scraping ? '⏳ Scraping...' : `🔄 Scrape ${customLimit} Programs`}
+          </button>
+        </div>
 
         <div className="flex flex-wrap gap-4">
           <button
             onClick={() => startScrape(50)}
             disabled={scraping}
-            className="btn-primary"
+            className="btn-ghost"
           >
-            {scraping ? '⏳ Scraping...' : '🔄 Scrape 50 Programs (Test)'}
+            {scraping ? '⏳ Scraping...' : '🔄 Scrape 50 (Quick Test)'}
           </button>
 
           <button
             onClick={() => startScrape()}
             disabled={scraping}
-            className="btn-primary"
+            className="btn-ghost"
           >
-            {scraping ? '⏳ Scraping...' : '🚀 Scrape All Programs (~2100)'}
+            {scraping ? '⏳ Scraping...' : '🚀 Scrape All (~2100)'}
           </button>
 
           <button
@@ -275,20 +315,32 @@ export default function StatsDroneAdmin() {
         <h2 className="text-xl font-bold mb-4">Recent Scraping Activity</h2>
         <div className="space-y-2">
           {logs.map((log: any) => (
-            <div key={log.id} className="flex justify-between items-center border-b border-dark-800 py-2">
-              <div>
-                <span className="font-medium">{log.software || 'all'}</span>
-                <span className={`ml-3 px-2 py-1 rounded text-xs ${
-                  log.status === 'success' ? 'bg-green-500/20 text-green-400' :
-                  log.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
-                  'bg-red-500/20 text-red-400'
-                }`}>
-                  {log.status}
-                </span>
+            <div key={log.id} className="border-b border-dark-800 py-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="font-medium">{log.software || 'all'}</span>
+                  <span className={`ml-3 px-2 py-1 rounded text-xs ${
+                    log.status === 'success' ? 'bg-green-500/20 text-green-400' :
+                    log.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
+                    'bg-red-500/20 text-red-400'
+                  }`}>
+                    {log.status}
+                  </span>
+                </div>
+                <div className="text-dark-400 text-sm">
+                  {log.programsFound} programs • {new Date(log.startedAt).toLocaleString()}
+                </div>
               </div>
-              <div className="text-dark-400 text-sm">
-                {log.programsFound} programs • {new Date(log.startedAt).toLocaleString()}
-              </div>
+              {log.currentProgress && log.status === 'running' && (
+                <div className="mt-2 text-sm text-blue-400">
+                  {log.currentProgress}
+                </div>
+              )}
+              {log.error && (
+                <div className="mt-2 text-sm text-red-400">
+                  Error: {log.error}
+                </div>
+              )}
             </div>
           ))}
         </div>

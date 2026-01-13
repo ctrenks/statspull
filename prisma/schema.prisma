@@ -430,8 +430,9 @@ model StatsDrone_ScrapingLog {
   id          String   @id @default(cuid())
   software    String?  // Which software filter was being scraped
   page        Int?
-  status      String   // "success", "error", "partial"
+  status      String   // "running", "success", "error", "partial"
   programsFound Int    @default(0)
+  currentProgress String? // e.g., "Processing program 50/2100"
   error       String?
   startedAt   DateTime @default(now())
   completedAt DateTime?
