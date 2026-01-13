@@ -63,10 +63,10 @@ async function scrapePrograms(browser, software = null) {
 
     // Wait for the table to load
     await page.waitForSelector('table', { timeout: 10000 });
-    
+
     // Wait a bit more for dynamic content
     await page.waitForTimeout(3000);
-    
+
     // Debug: Check what buttons/links exist
     const allButtons = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button, a, [onclick]'));
@@ -76,7 +76,7 @@ async function scrapePrograms(browser, software = null) {
         class: btn.className,
         id: btn.id,
         onclick: btn.getAttribute('onclick')?.substring(0, 50)
-      })).filter(b => 
+      })).filter(b =>
         b.text.toLowerCase().includes('load') ||
         b.text.toLowerCase().includes('more') ||
         b.text.toLowerCase().includes('show') ||
@@ -105,29 +105,29 @@ async function scrapePrograms(browser, software = null) {
       }
 
       previousRowCount = currentRowCount;
-      
+
       // Look for "Find more affiliate programs" button
       const loadMoreButton = await page.evaluateHandle(() => {
         const buttons = Array.from(document.querySelectorAll('button, a'));
-        return buttons.find(btn => 
+        return buttons.find(btn =>
           btn.classList.contains('view-more-aff-programs') ||
           btn.textContent.toLowerCase().includes('find more affiliate') ||
           btn.textContent.toLowerCase().includes('load more') ||
           btn.textContent.toLowerCase().includes('show more')
         );
       });
-      
+
       const element = loadMoreButton.asElement();
       if (!element) {
         console.log(`   ℹ️  No "Load More" button found - all programs loaded`);
         break;
       }
-      
+
       // Click the load more button
       await element.click();
       loadMoreClicks++;
       console.log(`   🖱️  Clicked "Load More" (${loadMoreClicks} times)`);
-      
+
       // Wait for new content to load
       await page.waitForTimeout(2000);
 
