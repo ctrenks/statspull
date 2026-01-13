@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
 export async function POST(request: Request) {
   try {
@@ -41,11 +42,13 @@ export async function POST(request: Request) {
 
 async function scrapeInBackground(logId: string, software?: string, limit?: number) {
   let browser;
-
+  
   try {
     browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
@@ -103,7 +106,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
 
     // Save to database
     let savedCount = 0;
-    const programsToSave = limit ? programs.slice(0, limit) : programs;
+    const programsToSave = (limit ? programs.slice(0, limit) : programs).filter(p => p !== null);
 
     for (const program of programsToSave) {
       try {
@@ -119,7 +122,7 @@ async function scrapeInBackground(logId: string, software?: string, limit?: numb
         });
         savedCount++;
       } catch (error) {
-        console.error(`Error saving ${program.name}:`, error);
+        console.error(`Error saving ${program?.name || 'unknown'}:`, error);
       }
     }
 
