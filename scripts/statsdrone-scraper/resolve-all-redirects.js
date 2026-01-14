@@ -21,22 +21,82 @@ function cleanUrl(url) {
   }
 }
 
-// Follow redirects and get final URL
-async function resolveRedirect(url) {
-  try {
-    const response = await fetch(url, {
-      method: 'HEAD',
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
+// Follow redirects manually to catch all layers
+async function resolveRedirect(url, maxRedirects = 10) {
+  let currentUrl = url;
+  let redirectCount = 0;
 
-    return response.url;
-  } catch (error) {
-    console.error(`Failed to resolve: ${error.message}`);
-    throw error;
+  while (redirectCount < maxRedirects) {
+    try {
+      const response = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual', // Don't auto-follow, we'll do it manually
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      // Check for redirect status codes (301, 302, 303, 307, 308)
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (location) {
+          // Handle relative URLs
+          if (location.startsWith('/')) {
+            const urlObj = new URL(currentUrl);
+            currentUrl = urlObj.origin + location;
+          } else if (!location.startsWith('http')) {
+            const urlObj = new URL(currentUrl);
+            currentUrl = urlObj.origin + '/' + location;
+          } else {
+            currentUrl = location;
+          }
+          redirectCount++;
+          continue;
+        }
+      }
+
+      // Check for meta refresh or JavaScript redirect in HTML
+      if (response.headers.get('content-type')?.includes('text/html')) {
+        const html = await response.text();
+        
+        // Check for meta refresh
+        const metaRefresh = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"'\s>]+)/i);
+        if (metaRefresh && metaRefresh[1]) {
+          let refreshUrl = metaRefresh[1].replace(/['"]/g, '');
+          if (!refreshUrl.startsWith('http')) {
+            const urlObj = new URL(currentUrl);
+            refreshUrl = urlObj.origin + (refreshUrl.startsWith('/') ? '' : '/') + refreshUrl;
+          }
+          currentUrl = refreshUrl;
+          redirectCount++;
+          continue;
+        }
+
+        // Check for window.location redirect
+        const jsRedirect = html.match(/window\.location(?:\.href)?\s*=\s*["']([^"']+)["']/i);
+        if (jsRedirect && jsRedirect[1]) {
+          let jsUrl = jsRedirect[1];
+          if (!jsUrl.startsWith('http')) {
+            const urlObj = new URL(currentUrl);
+            jsUrl = urlObj.origin + (jsUrl.startsWith('/') ? '' : '/') + jsUrl;
+          }
+          currentUrl = jsUrl;
+          redirectCount++;
+          continue;
+        }
+      }
+
+      // No more redirects found
+      break;
+
+    } catch (error) {
+      console.error(`Error at redirect ${redirectCount}: ${error.message}`);
+      break;
+    }
   }
+
+  return currentUrl;
 }
 
 // Delay between requests to be respectful
