@@ -16,19 +16,19 @@ function generatePassword(length: number = 16): string {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const digits = '0123456789';
   const special = '!@#$%&*';
-  
+
   let result = password.split('');
   result[0] = upper[crypto.randomInt(upper.length)];
   result[1] = lower[crypto.randomInt(lower.length)];
   result[2] = digits[crypto.randomInt(digits.length)];
   result[3] = special[crypto.randomInt(special.length)];
-  
+
   // Shuffle
   for (let i = result.length - 1; i > 0; i--) {
     const j = crypto.randomInt(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
-  
+
   return result.join('');
 }
 

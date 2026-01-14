@@ -81,19 +81,19 @@ function generatePassword(length = 16) {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const digits = '0123456789';
   const special = '!@#$%&*';
-  
+
   let result = password.split('');
   result[0] = upper[crypto.randomInt(upper.length)];
   result[1] = lower[crypto.randomInt(lower.length)];
   result[2] = digits[crypto.randomInt(digits.length)];
   result[3] = special[crypto.randomInt(special.length)];
-  
+
   // Shuffle
   for (let i = result.length - 1; i > 0; i--) {
     const j = crypto.randomInt(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
-  
+
   return result.join('');
 }
 
@@ -306,6 +306,17 @@ async function main() {
     console.log(`${progress} ${program.name}`);
     console.log(`  URL: ${program.finalJoinUrl}`);
 
+    // Skip if URL still contains statsdrone.com (redirect didn't resolve)
+    if (program.finalJoinUrl.includes('statsdrone.com')) {
+      console.log('  🚫 URL still contains statsdrone.com - marking as closed\n');
+      await prisma.statsDrone_Program.update({
+        where: { id: program.id },
+        data: { status: 'closed', finalJoinUrl: null },
+      });
+      failed++;
+      continue;
+    }
+
     // Generate unique password for this program
     const programPassword = await getOrGeneratePassword(program.id);
     console.log(`  Password: ${programPassword.substring(0, 4)}****`);
@@ -327,6 +338,21 @@ async function main() {
 
       await delay(2000); // Wait for page to fully load
 
+      // Check if page shows "email already exists" or similar
+      const pageContent = await page.content();
+      const emailAlreadyUsed = /email.*(already|exists|registered|in use)|already.*registered|account.*exists/i.test(pageContent);
+      
+      if (emailAlreadyUsed) {
+        console.log('  ✅ Email already registered - marking as signed up\n');
+        await prisma.statsDrone_Program.update({
+          where: { id: program.id },
+          data: { status: 'signed_up', signupDate: new Date() },
+        });
+        signedUp++;
+        await page.close();
+        continue;
+      }
+
       // Fill the form with program-specific password
       const fieldsFound = await fillCellXpertForm(page, programDetails);
 
@@ -335,20 +361,33 @@ async function main() {
         const hasSubmit = await submitForm(page);
 
         if (hasSubmit) {
-          console.log('  ⏸️  PAUSED - Review the form and press Enter to continue...');
+          console.log('  ⏸️  PAUSED - Review form. Enter: signed_up | c: closed | s: skip');
 
-          // Wait for user to review
-          await new Promise(resolve => {
-            process.stdin.once('data', resolve);
+          // Wait for user input
+          const input = await new Promise(resolve => {
+            process.stdin.once('data', (data) => {
+              resolve(data.toString().trim().toLowerCase());
+            });
           });
 
-          // Mark as signed up (user confirmed)
-          await prisma.statsDrone_Program.update({
-            where: { id: program.id },
-            data: { status: 'signed_up' },
-          });
-          signedUp++;
-          console.log('  ✅ Marked as signed up\n');
+          if (input === 'c' || input === 'closed') {
+            await prisma.statsDrone_Program.update({
+              where: { id: program.id },
+              data: { status: 'closed' },
+            });
+            console.log('  🚫 Marked as closed\n');
+            failed++;
+          } else if (input === 's' || input === 'skip') {
+            console.log('  ⏭️  Skipped\n');
+          } else {
+            // Default: mark as signed up
+            await prisma.statsDrone_Program.update({
+              where: { id: program.id },
+              data: { status: 'signed_up', signupDate: new Date() },
+            });
+            signedUp++;
+            console.log('  ✅ Marked as signed up\n');
+          }
         } else {
           console.log('  ⚠️  Could not find submit button\n');
           failed++;
