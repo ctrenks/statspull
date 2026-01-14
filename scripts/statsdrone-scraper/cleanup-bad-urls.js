@@ -36,7 +36,7 @@ async function main() {
         finalJoinUrl: { contains: 'statsdrone.com' },
         status: { not: 'closed' },
       },
-      data: { 
+      data: {
         status: 'closed',
         finalJoinUrl: null, // Clear the bad URL
       },

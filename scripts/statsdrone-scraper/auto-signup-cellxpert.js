@@ -341,7 +341,7 @@ async function main() {
       // Check if page shows "email already exists" or similar
       const pageContent = await page.content();
       const emailAlreadyUsed = /email.*(already|exists|registered|in use)|already.*registered|account.*exists/i.test(pageContent);
-      
+
       if (emailAlreadyUsed) {
         console.log('  ✅ Email already registered - marking as signed up\n');
         await prisma.statsDrone_Program.update({
