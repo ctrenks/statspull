@@ -71,7 +71,23 @@ This will:
 
 Edit `scraper.js` and uncomment the "Option 2" section to scrape by software categories (MyAffiliates, Cellxpert, etc.). This is more respectful as it makes fewer requests.
 
-### Step 2: View Scraped Data
+### Step 2: Resolve Redirect URLs
+
+StatsDrone uses redirect URLs for affiliate links. Resolve them to get the final, clean URLs:
+
+```bash
+npm run resolve
+```
+
+This will:
+- ✅ Find all programs with joinUrl but no finalJoinUrl
+- ✅ Follow each redirect to get the final destination
+- ✅ Clean URLs (remove query parameters)
+- ✅ Save to database (~2 seconds per program)
+
+**Time estimate:** ~80 minutes for 2,400 programs
+
+### Step 3: View Scraped Data
 
 ```bash
 npm run view
@@ -84,7 +100,7 @@ This shows:
 - API support statistics
 - Recent scraping logs
 
-### Step 3: Export to Your Templates
+### Step 4: Export to Your Templates
 
 **Dry run** (see what would be created):
 

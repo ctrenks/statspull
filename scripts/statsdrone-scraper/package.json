@@ -6,7 +6,8 @@
   "scripts": {
     "scrape": "node scraper.js",
     "view": "node view-data.js",
-    "export": "node export-to-templates.js"
+    "export": "node export-to-templates.js",
+    "resolve": "node resolve-all-redirects.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.1",
