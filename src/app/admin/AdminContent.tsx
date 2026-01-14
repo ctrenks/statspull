@@ -210,6 +210,20 @@ export default function AdminContent({
             </div>
           </Link>
           <Link
+            href="/admin/signup-profiles"
+            className="card flex items-center gap-3 px-6 py-4 hover:border-primary-500/30 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+              <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium">Signup Profiles</p>
+              <p className="text-sm text-dark-400">Manage auto-signup details</p>
+            </div>
+          </Link>
+          <Link
             href="/admin/forum"
             className="card flex items-center gap-3 px-6 py-4 hover:border-primary-500/30 transition-colors"
           >

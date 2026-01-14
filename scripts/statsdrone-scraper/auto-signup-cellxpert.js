@@ -2,59 +2,73 @@
  * Auto-signup for CellXpert affiliate programs
  * 
  * This script:
+ * - Reads signup details from the database (SignupProfile)
  * - Finds all pending CellXpert programs with resolved URLs
  * - Opens each signup page
  * - Fills in the form with provided details
  * - Submits and marks as signed_up on success
+ * 
+ * Usage:
+ *   npm run signup:cellxpert
+ *   npm run signup:cellxpert -- --software "MyAffiliates"
  */
 
 const puppeteer = require('puppeteer');
 const { PrismaClient } = require('../../node_modules/@prisma/client');
 const prisma = new PrismaClient();
 
-// ========================================
-// YOUR SIGNUP DETAILS - FILL THESE IN
-// ========================================
-const SIGNUP_DETAILS = {
-  // Personal Info
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  
-  // Company Info
-  companyName: '',
-  website: '',
-  
-  // Address
-  address: '',
-  city: '',
-  state: '',
-  country: 'US',
-  zipCode: '',
-  
-  // Account
-  username: '',
-  password: '',
-  confirmPassword: '',
-  
-  // Preferences
-  instantMessenger: '',
-  skype: '',
-  
-  // How did you hear about us
-  referralSource: 'Search Engine',
-  
-  // Additional notes
-  comments: '',
-};
-// ========================================
+// Parse command line args
+const args = process.argv.slice(2);
+let softwareFilter = 'Cellxpert'; // Default
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--software' && args[i + 1]) {
+    softwareFilter = args[i + 1];
+  }
+}
+
+// Load signup details from database
+async function loadSignupProfile() {
+  const profile = await prisma.signupProfile.findFirst({
+    where: { isDefault: true },
+  });
+
+  if (!profile) {
+    console.log('❌ No default signup profile found!');
+    console.log('   Go to Admin → Signup Profiles to create one.');
+    console.log('   URL: https://statsfetch.com/admin/signup-profiles');
+    process.exit(1);
+  }
+
+  return {
+    firstName: profile.firstName || '',
+    lastName: profile.lastName || '',
+    email: profile.email || '',
+    phone: profile.phone || '',
+    companyName: profile.companyName || '',
+    website: profile.website || '',
+    address: profile.address || '',
+    city: profile.city || '',
+    state: profile.state || '',
+    country: profile.country || 'US',
+    zipCode: profile.zipCode || '',
+    username: profile.username || '',
+    password: profile.password || '',
+    confirmPassword: profile.password || '',
+    skype: profile.skype || '',
+    telegram: profile.telegram || '',
+    discord: profile.discord || '',
+    trafficSources: profile.trafficSources || '',
+    monthlyVisitors: profile.monthlyVisitors || '',
+    promotionMethods: profile.promotionMethods || '',
+    comments: profile.comments || '',
+  };
+}
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function fillCellXpertForm(page, details) {
   console.log('  Filling form fields...');
-  
+
   // Common CellXpert field selectors - try multiple variations
   const fieldMappings = [
     // First Name
@@ -85,15 +99,25 @@ async function fillCellXpertForm(page, details) {
     { value: details.zipCode, selectors: ['#zip', '#zipCode', '#postalCode', 'input[name="zip"]', 'input[name="zipCode"]', 'input[name="postalCode"]'] },
     // Skype/IM
     { value: details.skype, selectors: ['#skype', '#im', 'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'] },
+    // Telegram
+    { value: details.telegram, selectors: ['#telegram', 'input[name="telegram"]', 'input[placeholder*="Telegram"]'] },
+    // Discord
+    { value: details.discord, selectors: ['#discord', 'input[name="discord"]', 'input[placeholder*="Discord"]'] },
+    // Traffic Sources
+    { value: details.trafficSources, selectors: ['#trafficSources', '#traffic', 'input[name="trafficSources"]', 'input[name="traffic"]', 'input[placeholder*="traffic"]'] },
+    // Monthly Visitors
+    { value: details.monthlyVisitors, selectors: ['#visitors', '#monthlyVisitors', 'input[name="visitors"]', 'input[name="monthlyVisitors"]'] },
+    // Promotion Methods
+    { value: details.promotionMethods, selectors: ['#promotion', '#promotionMethods', 'input[name="promotion"]', 'textarea[name="promotionMethods"]'] },
     // Comments
-    { value: details.comments, selectors: ['#comments', '#message', 'textarea[name="comments"]', 'textarea[name="message"]', 'textarea'] },
+    { value: details.comments, selectors: ['#comments', '#message', '#notes', 'textarea[name="comments"]', 'textarea[name="message"]', 'textarea[name="notes"]', 'textarea'] },
   ];
 
   let filledCount = 0;
-  
+
   for (const field of fieldMappings) {
     if (!field.value) continue;
-    
+
     for (const selector of field.selectors) {
       try {
         const element = await page.$(selector);
@@ -148,7 +172,7 @@ async function fillCellXpertForm(page, details) {
 
 async function submitForm(page) {
   console.log('  Looking for submit button...');
-  
+
   const submitSelectors = [
     'button[type="submit"]',
     'input[type="submit"]',
@@ -180,21 +204,20 @@ async function submitForm(page) {
 }
 
 async function main() {
-  // Validate signup details
-  if (!SIGNUP_DETAILS.email || !SIGNUP_DETAILS.firstName) {
-    console.log('❌ Please fill in SIGNUP_DETAILS at the top of this script!');
-    console.log('   At minimum, provide: firstName, lastName, email');
-    process.exit(1);
-  }
-
-  console.log('🤖 CellXpert Auto-Signup Script');
+  console.log('🤖 Affiliate Auto-Signup Script');
   console.log('=' .repeat(50));
+  console.log(`Software filter: ${softwareFilter}`);
   console.log();
 
-  // Get pending CellXpert programs with resolved URLs
+  // Load signup profile from database
+  console.log('Loading signup profile from database...');
+  const SIGNUP_DETAILS = await loadSignupProfile();
+  console.log(`✓ Using profile for: ${SIGNUP_DETAILS.firstName} ${SIGNUP_DETAILS.lastName} (${SIGNUP_DETAILS.email})\n`);
+
+  // Get pending programs with resolved URLs
   const programs = await prisma.statsDrone_Program.findMany({
     where: {
-      software: { contains: 'Cellxpert', mode: 'insensitive' },
+      software: { contains: softwareFilter, mode: 'insensitive' },
       status: 'pending',
       finalJoinUrl: { not: null },
     },
@@ -206,7 +229,7 @@ async function main() {
     orderBy: { name: 'asc' },
   });
 
-  console.log(`Found ${programs.length} pending CellXpert programs with resolved URLs\n`);
+  console.log(`Found ${programs.length} pending ${softwareFilter} programs with resolved URLs\n`);
 
   if (programs.length === 0) {
     console.log('No programs to process!');
@@ -250,7 +273,7 @@ async function main() {
 
         if (hasSubmit) {
           console.log('  ⏸️  PAUSED - Review the form and press Enter to continue...');
-          
+
           // Wait for user to review
           await new Promise(resolve => {
             process.stdin.once('data', resolve);
