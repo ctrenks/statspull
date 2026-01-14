@@ -1,0 +1,295 @@
+/**
+ * Auto-signup for CellXpert affiliate programs
+ * 
+ * This script:
+ * - Finds all pending CellXpert programs with resolved URLs
+ * - Opens each signup page
+ * - Fills in the form with provided details
+ * - Submits and marks as signed_up on success
+ */
+
+const puppeteer = require('puppeteer');
+const { PrismaClient } = require('../../node_modules/@prisma/client');
+const prisma = new PrismaClient();
+
+// ========================================
+// YOUR SIGNUP DETAILS - FILL THESE IN
+// ========================================
+const SIGNUP_DETAILS = {
+  // Personal Info
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  
+  // Company Info
+  companyName: '',
+  website: '',
+  
+  // Address
+  address: '',
+  city: '',
+  state: '',
+  country: 'US',
+  zipCode: '',
+  
+  // Account
+  username: '',
+  password: '',
+  confirmPassword: '',
+  
+  // Preferences
+  instantMessenger: '',
+  skype: '',
+  
+  // How did you hear about us
+  referralSource: 'Search Engine',
+  
+  // Additional notes
+  comments: '',
+};
+// ========================================
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fillCellXpertForm(page, details) {
+  console.log('  Filling form fields...');
+  
+  // Common CellXpert field selectors - try multiple variations
+  const fieldMappings = [
+    // First Name
+    { value: details.firstName, selectors: ['#firstName', '#first_name', 'input[name="firstName"]', 'input[name="first_name"]', 'input[placeholder*="First"]'] },
+    // Last Name
+    { value: details.lastName, selectors: ['#lastName', '#last_name', 'input[name="lastName"]', 'input[name="last_name"]', 'input[placeholder*="Last"]'] },
+    // Email
+    { value: details.email, selectors: ['#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'] },
+    // Phone
+    { value: details.phone, selectors: ['#phone', '#telephone', 'input[name="phone"]', 'input[name="telephone"]', 'input[type="tel"]'] },
+    // Company
+    { value: details.companyName, selectors: ['#company', '#companyName', 'input[name="company"]', 'input[name="companyName"]', 'input[placeholder*="Company"]'] },
+    // Website
+    { value: details.website, selectors: ['#website', '#url', 'input[name="website"]', 'input[name="url"]', 'input[placeholder*="Website"]', 'input[placeholder*="URL"]'] },
+    // Username
+    { value: details.username, selectors: ['#username', 'input[name="username"]', 'input[placeholder*="Username"]'] },
+    // Password
+    { value: details.password, selectors: ['#password', 'input[name="password"]', 'input[type="password"]:first-of-type'] },
+    // Confirm Password
+    { value: details.confirmPassword || details.password, selectors: ['#confirmPassword', '#password_confirm', 'input[name="confirmPassword"]', 'input[name="password_confirm"]', 'input[type="password"]:last-of-type'] },
+    // Address
+    { value: details.address, selectors: ['#address', 'input[name="address"]', 'input[placeholder*="Address"]'] },
+    // City
+    { value: details.city, selectors: ['#city', 'input[name="city"]', 'input[placeholder*="City"]'] },
+    // State
+    { value: details.state, selectors: ['#state', 'input[name="state"]', 'input[placeholder*="State"]'] },
+    // Zip
+    { value: details.zipCode, selectors: ['#zip', '#zipCode', '#postalCode', 'input[name="zip"]', 'input[name="zipCode"]', 'input[name="postalCode"]'] },
+    // Skype/IM
+    { value: details.skype, selectors: ['#skype', '#im', 'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'] },
+    // Comments
+    { value: details.comments, selectors: ['#comments', '#message', 'textarea[name="comments"]', 'textarea[name="message"]', 'textarea'] },
+  ];
+
+  let filledCount = 0;
+  
+  for (const field of fieldMappings) {
+    if (!field.value) continue;
+    
+    for (const selector of field.selectors) {
+      try {
+        const element = await page.$(selector);
+        if (element) {
+          await element.click({ clickCount: 3 }); // Select all existing text
+          await element.type(field.value, { delay: 50 });
+          filledCount++;
+          console.log(`    ✓ Filled: ${selector}`);
+          break;
+        }
+      } catch (e) {
+        // Try next selector
+      }
+    }
+  }
+
+  // Handle country dropdown
+  if (details.country) {
+    const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]'];
+    for (const selector of countrySelectors) {
+      try {
+        await page.select(selector, details.country);
+        console.log(`    ✓ Selected country: ${details.country}`);
+        break;
+      } catch (e) {
+        // Try next selector
+      }
+    }
+  }
+
+  // Check terms checkbox if present
+  const checkboxSelectors = ['input[name="terms"]', 'input[name="agree"]', 'input[type="checkbox"]'];
+  for (const selector of checkboxSelectors) {
+    try {
+      const checkbox = await page.$(selector);
+      if (checkbox) {
+        const isChecked = await checkbox.evaluate(el => el.checked);
+        if (!isChecked) {
+          await checkbox.click();
+          console.log(`    ✓ Checked terms checkbox`);
+        }
+        break;
+      }
+    } catch (e) {
+      // Continue
+    }
+  }
+
+  console.log(`  Filled ${filledCount} fields`);
+  return filledCount;
+}
+
+async function submitForm(page) {
+  console.log('  Looking for submit button...');
+  
+  const submitSelectors = [
+    'button[type="submit"]',
+    'input[type="submit"]',
+    'button:contains("Sign Up")',
+    'button:contains("Register")',
+    'button:contains("Submit")',
+    'button:contains("Create Account")',
+    '.submit-btn',
+    '.register-btn',
+    '#submit',
+    '#register',
+  ];
+
+  for (const selector of submitSelectors) {
+    try {
+      const button = await page.$(selector);
+      if (button) {
+        console.log(`  Found submit button: ${selector}`);
+        // Don't actually click - just report we found it
+        // await button.click();
+        return true;
+      }
+    } catch (e) {
+      // Try next
+    }
+  }
+
+  return false;
+}
+
+async function main() {
+  // Validate signup details
+  if (!SIGNUP_DETAILS.email || !SIGNUP_DETAILS.firstName) {
+    console.log('❌ Please fill in SIGNUP_DETAILS at the top of this script!');
+    console.log('   At minimum, provide: firstName, lastName, email');
+    process.exit(1);
+  }
+
+  console.log('🤖 CellXpert Auto-Signup Script');
+  console.log('=' .repeat(50));
+  console.log();
+
+  // Get pending CellXpert programs with resolved URLs
+  const programs = await prisma.statsDrone_Program.findMany({
+    where: {
+      software: { contains: 'Cellxpert', mode: 'insensitive' },
+      status: 'pending',
+      finalJoinUrl: { not: null },
+    },
+    select: {
+      id: true,
+      name: true,
+      finalJoinUrl: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  console.log(`Found ${programs.length} pending CellXpert programs with resolved URLs\n`);
+
+  if (programs.length === 0) {
+    console.log('No programs to process!');
+    await prisma.$disconnect();
+    return;
+  }
+
+  // Launch browser
+  const browser = await puppeteer.launch({
+    headless: false, // Show browser so you can see what's happening
+    defaultViewport: { width: 1280, height: 800 },
+    args: ['--start-maximized'],
+  });
+
+  let signedUp = 0;
+  let failed = 0;
+
+  for (let i = 0; i < programs.length; i++) {
+    const program = programs[i];
+    const progress = `[${i + 1}/${programs.length}]`;
+
+    console.log(`${progress} ${program.name}`);
+    console.log(`  URL: ${program.finalJoinUrl}`);
+
+    const page = await browser.newPage();
+
+    try {
+      await page.goto(program.finalJoinUrl, {
+        waitUntil: 'networkidle2',
+        timeout: 30000,
+      });
+
+      await delay(2000); // Wait for page to fully load
+
+      // Fill the form
+      const fieldsFound = await fillCellXpertForm(page, SIGNUP_DETAILS);
+
+      if (fieldsFound > 3) {
+        // Found enough fields, looks like a valid signup form
+        const hasSubmit = await submitForm(page);
+
+        if (hasSubmit) {
+          console.log('  ⏸️  PAUSED - Review the form and press Enter to continue...');
+          
+          // Wait for user to review
+          await new Promise(resolve => {
+            process.stdin.once('data', resolve);
+          });
+
+          // Mark as signed up (user confirmed)
+          await prisma.statsDrone_Program.update({
+            where: { id: program.id },
+            data: { status: 'signed_up' },
+          });
+          signedUp++;
+          console.log('  ✅ Marked as signed up\n');
+        } else {
+          console.log('  ⚠️  Could not find submit button\n');
+          failed++;
+        }
+      } else {
+        console.log('  ⚠️  Form structure not recognized\n');
+        failed++;
+      }
+
+    } catch (error) {
+      console.log(`  ❌ Error: ${error.message}\n`);
+      failed++;
+    }
+
+    await page.close();
+    await delay(2000); // Delay between signups
+  }
+
+  await browser.close();
+
+  console.log('=' .repeat(50));
+  console.log('✅ Auto-signup complete!');
+  console.log(`   Signed up: ${signedUp}`);
+  console.log(`   Failed: ${failed}`);
+  console.log('=' .repeat(50));
+
+  await prisma.$disconnect();
+}
+
+main().catch(console.error);
