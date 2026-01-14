@@ -49,7 +49,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { programId, mappedToTemplate, status } = await request.json();
+    const { programId, mappedToTemplate, status, finalJoinUrl } = await request.json();
 
     if (!programId) {
       return NextResponse.json(
@@ -65,6 +65,9 @@ export async function PATCH(request: Request) {
     }
     if (status) {
       updateData.status = status;
+    }
+    if (typeof finalJoinUrl === 'string') {
+      updateData.finalJoinUrl = finalJoinUrl || null;
     }
 
     if (Object.keys(updateData).length === 0) {

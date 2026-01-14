@@ -36,6 +36,8 @@ export default function StatsDroneProgramsPage() {
   const [showMappedOnly, setShowMappedOnly] = useState(false);
   const [showUnmappedOnly, setShowUnmappedOnly] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
+  const [editUrlValue, setEditUrlValue] = useState<string>('');
 
   useEffect(() => {
     loadPrograms();
@@ -176,11 +178,42 @@ export default function StatsDroneProgramsPage() {
     }
   };
 
+  const startEditUrl = (program: StatsDroneProgram) => {
+    setEditingUrlId(program.id);
+    setEditUrlValue(program.finalJoinUrl || cleanUrl(program.joinUrl) || '');
+  };
+
+  const saveEditUrl = async (programId: string) => {
+    try {
+      const res = await fetch('/api/admin/statsdrone/programs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programId, finalJoinUrl: editUrlValue }),
+      });
+
+      if (res.ok) {
+        setPrograms(programs.map(p =>
+          p.id === programId ? { ...p, finalJoinUrl: editUrlValue } : p
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to save URL:', error);
+    } finally {
+      setEditingUrlId(null);
+      setEditUrlValue('');
+    }
+  };
+
+  const cancelEditUrl = () => {
+    setEditingUrlId(null);
+    setEditUrlValue('');
+  };
+
   const cleanUrl = (url: string | null) => {
     if (!url) return null;
     try {
       const urlObj = new URL(url);
-      // Remove all query parameters
+      // Keep path, remove only query parameters (?x=y)
       return urlObj.origin + urlObj.pathname;
     } catch {
       return url;
@@ -362,7 +395,7 @@ export default function StatsDroneProgramsPage() {
                     />
                   </td>
                   <td className="p-3">
-                    <div className="font-medium">{program.name}</div>
+                    <div className="font-medium" title={`ID: ${program.id}`}>{program.name}</div>
                     {program.mappedToTemplate && (
                       <div className="text-xs text-green-400 mt-1">✓ Mapped to template</div>
                     )}
@@ -395,16 +428,50 @@ export default function StatsDroneProgramsPage() {
                   </td>
                   <td className="p-3">
                     <div className="flex flex-col gap-1">
-                      {program.finalJoinUrl ? (
-                        <a
-                          href={program.finalJoinUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-400 hover:text-green-300 text-sm font-medium"
-                          title={program.finalJoinUrl}
-                        >
-                          ✓ Join (Resolved)
-                        </a>
+                      {editingUrlId === program.id ? (
+                        <div className="flex flex-col gap-1">
+                          <input
+                            type="text"
+                            value={editUrlValue}
+                            onChange={(e) => setEditUrlValue(e.target.value)}
+                            className="px-2 py-1 bg-dark-800 border border-dark-600 rounded text-sm w-64"
+                            placeholder="Enter URL..."
+                            autoFocus
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => saveEditUrl(program.id)}
+                              className="text-xs text-green-400 hover:text-green-300"
+                            >
+                              ✓ Save
+                            </button>
+                            <button
+                              onClick={cancelEditUrl}
+                              className="text-xs text-red-400 hover:text-red-300"
+                            >
+                              ✗ Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : program.finalJoinUrl ? (
+                        <div className="flex gap-2 items-center">
+                          <a
+                            href={program.finalJoinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-400 hover:text-green-300 text-sm font-medium"
+                            title={program.finalJoinUrl}
+                          >
+                            ✓ Join
+                          </a>
+                          <button
+                            onClick={() => startEditUrl(program)}
+                            className="text-xs text-yellow-400 hover:text-yellow-300"
+                            title="Edit URL"
+                          >
+                            ✏️
+                          </button>
+                        </div>
                       ) : program.joinUrl ? (
                         <div className="flex gap-2 items-center">
                           <a
@@ -414,18 +481,32 @@ export default function StatsDroneProgramsPage() {
                             className="text-primary-400 hover:text-primary-300 text-sm"
                             title={program.joinUrl}
                           >
-                            Join (Redirect)
+                            Join
                           </a>
                           <button
                             onClick={() => resolveRedirect(program.id)}
                             disabled={resolvingId === program.id}
-                            className="text-xs text-yellow-400 hover:text-yellow-300 underline"
+                            className="text-xs text-yellow-400 hover:text-yellow-300"
                             title="Resolve redirect to get final URL"
                           >
                             {resolvingId === program.id ? '...' : '🔗'}
                           </button>
+                          <button
+                            onClick={() => startEditUrl(program)}
+                            className="text-xs text-blue-400 hover:text-blue-300"
+                            title="Manually enter URL"
+                          >
+                            ✏️
+                          </button>
                         </div>
-                      ) : null}
+                      ) : (
+                        <button
+                          onClick={() => startEditUrl(program)}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                        >
+                          + Add URL
+                        </button>
+                      )}
                       {program.sourceUrl && (
                         <a
                           href={cleanUrl(program.sourceUrl) || '#'}

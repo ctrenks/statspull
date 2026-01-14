@@ -11,11 +11,11 @@
 const { PrismaClient } = require('../../node_modules/@prisma/client');
 const prisma = new PrismaClient();
 
-// Clean URL to root domain only (remove all paths and parameters)
+// Clean URL - keep path, remove only query parameters (?x=y)
 function cleanUrl(url) {
   try {
     const urlObj = new URL(url);
-    return urlObj.origin; // Just protocol + domain, e.g., https://example.com
+    return urlObj.origin + urlObj.pathname; // e.g., https://example.com/register
   } catch {
     return url;
   }
