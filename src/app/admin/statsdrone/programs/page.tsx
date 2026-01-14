@@ -16,6 +16,10 @@ interface StatsDroneProgram {
   reviewUrl: string | null;
   sourceUrl: string;
   status: string;
+  signupPassword: string | null;
+  signupUsername: string | null;
+  signupEmail: string | null;
+  signupDate: string | null;
   mappedToTemplate: boolean;
   templateId: string | null;
   scrapedAt: string;
@@ -209,6 +213,29 @@ export default function StatsDroneProgramsPage() {
     setEditUrlValue('');
   };
 
+  const generatePassword = async (programId: string) => {
+    try {
+      const res = await fetch('/api/admin/statsdrone/programs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programId, generateNewPassword: true }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPrograms(programs.map(p =>
+          p.id === programId ? { ...p, signupPassword: data.program.signupPassword } : p
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to generate password:', error);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
   const cleanUrl = (url: string | null) => {
     if (!url) return null;
     try {
@@ -373,6 +400,7 @@ export default function StatsDroneProgramsPage() {
                 <th className="text-center p-3">API</th>
                 <th className="text-left p-3">Category</th>
                 <th className="text-left p-3">Status</th>
+                <th className="text-left p-3">Password</th>
                 <th className="text-left p-3">Links</th>
               </tr>
             </thead>
@@ -425,6 +453,36 @@ export default function StatsDroneProgramsPage() {
                       <option value="added_as_template">📝 Added as Template</option>
                       <option value="closed">🚫 Closed</option>
                     </select>
+                  </td>
+                  <td className="p-3">
+                    {program.signupPassword ? (
+                      <div className="flex items-center gap-1">
+                        <code className="text-xs bg-dark-800 px-2 py-1 rounded font-mono">
+                          {program.signupPassword.substring(0, 8)}...
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(program.signupPassword!)}
+                          className="text-xs text-primary-400 hover:text-primary-300"
+                          title="Copy full password"
+                        >
+                          📋
+                        </button>
+                        <button
+                          onClick={() => generatePassword(program.id)}
+                          className="text-xs text-yellow-400 hover:text-yellow-300"
+                          title="Generate new password"
+                        >
+                          🔄
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => generatePassword(program.id)}
+                        className="text-xs text-primary-400 hover:text-primary-300"
+                      >
+                        + Generate
+                      </button>
+                    )}
                   </td>
                   <td className="p-3">
                     <div className="flex flex-col gap-1">

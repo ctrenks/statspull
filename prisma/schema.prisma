@@ -418,6 +418,12 @@ model StatsDrone_Program {
   // Status tracking
   status            String   @default("pending") // pending, signed_up, added_as_template, closed
 
+  // Signup credentials (generated per program)
+  signupPassword    String?  // Auto-generated password for this program
+  signupUsername    String?  // Username used for signup (if different from profile)
+  signupEmail       String?  // Email used for signup (if different from profile)
+  signupDate        DateTime? // When we signed up
+
   // Mapped to our system
   mappedToTemplate  Boolean  @default(false)
   templateId        String?

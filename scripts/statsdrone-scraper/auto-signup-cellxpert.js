@@ -64,7 +64,59 @@ async function loadSignupProfile() {
   };
 }
 
+const crypto = require('crypto');
+
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Generate a secure random password
+function generatePassword(length = 16) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*';
+  const bytes = crypto.randomBytes(length);
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars[bytes[i] % chars.length];
+  }
+  // Ensure at least one of each type
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  const special = '!@#$%&*';
+  
+  let result = password.split('');
+  result[0] = upper[crypto.randomInt(upper.length)];
+  result[1] = lower[crypto.randomInt(lower.length)];
+  result[2] = digits[crypto.randomInt(digits.length)];
+  result[3] = special[crypto.randomInt(special.length)];
+  
+  // Shuffle
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  
+  return result.join('');
+}
+
+// Generate and save password for a program
+async function getOrGeneratePassword(programId) {
+  const program = await prisma.statsDrone_Program.findUnique({
+    where: { id: programId },
+    select: { signupPassword: true },
+  });
+
+  if (program?.signupPassword) {
+    return program.signupPassword;
+  }
+
+  // Generate new password and save
+  const password = generatePassword(16);
+  await prisma.statsDrone_Program.update({
+    where: { id: programId },
+    data: { signupPassword: password },
+  });
+
+  return password;
+}
 
 async function fillCellXpertForm(page, details) {
   console.log('  Filling form fields...');
@@ -254,6 +306,17 @@ async function main() {
     console.log(`${progress} ${program.name}`);
     console.log(`  URL: ${program.finalJoinUrl}`);
 
+    // Generate unique password for this program
+    const programPassword = await getOrGeneratePassword(program.id);
+    console.log(`  Password: ${programPassword.substring(0, 4)}****`);
+
+    // Create details with program-specific password
+    const programDetails = {
+      ...SIGNUP_DETAILS,
+      password: programPassword,
+      confirmPassword: programPassword,
+    };
+
     const page = await browser.newPage();
 
     try {
@@ -264,8 +327,8 @@ async function main() {
 
       await delay(2000); // Wait for page to fully load
 
-      // Fill the form
-      const fieldsFound = await fillCellXpertForm(page, SIGNUP_DETAILS);
+      // Fill the form with program-specific password
+      const fieldsFound = await fillCellXpertForm(page, programDetails);
 
       if (fieldsFound > 3) {
         // Found enough fields, looks like a valid signup form
