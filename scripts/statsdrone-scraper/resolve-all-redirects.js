@@ -1,6 +1,6 @@
 /**
  * Resolve all StatsDrone redirect URLs to final affiliate URLs
- * 
+ *
  * This script:
  * - Finds all programs with a joinUrl but no finalJoinUrl
  * - Follows each redirect to get the final destination URL
@@ -11,11 +11,11 @@
 const { PrismaClient } = require('../../node_modules/@prisma/client');
 const prisma = new PrismaClient();
 
-// Clean URL by removing query parameters
+// Clean URL to root domain only (remove all paths and parameters)
 function cleanUrl(url) {
   try {
     const urlObj = new URL(url);
-    return urlObj.origin + urlObj.pathname;
+    return urlObj.origin; // Just protocol + domain, e.g., https://example.com
   } catch {
     return url;
   }
@@ -31,7 +31,7 @@ async function resolveRedirect(url) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     });
-    
+
     return response.url;
   } catch (error) {
     console.error(`Failed to resolve: ${error.message}`);
@@ -109,7 +109,7 @@ async function main() {
     } catch (error) {
       failed++;
       console.log(`  ❌ Error: ${error.message}\n`);
-      
+
       // Continue with next program
       await delay(1000);
     }
