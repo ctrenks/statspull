@@ -52,7 +52,7 @@ async function resolveRedirect(url: string, maxRedirects: number = 10): Promise<
       // Check for meta refresh or JavaScript redirect in HTML
       if (response.headers.get('content-type')?.includes('text/html')) {
         const html = await response.text();
-        
+
         // Check for meta refresh
         const metaRefresh = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"'\s>]+)/i);
         if (metaRefresh && metaRefresh[1]) {
