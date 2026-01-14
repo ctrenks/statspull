@@ -452,41 +452,41 @@ model SignupProfile {
   id          String   @id @default(cuid())
   name        String   @default("Default") // Profile name (e.g., "Main", "Business", "Personal")
   isDefault   Boolean  @default(false)
-  
+
   // Personal Info
   firstName   String?
   lastName    String?
   email       String?
   phone       String?
-  
+
   // Company Info
   companyName String?
   website     String?
-  
+
   // Address
   address     String?
   city        String?
   state       String?
   country     String   @default("US")
   zipCode     String?
-  
+
   // Account Credentials (use same across signups or vary per program)
   username    String?
   password    String?  // Note: Consider encryption for production
-  
+
   // Messaging
   skype       String?
   telegram    String?
   discord     String?
-  
+
   // Marketing
   trafficSources    String?  // e.g., "SEO, PPC, Social Media"
   monthlyVisitors   String?  // e.g., "10,000-50,000"
   promotionMethods  String?  // e.g., "Website, Email Marketing"
-  
+
   // Additional
   comments    String?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

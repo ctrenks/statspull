@@ -1,13 +1,13 @@
 /**
  * Auto-signup for CellXpert affiliate programs
- * 
+ *
  * This script:
  * - Reads signup details from the database (SignupProfile)
  * - Finds all pending CellXpert programs with resolved URLs
  * - Opens each signup page
  * - Fills in the form with provided details
  * - Submits and marks as signed_up on success
- * 
+ *
  * Usage:
  *   npm run signup:cellxpert
  *   npm run signup:cellxpert -- --software "MyAffiliates"
