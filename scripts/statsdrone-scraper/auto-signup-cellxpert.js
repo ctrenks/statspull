@@ -131,7 +131,7 @@ async function fillCellXpertForm(page, details) {
       className: i.className
     }));
   });
-  
+
   for (const input of allInputs.slice(0, 15)) {
     console.log(`    Field: id="${input.id}" name="${input.name}" type="${input.type}" placeholder="${input.placeholder}"`);
   }
@@ -153,7 +153,7 @@ async function fillCellXpertForm(page, details) {
       'input[placeholder*="first name"]', 'input[placeholder="First"]',
       'input[id*="first"]', 'input[name*="first"]'
     ]},
-    // Last Name - many variations  
+    // Last Name - many variations
     { name: 'Last Name', value: details.lastName, selectors: [
       '#lastName', '#last_name', '#lastname', '#lname', '#last',
       '#family_name', '#familyName', '#familyname', '#surname',

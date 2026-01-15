@@ -3,33 +3,22 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
-// Generate a secure random password
-function generatePassword(length: number = 16): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*';
-  const bytes = crypto.randomBytes(length);
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += chars[bytes[i] % chars.length];
-  }
-  // Ensure at least one of each type
-  const lower = 'abcdefghijklmnopqrstuvwxyz';
-  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const digits = '0123456789';
-  const special = '!@#$%&*';
-
-  let result = password.split('');
-  result[0] = upper[crypto.randomInt(upper.length)];
-  result[1] = lower[crypto.randomInt(lower.length)];
-  result[2] = digits[crypto.randomInt(digits.length)];
-  result[3] = special[crypto.randomInt(special.length)];
-
-  // Shuffle
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = crypto.randomInt(i + 1);
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-
-  return result.join('');
+// Generate a simple password like "AlphaBeta42" - CellXpert compatible
+function generatePassword(): string {
+  const words = [
+    'Alpha', 'Beta', 'Gamma', 'Delta', 'Echo', 'Foxtrot',
+    'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima',
+    'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo',
+    'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'Xray',
+    'Blue', 'Green', 'Red', 'Gold', 'Silver', 'Iron',
+    'Star', 'Moon', 'Sun', 'Sky', 'Cloud', 'Rain'
+  ];
+  
+  const word1 = words[crypto.randomInt(words.length)];
+  const word2 = words[crypto.randomInt(words.length)];
+  const num = crypto.randomInt(10, 99);
+  
+  return word1 + word2 + num;
 }
 
 // GET all StatsDrone programs
