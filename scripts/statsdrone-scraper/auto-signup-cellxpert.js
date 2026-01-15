@@ -119,7 +119,7 @@ async function fillCellXpertForm(page, details) {
 
   // Clean company name - remove extra spaces, some sites don't like them
   const cleanCompanyName = details.companyName ? details.companyName.replace(/\s+/g, '') : '';
-  
+
   // Clean phone number - digits only with optional leading +
   let cleanPhone = details.phone || '';
   if (cleanPhone) {
@@ -331,14 +331,14 @@ async function fillCellXpertForm(page, details) {
   const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]', 'select[name="country_id"]'];
   // Try different country value formats
   const countryValues = ['US', 'USA', 'United States', 'United States of America', '1', '226', 'united_states'];
-  
+
   let countrySelected = false;
   for (const selector of countrySelectors) {
     if (countrySelected) break;
-    
+
     const selectEl = await page.$(selector);
     if (!selectEl) continue;
-    
+
     // Try each country value
     for (const val of countryValues) {
       try {
@@ -350,7 +350,7 @@ async function fillCellXpertForm(page, details) {
         // Value not found in dropdown, try next
       }
     }
-    
+
     // If none worked, try to find option containing "United States" or "US"
     if (!countrySelected) {
       try {
@@ -366,7 +366,7 @@ async function fillCellXpertForm(page, details) {
           }
           return null;
         }, selector);
-        
+
         if (optionValue) {
           await page.select(selector, optionValue);
           console.log(`    ✓ Selected country by text search: ${optionValue}`);
@@ -377,7 +377,7 @@ async function fillCellXpertForm(page, details) {
       }
     }
   }
-  
+
   if (!countrySelected) {
     console.log(`    ⚠️ Country selection failed - may need manual selection`);
   }
@@ -574,7 +574,87 @@ async function main() {
       // Fill the form with program-specific password
       const fieldsFound = await fillCellXpertForm(page, programDetails);
 
+      // Analyze form validation
+      console.log('');
+      console.log('  🔍 Analyzing form validation...');
+      
+      const analyzeValidation = async () => {
+        // Check for validation attributes on form fields
+        const validationInfo = await page.evaluate(() => {
+          const inputs = document.querySelectorAll('input, select, textarea');
+          const validations = [];
+          
+          inputs.forEach(input => {
+            const info = {
+              name: input.name || input.id || input.placeholder || 'unknown',
+              type: input.type,
+              required: input.required,
+              pattern: input.pattern || null,
+              minLength: input.minLength > 0 ? input.minLength : null,
+              maxLength: input.maxLength > 0 && input.maxLength < 1000000 ? input.maxLength : null,
+              validationMessage: input.validationMessage || null,
+              isValid: input.checkValidity ? input.checkValidity() : null,
+              value: input.value ? input.value.substring(0, 20) + (input.value.length > 20 ? '...' : '') : '(empty)',
+              classList: Array.from(input.classList).join(' ')
+            };
+            
+            // Only show fields with validation issues
+            if (info.required || info.pattern || info.validationMessage || info.isValid === false) {
+              validations.push(info);
+            }
+          });
+          
+          return validations;
+        });
+        
+        if (validationInfo.length > 0) {
+          console.log('  Fields with validation:');
+          for (const v of validationInfo) {
+            let status = v.isValid === false ? '❌' : (v.isValid === true ? '✓' : '?');
+            console.log(`    ${status} ${v.name} (${v.type}): value="${v.value}"`);
+            if (v.required) console.log(`       - required: true`);
+            if (v.pattern) console.log(`       - pattern: ${v.pattern}`);
+            if (v.minLength) console.log(`       - minLength: ${v.minLength}`);
+            if (v.validationMessage) console.log(`       - error: "${v.validationMessage}"`);
+          }
+        }
+        
+        // Look for visible error messages on the page
+        const errorMessages = await page.evaluate(() => {
+          const errorSelectors = [
+            '.error', '.error-message', '.validation-error', '.field-error',
+            '.invalid-feedback', '.help-block', '[class*="error"]',
+            '.form-error', '.input-error', '.text-danger',
+            'span.error', 'div.error', '.alert-danger', '.has-error'
+          ];
+          
+          const errors = [];
+          for (const selector of errorSelectors) {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+              const text = el.textContent?.trim();
+              if (text && text.length > 0 && text.length < 200) {
+                errors.push(text);
+              }
+            });
+          }
+          
+          return [...new Set(errors)].slice(0, 10);
+        });
+        
+        if (errorMessages.length > 0) {
+          console.log('');
+          console.log('  🚨 Visible error messages on page:');
+          for (const msg of errorMessages) {
+            console.log(`     - "${msg}"`);
+          }
+        }
+      };
+      
+      await analyzeValidation();
+      
       // Always pause for user review regardless of fields found
+      console.log('');
       console.log(`  📝 Filled ${fieldsFound} fields total`);
       console.log('');
       console.log('  ⏸️  PAUSED - Complete signup manually if needed');
@@ -583,15 +663,29 @@ async function main() {
       console.log('       c     = Mark as closed');
       console.log('       s     = Skip (leave pending)');
       console.log('       q     = Quit');
+      console.log('       v     = Re-check validation');
       console.log('');
       process.stdout.write('  > ');
 
       // Wait for user input
-      const input = await new Promise(resolve => {
+      let input = await new Promise(resolve => {
         process.stdin.once('data', (data) => {
           resolve(data.toString().trim().toLowerCase());
         });
       });
+
+      // Handle validation re-check
+      while (input === 'v') {
+        console.log('');
+        await analyzeValidation();
+        console.log('');
+        process.stdout.write('  > ');
+        input = await new Promise(resolve => {
+          process.stdin.once('data', (data) => {
+            resolve(data.toString().trim().toLowerCase());
+          });
+        });
+      }
 
       if (input === 'c' || input === 'closed') {
         await prisma.statsDrone_Program.update({
