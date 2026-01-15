@@ -21,6 +21,8 @@ const prisma = new PrismaClient();
 const args = process.argv.slice(2);
 let softwareFilter = 'Cellxpert'; // Default
 let limitCount = 1; // Default to 1 at a time
+let customPath = null; // Custom registration path to append to base URL
+
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--software' && args[i + 1]) {
     softwareFilter = args[i + 1];
@@ -30,6 +32,13 @@ for (let i = 0; i < args.length; i++) {
   }
   if (args[i] === '--all') {
     limitCount = 9999;
+  }
+  if (args[i] === '--path' && args[i + 1]) {
+    customPath = args[i + 1];
+    // Ensure path starts with /
+    if (!customPath.startsWith('/')) {
+      customPath = '/' + customPath;
+    }
   }
 }
 
@@ -533,9 +542,18 @@ async function main() {
       continue;
     }
 
-    // Special handling for Income Access - use /registration.asp
+    // Handle custom path - strip to base URL and append custom path
     let targetUrl = program.finalJoinUrl;
-    if (softwareFilter.toLowerCase().includes('income access')) {
+    if (customPath) {
+      try {
+        const urlObj = new URL(program.finalJoinUrl);
+        targetUrl = urlObj.origin + customPath;
+        console.log(`  📝 Custom path: Using ${targetUrl}`);
+      } catch (e) {
+        // Keep original URL
+      }
+    } else if (softwareFilter.toLowerCase().includes('income access')) {
+      // Default for Income Access - use /registration.asp
       try {
         const urlObj = new URL(program.finalJoinUrl);
         targetUrl = urlObj.origin + '/registration.asp';
