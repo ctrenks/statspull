@@ -75,32 +75,31 @@ const crypto = require('crypto');
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Generate a secure random password
-function generatePassword(length = 16) {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*';
-  const bytes = crypto.randomBytes(length);
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += chars[bytes[i] % chars.length];
-  }
-  // Ensure at least one of each type
+// Generate a simple password (uppercase, lowercase, numbers only - CellXpert compatible)
+function generatePassword(length = 12) {
   const lower = 'abcdefghijklmnopqrstuvwxyz';
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const digits = '0123456789';
-  const special = '!@#$%&*';
-
-  let result = password.split('');
-  result[0] = upper[crypto.randomInt(upper.length)];
-  result[1] = lower[crypto.randomInt(lower.length)];
-  result[2] = digits[crypto.randomInt(digits.length)];
-  result[3] = special[crypto.randomInt(special.length)];
-
+  const allChars = lower + upper + digits;
+  
+  // Start with one of each required type
+  let result = [
+    upper[crypto.randomInt(upper.length)],
+    lower[crypto.randomInt(lower.length)],
+    digits[crypto.randomInt(digits.length)],
+  ];
+  
+  // Fill the rest
+  for (let i = 3; i < length; i++) {
+    result.push(allChars[crypto.randomInt(allChars.length)]);
+  }
+  
   // Shuffle
   for (let i = result.length - 1; i > 0; i--) {
     const j = crypto.randomInt(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
-
+  
   return result.join('');
 }
 
@@ -197,21 +196,62 @@ async function fillCellXpertForm(page, details) {
     }
   }
 
+  // Handle confirm email field
+  console.log('  Looking for confirm email field...');
+  const confirmEmailSelectors = [
+    '#confirmEmail', '#confirm_email', '#emailConfirm', '#email_confirm',
+    'input[name="confirmEmail"]', 'input[name="confirm_email"]',
+    'input[name="emailConfirm"]', 'input[name="email_confirm"]',
+    'input[name="email2"]', 'input[placeholder*="Confirm Email"]',
+    'input[placeholder*="Re-enter Email"]', 'input[placeholder*="Verify Email"]'
+  ];
+  
+  for (const selector of confirmEmailSelectors) {
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        await element.click({ clickCount: 3 });
+        await element.type(details.email, { delay: 30 });
+        console.log(`    ✓ Confirm Email: ${selector}`);
+        filledCount++;
+        break;
+      }
+    } catch (e) {
+      // Try next
+    }
+  }
+
   // Handle password fields separately - they need special handling
   console.log('  Filling password fields...');
   const passwordFields = await page.$$('input[type="password"]');
   console.log(`    Found ${passwordFields.length} password field(s)`);
-
+  
   for (let i = 0; i < passwordFields.length; i++) {
     try {
-      await passwordFields[i].click({ clickCount: 3 });
-      await passwordFields[i].type(details.password, { delay: 30 });
-      console.log(`    ✓ Password field ${i + 1} filled`);
-      filledCount++;
+      // Clear any existing value first
+      await passwordFields[i].click();
+      await passwordFields[i].evaluate(el => el.value = '');
+      await delay(100);
+      
+      // Type password slowly
+      await passwordFields[i].type(details.password, { delay: 50 });
+      await delay(200);
+      
+      // Verify it was filled
+      const value = await passwordFields[i].evaluate(el => el.value);
+      if (value.length > 0) {
+        console.log(`    ✓ Password field ${i + 1} filled (${value.length} chars)`);
+        filledCount++;
+      } else {
+        console.log(`    ⚠️ Password field ${i + 1} appears empty after fill`);
+      }
     } catch (e) {
       console.log(`    ✗ Password field ${i + 1} failed: ${e.message}`);
     }
   }
+  
+  // Show the password being used so user can manually enter if needed
+  console.log(`    Password to use: ${details.password}`);
 
   // Handle country dropdown
   if (details.country) {
@@ -404,7 +444,7 @@ async function main() {
       // Check if page shows "email already exists" or similar
       const pageContent = await page.content();
       const emailAlreadyUsed = /email.*(already|exists|registered|in use)|already.*registered|account.*exists/i.test(pageContent);
-      
+
       if (emailAlreadyUsed) {
         console.log('  ✅ Email already registered - marking as signed up\n');
         await prisma.statsDrone_Program.update({
@@ -466,7 +506,7 @@ async function main() {
       console.log(`  ❌ Error: ${error.message}`);
       console.log('  Press Enter to continue, c to close, s to skip, q to quit');
       process.stdout.write('  > ');
-      
+
       const input = await new Promise(resolve => {
         process.stdin.once('data', (data) => {
           resolve(data.toString().trim().toLowerCase());
@@ -494,7 +534,7 @@ async function main() {
     } catch (e) {
       // Page might already be closed
     }
-    
+
     await delay(1000); // Brief delay between signups
   }
 
