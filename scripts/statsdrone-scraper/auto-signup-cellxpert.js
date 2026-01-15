@@ -75,32 +75,22 @@ const crypto = require('crypto');
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Generate a simple password (uppercase, lowercase, numbers only - CellXpert compatible)
-function generatePassword(length = 12) {
-  const lower = 'abcdefghijklmnopqrstuvwxyz';
-  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const digits = '0123456789';
-  const allChars = lower + upper + digits;
-  
-  // Start with one of each required type
-  let result = [
-    upper[crypto.randomInt(upper.length)],
-    lower[crypto.randomInt(lower.length)],
-    digits[crypto.randomInt(digits.length)],
+// Generate a simple password like "TomTest12" - CellXpert compatible
+function generatePassword() {
+  const words = [
+    'Alpha', 'Beta', 'Gamma', 'Delta', 'Echo', 'Foxtrot',
+    'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima',
+    'Mike', 'November', 'Oscar', 'Papa', 'Quebec', 'Romeo',
+    'Sierra', 'Tango', 'Uniform', 'Victor', 'Whiskey', 'Xray',
+    'Blue', 'Green', 'Red', 'Gold', 'Silver', 'Iron',
+    'Star', 'Moon', 'Sun', 'Sky', 'Cloud', 'Rain'
   ];
   
-  // Fill the rest
-  for (let i = 3; i < length; i++) {
-    result.push(allChars[crypto.randomInt(allChars.length)]);
-  }
+  const word1 = words[crypto.randomInt(words.length)];
+  const word2 = words[crypto.randomInt(words.length)];
+  const num = crypto.randomInt(10, 99); // Two digit number
   
-  // Shuffle
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = crypto.randomInt(i + 1);
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  
-  return result.join('');
+  return word1 + word2 + num;
 }
 
 // Generate and save password for a program
@@ -196,16 +186,22 @@ async function fillCellXpertForm(page, details) {
     }
   }
 
-  // Handle confirm email field
+  // Handle confirm email field - find ALL email type inputs and fill the second one
   console.log('  Looking for confirm email field...');
+  
+  // First try specific selectors
   const confirmEmailSelectors = [
     '#confirmEmail', '#confirm_email', '#emailConfirm', '#email_confirm',
+    '#reenterEmail', '#re_enter_email', '#verifyEmail', '#verify_email',
     'input[name="confirmEmail"]', 'input[name="confirm_email"]',
     'input[name="emailConfirm"]', 'input[name="email_confirm"]',
-    'input[name="email2"]', 'input[placeholder*="Confirm Email"]',
-    'input[placeholder*="Re-enter Email"]', 'input[placeholder*="Verify Email"]'
+    'input[name="reenterEmail"]', 'input[name="verifyEmail"]',
+    'input[name="email2"]', 'input[name="cemail"]',
+    'input[placeholder*="Confirm"]', 'input[placeholder*="Re-enter"]',
+    'input[placeholder*="Verify"]', 'input[placeholder*="Retype"]'
   ];
   
+  let confirmEmailFilled = false;
   for (const selector of confirmEmailSelectors) {
     try {
       const element = await page.$(selector);
@@ -214,29 +210,53 @@ async function fillCellXpertForm(page, details) {
         await element.type(details.email, { delay: 30 });
         console.log(`    ✓ Confirm Email: ${selector}`);
         filledCount++;
+        confirmEmailFilled = true;
         break;
       }
     } catch (e) {
       // Try next
     }
   }
+  
+  // If not found, try to find all email inputs and fill any we haven't filled yet
+  if (!confirmEmailFilled) {
+    const allEmailInputs = await page.$$('input[type="email"]');
+    console.log(`    Found ${allEmailInputs.length} email input(s)`);
+    
+    // Fill all email inputs (first one is regular email, rest are confirm)
+    for (let i = 1; i < allEmailInputs.length; i++) {
+      try {
+        await allEmailInputs[i].click({ clickCount: 3 });
+        await allEmailInputs[i].type(details.email, { delay: 30 });
+        console.log(`    ✓ Email input ${i + 1} filled (likely confirm)`);
+        filledCount++;
+        confirmEmailFilled = true;
+      } catch (e) {
+        console.log(`    ✗ Email input ${i + 1} failed`);
+      }
+    }
+  }
+  
+  if (!confirmEmailFilled) {
+    console.log(`    ⚠️ Confirm email field not found - may need manual entry`);
+  }
 
   // Handle password fields separately - they need special handling
   console.log('  Filling password fields...');
   const passwordFields = await page.$$('input[type="password"]');
   console.log(`    Found ${passwordFields.length} password field(s)`);
-  
+
   for (let i = 0; i < passwordFields.length; i++) {
     try {
       // Clear any existing value first
       await passwordFields[i].click();
       await passwordFields[i].evaluate(el => el.value = '');
       await delay(100);
-      
+
       // Type password slowly
       await passwordFields[i].type(details.password, { delay: 50 });
       await delay(200);
-      
+
       // Verify it was filled
       const value = await passwordFields[i].evaluate(el => el.value);
       if (value.length > 0) {
@@ -249,7 +269,7 @@ async function fillCellXpertForm(page, details) {
       console.log(`    ✗ Password field ${i + 1} failed: ${e.message}`);
     }
   }
-  
+
   // Show the password being used so user can manually enter if needed
   console.log(`    Password to use: ${details.password}`);
 
