@@ -42,6 +42,9 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
+console.log(`📋 Config: software="${softwareFilter}", limit=${limitCount}, path=${customPath || '(none)'}`);
+console.log(`   Args received: ${args.join(' ')}\n`);
+
 // Load signup details from database
 async function loadSignupProfile() {
   const profile = await prisma.signupProfile.findFirst({
