@@ -164,13 +164,14 @@ async function fillCellXpertForm(page, details) {
   }
   console.log('');
 
-  // Common CellXpert field selectors - try multiple variations
+  // Common field selectors - try multiple variations (CellXpert + MyAffiliates + others)
   const fieldMappings = [
     // First Name - many variations
     { name: 'First Name', value: details.firstName, selectors: [
+      '#fld_first_name', // MyAffiliates
       '#firstName', '#first_name', '#firstname', '#fname', '#first',
       '#given_name', '#givenName', '#givenname',
-      'input[name="firstName"]', 'input[name="first_name"]', 'input[name="firstname"]',
+      'input[name="first_name"]', 'input[name="firstName"]', 'input[name="firstname"]',
       'input[name="fname"]', 'input[name="first"]', 'input[name="given_name"]',
       'input[name="givenName"]', 'input[name="name_first"]',
       'input[placeholder*="First Name"]', 'input[placeholder*="First name"]',
@@ -179,9 +180,10 @@ async function fillCellXpertForm(page, details) {
     ]},
     // Last Name - many variations
     { name: 'Last Name', value: details.lastName, selectors: [
+      '#fld_last_name', // MyAffiliates
       '#lastName', '#last_name', '#lastname', '#lname', '#last',
       '#family_name', '#familyName', '#familyname', '#surname',
-      'input[name="lastName"]', 'input[name="last_name"]', 'input[name="lastname"]',
+      'input[name="last_name"]', 'input[name="lastName"]', 'input[name="lastname"]',
       'input[name="lname"]', 'input[name="last"]', 'input[name="family_name"]',
       'input[name="familyName"]', 'input[name="surname"]', 'input[name="name_last"]',
       'input[placeholder*="Last Name"]', 'input[placeholder*="Last name"]',
@@ -190,37 +192,106 @@ async function fillCellXpertForm(page, details) {
       'input[id*="last"]', 'input[name*="last"]', 'input[name*="surname"]'
     ]},
     // Email
-    { name: 'Email', value: details.email, selectors: ['#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'] },
-    // Phone - use cleaned phone number
-    { name: 'Phone', value: cleanPhone, selectors: ['#phone', '#telephone', '#mobile', '#cell', 'input[name="phone"]', 'input[name="telephone"]', 'input[name="mobile"]', 'input[type="tel"]'] },
-    // Company (without spaces for CellXpert compatibility)
-    { name: 'Company', value: cleanCompanyName, selectors: ['#company', '#companyName', 'input[name="company"]', 'input[name="companyName"]', 'input[placeholder*="Company"]'] },
-    // Website
-    { name: 'Website', value: details.website, selectors: ['#website', '#url', 'input[name="website"]', 'input[name="url"]', 'input[placeholder*="Website"]', 'input[placeholder*="URL"]'] },
-    // Username
-    { name: 'Username', value: details.username, selectors: ['#username', 'input[name="username"]', 'input[placeholder*="Username"]'] },
-    // Address
-    { name: 'Address', value: details.address, selectors: ['#address', 'input[name="address"]', 'input[placeholder*="Address"]'] },
-    // City
-    { name: 'City', value: details.city, selectors: ['#city', 'input[name="city"]', 'input[placeholder*="City"]'] },
-    // State
-    { name: 'State', value: details.state, selectors: ['#state', 'input[name="state"]', 'input[placeholder*="State"]'] },
-    // Zip
-    { name: 'Zip', value: details.zipCode, selectors: ['#zip', '#zipCode', '#postalCode', 'input[name="zip"]', 'input[name="zipCode"]', 'input[name="postalCode"]'] },
+    { name: 'Email', value: details.email, selectors: [
+      '#fld_email', // MyAffiliates
+      '#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'
+    ]},
+    // Phone/Mobile - use cleaned phone number
+    { name: 'Phone', value: cleanPhone, selectors: [
+      '#fld_mobile_number', // MyAffiliates
+      '#phone', '#telephone', '#mobile', '#cell', '#mobile_number',
+      'input[name="mobile_number"]', 'input[name="phone"]', 'input[name="telephone"]', 
+      'input[name="mobile"]', 'input[type="tel"]'
+    ]},
+    // Company/Business Name (without spaces for CellXpert compatibility)
+    { name: 'Company', value: cleanCompanyName, selectors: [
+      '#fld_business_name', // MyAffiliates
+      '#company', '#companyName', '#business_name',
+      'input[name="business_name"]', 'input[name="company"]', 'input[name="companyName"]', 
+      'input[placeholder*="Company"]', 'input[placeholder*="Business"]'
+    ]},
+    // Website / Primary URL
+    { name: 'Website', value: details.website, selectors: [
+      '#fld_business_website', '#fld_primary_url', // MyAffiliates
+      '#website', '#url', '#business_website', '#primary_url',
+      'input[name="business_website"]', 'input[name="primary_url"]',
+      'input[name="website"]', 'input[name="url"]', 
+      'input[placeholder*="Website"]', 'input[placeholder*="URL"]'
+    ]},
+    // Username (MyAffiliates uses signup_username)
+    { name: 'Username', value: details.username, selectors: [
+      '#fld_signup_username', // MyAffiliates
+      '#username', '#signup_username',
+      'input[name="signup_username"]', 'input[name="username"]', 
+      'input[placeholder*="Username"]', 'input[placeholder*="Login"]'
+    ]},
+    // Address / Business Address
+    { name: 'Address', value: details.address, selectors: [
+      '#fld_business_address', // MyAffiliates
+      '#address', '#business_address',
+      'input[name="business_address"]', 'input[name="address"]', 
+      'input[placeholder*="Address"]'
+    ]},
+    // City / Business City
+    { name: 'City', value: details.city, selectors: [
+      '#fld_business_city', // MyAffiliates
+      '#city', '#business_city',
+      'input[name="business_city"]', 'input[name="city"]', 
+      'input[placeholder*="City"]', 'input[placeholder*="Town"]'
+    ]},
+    // State / Business State
+    { name: 'State', value: details.state, selectors: [
+      '#fld_business_state', // MyAffiliates
+      '#state', '#business_state',
+      'input[name="business_state"]', 'input[name="state"]', 
+      'input[placeholder*="State"]'
+    ]},
+    // Zip / Postcode
+    { name: 'Zip', value: details.zipCode, selectors: [
+      '#fld_business_postcode', // MyAffiliates
+      '#zip', '#zipCode', '#postalCode', '#postcode', '#business_postcode',
+      'input[name="business_postcode"]', 'input[name="zip"]', 
+      'input[name="zipCode"]', 'input[name="postalCode"]'
+    ]},
     // Skype/IM
-    { name: 'Skype', value: details.skype, selectors: ['#skype', '#im', 'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'] },
+    { name: 'Skype', value: details.skype, selectors: [
+      '#fld_skype', // MyAffiliates
+      '#skype', '#im', 
+      'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'
+    ]},
     // Telegram
-    { name: 'Telegram', value: details.telegram, selectors: ['#telegram', 'input[name="telegram"]', 'input[placeholder*="Telegram"]'] },
+    { name: 'Telegram', value: details.telegram, selectors: [
+      '#telegram', 'input[name="telegram"]', 'input[placeholder*="Telegram"]'
+    ]},
     // Discord
-    { name: 'Discord', value: details.discord, selectors: ['#discord', 'input[name="discord"]', 'input[placeholder*="Discord"]'] },
+    { name: 'Discord', value: details.discord, selectors: [
+      '#discord', 'input[name="discord"]', 'input[placeholder*="Discord"]'
+    ]},
     // Traffic Sources
-    { name: 'Traffic', value: details.trafficSources, selectors: ['#trafficSources', '#traffic', 'input[name="trafficSources"]', 'input[name="traffic"]', 'input[placeholder*="traffic"]'] },
+    { name: 'Traffic', value: details.trafficSources, selectors: [
+      '#trafficSources', '#traffic', 
+      'input[name="trafficSources"]', 'input[name="traffic"]', 'input[placeholder*="traffic"]'
+    ]},
     // Monthly Visitors
-    { name: 'Visitors', value: details.monthlyVisitors, selectors: ['#visitors', '#monthlyVisitors', 'input[name="visitors"]', 'input[name="monthlyVisitors"]'] },
+    { name: 'Visitors', value: details.monthlyVisitors, selectors: [
+      '#visitors', '#monthlyVisitors', 
+      'input[name="visitors"]', 'input[name="monthlyVisitors"]'
+    ]},
     // Promotion Methods
-    { name: 'Promotion', value: details.promotionMethods, selectors: ['#promotion', '#promotionMethods', 'input[name="promotion"]', 'textarea[name="promotionMethods"]'] },
+    { name: 'Promotion', value: details.promotionMethods, selectors: [
+      '#promotion', '#promotionMethods', 
+      'input[name="promotion"]', 'textarea[name="promotionMethods"]'
+    ]},
     // Comments
-    { name: 'Comments', value: details.comments, selectors: ['#comments', '#message', '#notes', 'textarea[name="comments"]', 'textarea[name="message"]', 'textarea[name="notes"]', 'textarea'] },
+    { name: 'Comments', value: details.comments, selectors: [
+      '#comments', '#message', '#notes', 
+      'textarea[name="comments"]', 'textarea[name="message"]', 'textarea[name="notes"]', 'textarea'
+    ]},
+    // Business Registration Number (MyAffiliates)
+    { name: 'Business Reg', value: details.companyName ? 'N/A' : '', selectors: [
+      '#fld_business_reg_number',
+      'input[name="business_reg_number"]'
+    ]},
   ];
 
   let filledCount = 0;
@@ -336,14 +407,45 @@ async function fillCellXpertForm(page, details) {
   // Show the password being used so user can manually enter if needed
   console.log(`    Password to use: ${details.password}`);
 
+  // Handle MyAffiliates-specific fields
+  console.log('  Checking for MyAffiliates-specific fields...');
+  
+  // Business type radio button - select "corporate"
+  try {
+    const corporateRadio = await page.$('input[name="business_type"][value="corporate"]');
+    if (corporateRadio) {
+      await corporateRadio.click();
+      console.log('    ✓ Selected business type: corporate');
+    }
+  } catch (e) {
+    // Not a MyAffiliates form or field not present
+  }
+  
+  // Marketing dropdown - select "website"
+  try {
+    const marketingSelect = await page.$('#fld_marketing, select[name="marketing"]');
+    if (marketingSelect) {
+      await page.select('#fld_marketing, select[name="marketing"]', 'website');
+      console.log('    ✓ Selected marketing: website');
+    }
+  } catch (e) {
+    // Not present
+  }
+  
   // Handle country dropdown - find US option and select it robustly
   console.log('  Selecting country...');
-  const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]', 'select[name="country_id"]', 'select[id*="country"]', 'select[name*="country"]'];
+  // Include MyAffiliates-specific country selectors
+  const countrySelectors = [
+    '#fld_country', '#fld_business_country', // MyAffiliates
+    '#country', 'select[name="country"]', 'select[name="business_country"]',
+    'select[name="countryCode"]', 'select[name="country_id"]', 
+    'select[id*="country"]', 'select[name*="country"]'
+  ];
 
-  let countrySelected = false;
+  let countrySelectCount = 0;
+  
+  // Fill ALL country dropdowns (MyAffiliates has both country and business_country)
   for (const selector of countrySelectors) {
-    if (countrySelected) break;
-
     const selectEl = await page.$(selector);
     if (!selectEl) continue;
 
@@ -391,12 +493,12 @@ async function fillCellXpertForm(page, details) {
           return select ? select.value : null;
         }, selector);
 
-        console.log(`    ✓ Selected country: "${usValue}" (verified: "${selectedValue}")`);
-        countrySelected = true;
+        console.log(`    ✓ Selected country (${selector}): "${usValue}" (verified: "${selectedValue}")`);
+        countrySelectCount++;
 
-        // If it didn't stick, try clicking the option directly
+        // If it didn't stick, try setting value directly
         if (selectedValue !== usValue) {
-          console.log(`    ⚠️ Selection didn't stick, trying direct option click...`);
+          console.log(`    ⚠️ Selection didn't stick, trying direct value set...`);
           await page.evaluate((sel, val) => {
             const select = document.querySelector(sel);
             if (select) {
@@ -408,30 +510,77 @@ async function fillCellXpertForm(page, details) {
         }
       }
     } catch (e) {
-      console.log(`    ⚠️ Country selection error: ${e.message}`);
+      console.log(`    ⚠️ Country selection error (${selector}): ${e.message}`);
     }
   }
 
-  if (!countrySelected) {
-    console.log(`    ⚠️ Country selection failed - will need manual selection`);
+  if (countrySelectCount === 0) {
+    console.log(`    ⚠️ No country dropdowns found/filled - will need manual selection`);
+  } else {
+    console.log(`    Filled ${countrySelectCount} country dropdown(s)`);
   }
 
-  // Check terms checkbox if present
-  const checkboxSelectors = ['input[name="terms"]', 'input[name="agree"]', 'input[type="checkbox"]'];
+  // Check ALL terms/agreement checkboxes
+  console.log('  Checking terms/agreement checkboxes...');
+  const checkboxSelectors = [
+    'input[name="termsagreement[]"]', // MyAffiliates terms
+    'input[name="terms"]', 
+    'input[name="agree"]', 
+    'input[name="tos"]',
+    'input[name="accept"]',
+    'input[name="terms_and_conditions"]',
+    'input[type="checkbox"][id*="term"]',
+    'input[type="checkbox"][id*="agree"]',
+    'input[type="checkbox"][name*="term"]',
+    'input[type="checkbox"][name*="agree"]',
+  ];
+  
+  let checkboxCount = 0;
   for (const selector of checkboxSelectors) {
     try {
-      const checkbox = await page.$(selector);
-      if (checkbox) {
+      const checkboxes = await page.$$(selector);
+      for (const checkbox of checkboxes) {
         const isChecked = await checkbox.evaluate(el => el.checked);
         if (!isChecked) {
           await checkbox.click();
-          console.log(`    ✓ Checked terms checkbox`);
+          checkboxCount++;
+          console.log(`    ✓ Checked: ${selector}`);
         }
-        break;
       }
     } catch (e) {
       // Continue
     }
+  }
+  
+  // Also try to find and check any visible checkboxes that look like terms
+  try {
+    const allCheckboxes = await page.$$('input[type="checkbox"]');
+    for (const checkbox of allCheckboxes) {
+      const isChecked = await checkbox.evaluate(el => el.checked);
+      const isVisible = await checkbox.evaluate(el => {
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      });
+      if (!isChecked && isVisible) {
+        // Check if it's near text about terms/conditions/agree
+        const nearTermsText = await checkbox.evaluate(el => {
+          const parent = el.closest('label, li, dd, div');
+          const text = parent?.textContent?.toLowerCase() || '';
+          return text.includes('agree') || text.includes('terms') || text.includes('condition');
+        });
+        if (nearTermsText) {
+          await checkbox.click();
+          checkboxCount++;
+          console.log(`    ✓ Checked terms-related checkbox`);
+        }
+      }
+    }
+  } catch (e) {
+    // Continue
+  }
+  
+  if (checkboxCount > 0) {
+    console.log(`    Checked ${checkboxCount} checkbox(es)`);
   }
 
   console.log(`  Filled ${filledCount} fields`);
