@@ -85,11 +85,11 @@ function generatePassword() {
     'Blue', 'Green', 'Red', 'Gold', 'Silver', 'Iron',
     'Star', 'Moon', 'Sun', 'Sky', 'Cloud', 'Rain'
   ];
-  
+
   const word1 = words[crypto.randomInt(words.length)];
   const word2 = words[crypto.randomInt(words.length)];
   const num = crypto.randomInt(10, 99); // Two digit number
-  
+
   return word1 + word2 + num;
 }
 
@@ -120,12 +120,51 @@ async function fillCellXpertForm(page, details) {
   // Clean company name - remove extra spaces, some sites don't like them
   const cleanCompanyName = details.companyName ? details.companyName.replace(/\s+/g, '') : '';
 
+  // First, let's analyze what fields are on the page
+  console.log('  Analyzing form fields...');
+  const allInputs = await page.$$eval('input:not([type="hidden"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])', inputs => {
+    return inputs.map(i => ({
+      id: i.id,
+      name: i.name,
+      type: i.type,
+      placeholder: i.placeholder,
+      className: i.className
+    }));
+  });
+  
+  for (const input of allInputs.slice(0, 15)) {
+    console.log(`    Field: id="${input.id}" name="${input.name}" type="${input.type}" placeholder="${input.placeholder}"`);
+  }
+  if (allInputs.length > 15) {
+    console.log(`    ... and ${allInputs.length - 15} more fields`);
+  }
+  console.log('');
+
   // Common CellXpert field selectors - try multiple variations
   const fieldMappings = [
-    // First Name
-    { name: 'First Name', value: details.firstName, selectors: ['#firstName', '#first_name', 'input[name="firstName"]', 'input[name="first_name"]', 'input[placeholder*="First"]'] },
-    // Last Name
-    { name: 'Last Name', value: details.lastName, selectors: ['#lastName', '#last_name', 'input[name="lastName"]', 'input[name="last_name"]', 'input[placeholder*="Last"]'] },
+    // First Name - many variations
+    { name: 'First Name', value: details.firstName, selectors: [
+      '#firstName', '#first_name', '#firstname', '#fname', '#first',
+      '#given_name', '#givenName', '#givenname',
+      'input[name="firstName"]', 'input[name="first_name"]', 'input[name="firstname"]',
+      'input[name="fname"]', 'input[name="first"]', 'input[name="given_name"]',
+      'input[name="givenName"]', 'input[name="name_first"]',
+      'input[placeholder*="First Name"]', 'input[placeholder*="First name"]',
+      'input[placeholder*="first name"]', 'input[placeholder="First"]',
+      'input[id*="first"]', 'input[name*="first"]'
+    ]},
+    // Last Name - many variations  
+    { name: 'Last Name', value: details.lastName, selectors: [
+      '#lastName', '#last_name', '#lastname', '#lname', '#last',
+      '#family_name', '#familyName', '#familyname', '#surname',
+      'input[name="lastName"]', 'input[name="last_name"]', 'input[name="lastname"]',
+      'input[name="lname"]', 'input[name="last"]', 'input[name="family_name"]',
+      'input[name="familyName"]', 'input[name="surname"]', 'input[name="name_last"]',
+      'input[placeholder*="Last Name"]', 'input[placeholder*="Last name"]',
+      'input[placeholder*="last name"]', 'input[placeholder="Last"]',
+      'input[placeholder*="Surname"]', 'input[placeholder*="Family"]',
+      'input[id*="last"]', 'input[name*="last"]', 'input[name*="surname"]'
+    ]},
     // Email
     { name: 'Email', value: details.email, selectors: ['#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'] },
     // Phone
@@ -188,7 +227,7 @@ async function fillCellXpertForm(page, details) {
 
   // Handle confirm email field - find ALL email type inputs and fill the second one
   console.log('  Looking for confirm email field...');
-  
+
   // First try specific selectors
   const confirmEmailSelectors = [
     '#confirmEmail', '#confirm_email', '#emailConfirm', '#email_confirm',
@@ -200,7 +239,7 @@ async function fillCellXpertForm(page, details) {
     'input[placeholder*="Confirm"]', 'input[placeholder*="Re-enter"]',
     'input[placeholder*="Verify"]', 'input[placeholder*="Retype"]'
   ];
-  
+
   let confirmEmailFilled = false;
   for (const selector of confirmEmailSelectors) {
     try {
@@ -217,12 +256,12 @@ async function fillCellXpertForm(page, details) {
       // Try next
     }
   }
-  
+
   // If not found, try to find all email inputs and fill any we haven't filled yet
   if (!confirmEmailFilled) {
     const allEmailInputs = await page.$$('input[type="email"]');
     console.log(`    Found ${allEmailInputs.length} email input(s)`);
-    
+
     // Fill all email inputs (first one is regular email, rest are confirm)
     for (let i = 1; i < allEmailInputs.length; i++) {
       try {
@@ -236,7 +275,7 @@ async function fillCellXpertForm(page, details) {
       }
     }
   }
-  
+
   if (!confirmEmailFilled) {
     console.log(`    ⚠️ Confirm email field not found - may need manual entry`);
   }
