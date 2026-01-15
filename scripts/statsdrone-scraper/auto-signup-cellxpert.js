@@ -625,7 +625,7 @@ async function main() {
             '.form-error', '.input-error', '.text-danger',
             'span.error', 'div.error', '.alert-danger', '.has-error'
           ];
-          
+
           const errors = [];
           for (const selector of errorSelectors) {
             const elements = document.querySelectorAll(selector);
@@ -645,7 +645,7 @@ async function main() {
               }
             });
           }
-          
+
           // Deduplicate by message
           const seen = new Set();
           return errors.filter(e => {
@@ -677,6 +677,7 @@ async function main() {
       console.log('       s     = Skip (leave pending)');
       console.log('       q     = Quit');
       console.log('       v     = Re-check validation');
+      console.log('       d     = Dump all field values');
       console.log('');
       process.stdout.write('  > ');
 
@@ -687,10 +688,32 @@ async function main() {
         });
       });
 
-      // Handle validation re-check
-      while (input === 'v') {
-        console.log('');
-        await analyzeValidation();
+      // Handle validation re-check or dump
+      while (input === 'v' || input === 'd') {
+        if (input === 'v') {
+          console.log('');
+          await analyzeValidation();
+        } else if (input === 'd') {
+          console.log('');
+          console.log('  📋 All field values:');
+          const allValues = await page.evaluate(() => {
+            const inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]), select, textarea');
+            return Array.from(inputs).map(el => ({
+              name: el.name || el.id || 'unknown',
+              type: el.type || el.tagName,
+              value: el.value || '(empty)',
+              valid: el.checkValidity ? el.checkValidity() : null,
+              validationMsg: el.validationMessage || null
+            }));
+          });
+          for (const f of allValues) {
+            const status = f.valid === false ? '❌' : (f.valid === true ? '✓' : '?');
+            console.log(`    ${status} ${f.name}: "${f.value}"`);
+            if (f.validationMsg) {
+              console.log(`       ⚠️ ${f.validationMsg}`);
+            }
+          }
+        }
         console.log('');
         process.stdout.write('  > ');
         input = await new Promise(resolve => {
