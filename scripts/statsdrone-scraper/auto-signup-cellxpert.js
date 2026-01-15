@@ -120,19 +120,17 @@ async function fillCellXpertForm(page, details) {
   // Clean company name - remove extra spaces, some sites don't like them
   const cleanCompanyName = details.companyName ? details.companyName.replace(/\s+/g, '') : '';
 
-  // Clean phone number - digits only with optional leading +
+  // Clean phone number - DIGITS ONLY (CellXpert pattern is [0-9]*)
   let cleanPhone = details.phone || '';
   if (cleanPhone) {
-    // Keep only digits and leading +
-    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
-    // If no country code, assume US
-    if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('1')) {
-      cleanPhone = '+1' + cleanPhone;
-    } else if (cleanPhone.startsWith('1') && !cleanPhone.startsWith('+')) {
-      cleanPhone = '+' + cleanPhone;
+    // Keep ONLY digits, remove everything else including + and country codes
+    cleanPhone = cleanPhone.replace(/\D/g, '');
+    // Remove leading 1 if it's a US number (10 digits after)
+    if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
+      cleanPhone = cleanPhone.substring(1);
     }
   }
-  console.log(`  Phone formatted: ${cleanPhone}`);
+  console.log(`  Phone formatted: ${cleanPhone} (digits only)`);
 
   // First, let's analyze what fields are on the page
   console.log('  Analyzing form fields...');
@@ -577,13 +575,13 @@ async function main() {
       // Analyze form validation
       console.log('');
       console.log('  🔍 Analyzing form validation...');
-      
+
       const analyzeValidation = async () => {
         // Check for validation attributes on form fields
         const validationInfo = await page.evaluate(() => {
           const inputs = document.querySelectorAll('input, select, textarea');
           const validations = [];
-          
+
           inputs.forEach(input => {
             const info = {
               name: input.name || input.id || input.placeholder || 'unknown',
@@ -597,16 +595,16 @@ async function main() {
               value: input.value ? input.value.substring(0, 20) + (input.value.length > 20 ? '...' : '') : '(empty)',
               classList: Array.from(input.classList).join(' ')
             };
-            
+
             // Only show fields with validation issues
             if (info.required || info.pattern || info.validationMessage || info.isValid === false) {
               validations.push(info);
             }
           });
-          
+
           return validations;
         });
-        
+
         if (validationInfo.length > 0) {
           console.log('  Fields with validation:');
           for (const v of validationInfo) {
@@ -618,7 +616,7 @@ async function main() {
             if (v.validationMessage) console.log(`       - error: "${v.validationMessage}"`);
           }
         }
-        
+
         // Look for visible error messages on the page
         const errorMessages = await page.evaluate(() => {
           const errorSelectors = [
@@ -627,7 +625,7 @@ async function main() {
             '.form-error', '.input-error', '.text-danger',
             'span.error', 'div.error', '.alert-danger', '.has-error'
           ];
-          
+
           const errors = [];
           for (const selector of errorSelectors) {
             const elements = document.querySelectorAll(selector);
@@ -638,10 +636,10 @@ async function main() {
               }
             });
           }
-          
+
           return [...new Set(errors)].slice(0, 10);
         });
-        
+
         if (errorMessages.length > 0) {
           console.log('');
           console.log('  🚨 Visible error messages on page:');
@@ -650,9 +648,9 @@ async function main() {
           }
         }
       };
-      
+
       await analyzeValidation();
-      
+
       // Always pause for user review regardless of fields found
       console.log('');
       console.log(`  📝 Filled ${fieldsFound} fields total`);
