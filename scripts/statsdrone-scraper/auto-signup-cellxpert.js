@@ -119,6 +119,20 @@ async function fillCellXpertForm(page, details) {
 
   // Clean company name - remove extra spaces, some sites don't like them
   const cleanCompanyName = details.companyName ? details.companyName.replace(/\s+/g, '') : '';
+  
+  // Clean phone number - digits only with optional leading +
+  let cleanPhone = details.phone || '';
+  if (cleanPhone) {
+    // Keep only digits and leading +
+    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
+    // If no country code, assume US
+    if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('1')) {
+      cleanPhone = '+1' + cleanPhone;
+    } else if (cleanPhone.startsWith('1') && !cleanPhone.startsWith('+')) {
+      cleanPhone = '+' + cleanPhone;
+    }
+  }
+  console.log(`  Phone formatted: ${cleanPhone}`);
 
   // First, let's analyze what fields are on the page
   console.log('  Analyzing form fields...');
@@ -167,8 +181,8 @@ async function fillCellXpertForm(page, details) {
     ]},
     // Email
     { name: 'Email', value: details.email, selectors: ['#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'] },
-    // Phone
-    { name: 'Phone', value: details.phone, selectors: ['#phone', '#telephone', 'input[name="phone"]', 'input[name="telephone"]', 'input[type="tel"]'] },
+    // Phone - use cleaned phone number
+    { name: 'Phone', value: cleanPhone, selectors: ['#phone', '#telephone', '#mobile', '#cell', 'input[name="phone"]', 'input[name="telephone"]', 'input[name="mobile"]', 'input[type="tel"]'] },
     // Company (without spaces for CellXpert compatibility)
     { name: 'Company', value: cleanCompanyName, selectors: ['#company', '#companyName', 'input[name="company"]', 'input[name="companyName"]', 'input[placeholder*="Company"]'] },
     // Website
@@ -312,18 +326,60 @@ async function fillCellXpertForm(page, details) {
   // Show the password being used so user can manually enter if needed
   console.log(`    Password to use: ${details.password}`);
 
-  // Handle country dropdown
-  if (details.country) {
-    const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]'];
-    for (const selector of countrySelectors) {
+  // Handle country dropdown - try multiple values since different sites use different formats
+  console.log('  Selecting country...');
+  const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]', 'select[name="country_id"]'];
+  // Try different country value formats
+  const countryValues = ['US', 'USA', 'United States', 'United States of America', '1', '226', 'united_states'];
+  
+  let countrySelected = false;
+  for (const selector of countrySelectors) {
+    if (countrySelected) break;
+    
+    const selectEl = await page.$(selector);
+    if (!selectEl) continue;
+    
+    // Try each country value
+    for (const val of countryValues) {
       try {
-        await page.select(selector, details.country);
-        console.log(`    ✓ Selected country: ${details.country}`);
+        await page.select(selector, val);
+        console.log(`    ✓ Selected country: ${val} (selector: ${selector})`);
+        countrySelected = true;
         break;
       } catch (e) {
-        // Try next selector
+        // Value not found in dropdown, try next
       }
     }
+    
+    // If none worked, try to find option containing "United States" or "US"
+    if (!countrySelected) {
+      try {
+        const optionValue = await page.evaluate((sel) => {
+          const select = document.querySelector(sel);
+          if (!select) return null;
+          const options = select.querySelectorAll('option');
+          for (const opt of options) {
+            const text = opt.textContent?.toLowerCase() || '';
+            if (text.includes('united states') || text === 'us' || text === 'usa') {
+              return opt.value;
+            }
+          }
+          return null;
+        }, selector);
+        
+        if (optionValue) {
+          await page.select(selector, optionValue);
+          console.log(`    ✓ Selected country by text search: ${optionValue}`);
+          countrySelected = true;
+        }
+      } catch (e) {
+        // Continue
+      }
+    }
+  }
+  
+  if (!countrySelected) {
+    console.log(`    ⚠️ Country selection failed - may need manual selection`);
   }
 
   // Check terms checkbox if present
