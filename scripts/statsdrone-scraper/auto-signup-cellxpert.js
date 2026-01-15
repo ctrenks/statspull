@@ -533,6 +533,18 @@ async function main() {
       continue;
     }
 
+    // Special handling for Income Access - use /registration.asp
+    let targetUrl = program.finalJoinUrl;
+    if (softwareFilter.toLowerCase().includes('income access')) {
+      try {
+        const urlObj = new URL(program.finalJoinUrl);
+        targetUrl = urlObj.origin + '/registration.asp';
+        console.log(`  📝 Income Access: Using ${targetUrl}`);
+      } catch (e) {
+        // Keep original URL
+      }
+    }
+
     // Check if valid URL format
     try {
       new URL(program.finalJoinUrl);
@@ -571,7 +583,7 @@ async function main() {
     const page = await browser.newPage();
 
     try {
-      await page.goto(program.finalJoinUrl, {
+      await page.goto(targetUrl, {
         waitUntil: 'networkidle2',
         timeout: 30000,
       });
