@@ -327,32 +327,32 @@ async function fillCellXpertForm(page, details) {
   // Handle country dropdown - find US option and select it robustly
   console.log('  Selecting country...');
   const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]', 'select[name="country_id"]', 'select[id*="country"]', 'select[name*="country"]'];
-  
+
   let countrySelected = false;
   for (const selector of countrySelectors) {
     if (countrySelected) break;
-    
+
     const selectEl = await page.$(selector);
     if (!selectEl) continue;
-    
+
     try {
       // Find the US option value by searching option text
       const usValue = await page.evaluate((sel) => {
         const select = document.querySelector(sel);
         if (!select) return null;
-        
+
         const options = Array.from(select.querySelectorAll('option'));
-        
+
         // First try exact matches
         for (const opt of options) {
           const text = opt.textContent?.trim().toLowerCase() || '';
           const val = opt.value?.toLowerCase() || '';
-          if (text === 'united states' || text === 'united states of america' || 
+          if (text === 'united states' || text === 'united states of america' ||
               val === 'us' || val === 'usa' || val === 'united states') {
             return opt.value;
           }
         }
-        
+
         // Then try contains
         for (const opt of options) {
           const text = opt.textContent?.trim().toLowerCase() || '';
@@ -360,28 +360,28 @@ async function fillCellXpertForm(page, details) {
             return opt.value;
           }
         }
-        
+
         return null;
       }, selector);
-      
+
       if (usValue) {
         // Click the select first to ensure focus
         await selectEl.click();
         await delay(100);
-        
+
         // Select the US value
         await page.select(selector, usValue);
         await delay(200);
-        
+
         // Verify the selection stuck
         const selectedValue = await page.evaluate((sel) => {
           const select = document.querySelector(sel);
           return select ? select.value : null;
         }, selector);
-        
+
         console.log(`    ✓ Selected country: "${usValue}" (verified: "${selectedValue}")`);
         countrySelected = true;
-        
+
         // If it didn't stick, try clicking the option directly
         if (selectedValue !== usValue) {
           console.log(`    ⚠️ Selection didn't stick, trying direct option click...`);
@@ -399,7 +399,7 @@ async function fillCellXpertForm(page, details) {
       console.log(`    ⚠️ Country selection error: ${e.message}`);
     }
   }
-  
+
   if (!countrySelected) {
     console.log(`    ⚠️ Country selection failed - will need manual selection`);
   }
@@ -702,6 +702,7 @@ async function main() {
       console.log('       q     = Quit');
       console.log('       v     = Re-check validation');
       console.log('       d     = Dump all field values');
+      console.log('       r     = Refresh page (for CAPTCHA retry)');
       console.log('');
       process.stdout.write('  > ');
 
@@ -712,8 +713,8 @@ async function main() {
         });
       });
 
-      // Handle validation re-check or dump
-      while (input === 'v' || input === 'd') {
+      // Handle validation re-check, dump, or refresh
+      while (input === 'v' || input === 'd' || input === 'r') {
         if (input === 'v') {
           console.log('');
           await analyzeValidation();
@@ -737,6 +738,16 @@ async function main() {
               console.log(`       ⚠️ ${f.validationMsg}`);
             }
           }
+        } else if (input === 'r') {
+          console.log('');
+          console.log('  🔄 Refreshing page... Fill form manually this time!');
+          console.log('     (CAPTCHA should work when you interact manually)');
+          await page.reload({ waitUntil: 'networkidle2' });
+          await delay(2000);
+          console.log('  ✓ Page refreshed. Fill the form manually, then:');
+          console.log('    - Press Enter when done to mark as signed_up');
+          console.log('    - Press c to mark as closed');
+          console.log('    - Press s to skip');
         }
         console.log('');
         process.stdout.write('  > ');
