@@ -617,7 +617,7 @@ async function main() {
           }
         }
 
-        // Look for visible error messages on the page
+        // Look for visible error messages on the page with their associated field
         const errorMessages = await page.evaluate(() => {
           const errorSelectors = [
             '.error', '.error-message', '.validation-error', '.field-error',
@@ -625,26 +625,41 @@ async function main() {
             '.form-error', '.input-error', '.text-danger',
             'span.error', 'div.error', '.alert-danger', '.has-error'
           ];
-
+          
           const errors = [];
           for (const selector of errorSelectors) {
             const elements = document.querySelectorAll(selector);
             elements.forEach(el => {
               const text = el.textContent?.trim();
               if (text && text.length > 0 && text.length < 200) {
-                errors.push(text);
+                // Try to find which field this error is for
+                let fieldName = 'unknown';
+                const parent = el.closest('.form-group, .field-wrapper, .input-group, div');
+                if (parent) {
+                  const label = parent.querySelector('label');
+                  const input = parent.querySelector('input, select, textarea');
+                  if (label) fieldName = label.textContent?.trim() || 'unknown';
+                  else if (input) fieldName = input.name || input.id || 'unknown';
+                }
+                errors.push({ field: fieldName, message: text });
               }
             });
           }
-
-          return [...new Set(errors)].slice(0, 10);
+          
+          // Deduplicate by message
+          const seen = new Set();
+          return errors.filter(e => {
+            if (seen.has(e.message)) return false;
+            seen.add(e.message);
+            return true;
+          }).slice(0, 10);
         });
 
         if (errorMessages.length > 0) {
           console.log('');
           console.log('  🚨 Visible error messages on page:');
-          for (const msg of errorMessages) {
-            console.log(`     - "${msg}"`);
+          for (const err of errorMessages) {
+            console.log(`     - [${err.field}]: "${err.message}"`);
           }
         }
       };
