@@ -172,10 +172,10 @@ async function fillCellXpertForm(page, details) {
   ];
 
   let filledCount = 0;
-  
+
   for (const field of fieldMappings) {
     if (!field.value) continue;
-    
+
     let filled = false;
     for (const selector of field.selectors) {
       try {
@@ -201,7 +201,7 @@ async function fillCellXpertForm(page, details) {
   console.log('  Filling password fields...');
   const passwordFields = await page.$$('input[type="password"]');
   console.log(`    Found ${passwordFields.length} password field(s)`);
-  
+
   for (let i = 0; i < passwordFields.length; i++) {
     try {
       await passwordFields[i].click({ clickCount: 3 });
@@ -345,6 +345,30 @@ async function main() {
     console.log(`${progress} ${program.name}`);
     console.log(`  URL: ${program.finalJoinUrl}`);
 
+    // Validate URL
+    if (!program.finalJoinUrl || program.finalJoinUrl.trim() === '') {
+      console.log('  🚫 No URL - marking as closed\n');
+      await prisma.statsDrone_Program.update({
+        where: { id: program.id },
+        data: { status: 'closed' },
+      });
+      failed++;
+      continue;
+    }
+
+    // Check if valid URL format
+    try {
+      new URL(program.finalJoinUrl);
+    } catch (e) {
+      console.log('  🚫 Invalid URL format - marking as closed\n');
+      await prisma.statsDrone_Program.update({
+        where: { id: program.id },
+        data: { status: 'closed', finalJoinUrl: null },
+      });
+      failed++;
+      continue;
+    }
+
     // Skip if URL still contains statsdrone.com (redirect didn't resolve)
     if (program.finalJoinUrl.includes('statsdrone.com')) {
       console.log('  🚫 URL still contains statsdrone.com - marking as closed\n');
@@ -380,7 +404,7 @@ async function main() {
       // Check if page shows "email already exists" or similar
       const pageContent = await page.content();
       const emailAlreadyUsed = /email.*(already|exists|registered|in use)|already.*registered|account.*exists/i.test(pageContent);
-
+      
       if (emailAlreadyUsed) {
         console.log('  ✅ Email already registered - marking as signed up\n');
         await prisma.statsDrone_Program.update({
@@ -395,58 +419,83 @@ async function main() {
       // Fill the form with program-specific password
       const fieldsFound = await fillCellXpertForm(page, programDetails);
 
-      if (fieldsFound > 3) {
-        // Found enough fields, looks like a valid signup form
-        const hasSubmit = await submitForm(page);
+      // Always pause for user review regardless of fields found
+      console.log(`  📝 Filled ${fieldsFound} fields total`);
+      console.log('');
+      console.log('  ⏸️  PAUSED - Complete signup manually if needed');
+      console.log('     Commands:');
+      console.log('       Enter = Mark as signed_up');
+      console.log('       c     = Mark as closed');
+      console.log('       s     = Skip (leave pending)');
+      console.log('       q     = Quit');
+      console.log('');
+      process.stdout.write('  > ');
 
-        if (hasSubmit) {
-          console.log('  ⏸️  PAUSED - Review form. Enter: signed_up | c: closed | s: skip');
+      // Wait for user input
+      const input = await new Promise(resolve => {
+        process.stdin.once('data', (data) => {
+          resolve(data.toString().trim().toLowerCase());
+        });
+      });
 
-          // Wait for user input
-          const input = await new Promise(resolve => {
-            process.stdin.once('data', (data) => {
-              resolve(data.toString().trim().toLowerCase());
-            });
-          });
-
-          if (input === 'c' || input === 'closed') {
-            await prisma.statsDrone_Program.update({
-              where: { id: program.id },
-              data: { status: 'closed' },
-            });
-            console.log('  🚫 Marked as closed\n');
-            failed++;
-          } else if (input === 's' || input === 'skip') {
-            console.log('  ⏭️  Skipped\n');
-            skipped++;
-          } else if (input === 'q' || input === 'quit') {
-            console.log('  👋 Quitting...\n');
-            break;
-          } else {
-            // Default: mark as signed up
-            await prisma.statsDrone_Program.update({
-              where: { id: program.id },
-              data: { status: 'signed_up', signupDate: new Date() },
-            });
-            signedUp++;
-            console.log('  ✅ Marked as signed up\n');
-          }
-        } else {
-          console.log('  ⚠️  Could not find submit button\n');
-          failed++;
-        }
-      } else {
-        console.log('  ⚠️  Form structure not recognized\n');
+      if (input === 'c' || input === 'closed') {
+        await prisma.statsDrone_Program.update({
+          where: { id: program.id },
+          data: { status: 'closed' },
+        });
+        console.log('  🚫 Marked as closed\n');
         failed++;
+      } else if (input === 's' || input === 'skip') {
+        console.log('  ⏭️  Skipped\n');
+        skipped++;
+      } else if (input === 'q' || input === 'quit') {
+        console.log('  👋 Quitting...\n');
+        await page.close();
+        break;
+      } else {
+        // Default: mark as signed up
+        await prisma.statsDrone_Program.update({
+          where: { id: program.id },
+          data: { status: 'signed_up', signupDate: new Date() },
+        });
+        signedUp++;
+        console.log('  ✅ Marked as signed up\n');
       }
 
     } catch (error) {
-      console.log(`  ❌ Error: ${error.message}\n`);
-      failed++;
+      console.log(`  ❌ Error: ${error.message}`);
+      console.log('  Press Enter to continue, c to close, s to skip, q to quit');
+      process.stdout.write('  > ');
+      
+      const input = await new Promise(resolve => {
+        process.stdin.once('data', (data) => {
+          resolve(data.toString().trim().toLowerCase());
+        });
+      });
+
+      if (input === 'c' || input === 'closed') {
+        await prisma.statsDrone_Program.update({
+          where: { id: program.id },
+          data: { status: 'closed' },
+        });
+        console.log('  🚫 Marked as closed\n');
+        failed++;
+      } else if (input === 'q' || input === 'quit') {
+        console.log('  👋 Quitting...\n');
+        break;
+      } else {
+        skipped++;
+        console.log('  ⏭️  Skipped\n');
+      }
     }
 
-    await page.close();
-    await delay(2000); // Delay between signups
+    try {
+      await page.close();
+    } catch (e) {
+      // Page might already be closed
+    }
+    
+    await delay(1000); // Brief delay between signups
   }
 
   await browser.close();
