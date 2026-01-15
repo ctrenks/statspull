@@ -20,9 +20,16 @@ const prisma = new PrismaClient();
 // Parse command line args
 const args = process.argv.slice(2);
 let softwareFilter = 'Cellxpert'; // Default
+let limitCount = 1; // Default to 1 at a time
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--software' && args[i + 1]) {
     softwareFilter = args[i + 1];
+  }
+  if (args[i] === '--limit' && args[i + 1]) {
+    limitCount = parseInt(args[i + 1]) || 1;
+  }
+  if (args[i] === '--all') {
+    limitCount = 9999;
   }
 }
 
@@ -121,68 +128,88 @@ async function getOrGeneratePassword(programId) {
 async function fillCellXpertForm(page, details) {
   console.log('  Filling form fields...');
 
+  // Clean company name - remove extra spaces, some sites don't like them
+  const cleanCompanyName = details.companyName ? details.companyName.replace(/\s+/g, '') : '';
+
   // Common CellXpert field selectors - try multiple variations
   const fieldMappings = [
     // First Name
-    { value: details.firstName, selectors: ['#firstName', '#first_name', 'input[name="firstName"]', 'input[name="first_name"]', 'input[placeholder*="First"]'] },
+    { name: 'First Name', value: details.firstName, selectors: ['#firstName', '#first_name', 'input[name="firstName"]', 'input[name="first_name"]', 'input[placeholder*="First"]'] },
     // Last Name
-    { value: details.lastName, selectors: ['#lastName', '#last_name', 'input[name="lastName"]', 'input[name="last_name"]', 'input[placeholder*="Last"]'] },
+    { name: 'Last Name', value: details.lastName, selectors: ['#lastName', '#last_name', 'input[name="lastName"]', 'input[name="last_name"]', 'input[placeholder*="Last"]'] },
     // Email
-    { value: details.email, selectors: ['#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'] },
+    { name: 'Email', value: details.email, selectors: ['#email', 'input[name="email"]', 'input[type="email"]', 'input[placeholder*="Email"]'] },
     // Phone
-    { value: details.phone, selectors: ['#phone', '#telephone', 'input[name="phone"]', 'input[name="telephone"]', 'input[type="tel"]'] },
-    // Company
-    { value: details.companyName, selectors: ['#company', '#companyName', 'input[name="company"]', 'input[name="companyName"]', 'input[placeholder*="Company"]'] },
+    { name: 'Phone', value: details.phone, selectors: ['#phone', '#telephone', 'input[name="phone"]', 'input[name="telephone"]', 'input[type="tel"]'] },
+    // Company (without spaces for CellXpert compatibility)
+    { name: 'Company', value: cleanCompanyName, selectors: ['#company', '#companyName', 'input[name="company"]', 'input[name="companyName"]', 'input[placeholder*="Company"]'] },
     // Website
-    { value: details.website, selectors: ['#website', '#url', 'input[name="website"]', 'input[name="url"]', 'input[placeholder*="Website"]', 'input[placeholder*="URL"]'] },
+    { name: 'Website', value: details.website, selectors: ['#website', '#url', 'input[name="website"]', 'input[name="url"]', 'input[placeholder*="Website"]', 'input[placeholder*="URL"]'] },
     // Username
-    { value: details.username, selectors: ['#username', 'input[name="username"]', 'input[placeholder*="Username"]'] },
-    // Password
-    { value: details.password, selectors: ['#password', 'input[name="password"]', 'input[type="password"]:first-of-type'] },
-    // Confirm Password
-    { value: details.confirmPassword || details.password, selectors: ['#confirmPassword', '#password_confirm', 'input[name="confirmPassword"]', 'input[name="password_confirm"]', 'input[type="password"]:last-of-type'] },
+    { name: 'Username', value: details.username, selectors: ['#username', 'input[name="username"]', 'input[placeholder*="Username"]'] },
     // Address
-    { value: details.address, selectors: ['#address', 'input[name="address"]', 'input[placeholder*="Address"]'] },
+    { name: 'Address', value: details.address, selectors: ['#address', 'input[name="address"]', 'input[placeholder*="Address"]'] },
     // City
-    { value: details.city, selectors: ['#city', 'input[name="city"]', 'input[placeholder*="City"]'] },
+    { name: 'City', value: details.city, selectors: ['#city', 'input[name="city"]', 'input[placeholder*="City"]'] },
     // State
-    { value: details.state, selectors: ['#state', 'input[name="state"]', 'input[placeholder*="State"]'] },
+    { name: 'State', value: details.state, selectors: ['#state', 'input[name="state"]', 'input[placeholder*="State"]'] },
     // Zip
-    { value: details.zipCode, selectors: ['#zip', '#zipCode', '#postalCode', 'input[name="zip"]', 'input[name="zipCode"]', 'input[name="postalCode"]'] },
+    { name: 'Zip', value: details.zipCode, selectors: ['#zip', '#zipCode', '#postalCode', 'input[name="zip"]', 'input[name="zipCode"]', 'input[name="postalCode"]'] },
     // Skype/IM
-    { value: details.skype, selectors: ['#skype', '#im', 'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'] },
+    { name: 'Skype', value: details.skype, selectors: ['#skype', '#im', 'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'] },
     // Telegram
-    { value: details.telegram, selectors: ['#telegram', 'input[name="telegram"]', 'input[placeholder*="Telegram"]'] },
+    { name: 'Telegram', value: details.telegram, selectors: ['#telegram', 'input[name="telegram"]', 'input[placeholder*="Telegram"]'] },
     // Discord
-    { value: details.discord, selectors: ['#discord', 'input[name="discord"]', 'input[placeholder*="Discord"]'] },
+    { name: 'Discord', value: details.discord, selectors: ['#discord', 'input[name="discord"]', 'input[placeholder*="Discord"]'] },
     // Traffic Sources
-    { value: details.trafficSources, selectors: ['#trafficSources', '#traffic', 'input[name="trafficSources"]', 'input[name="traffic"]', 'input[placeholder*="traffic"]'] },
+    { name: 'Traffic', value: details.trafficSources, selectors: ['#trafficSources', '#traffic', 'input[name="trafficSources"]', 'input[name="traffic"]', 'input[placeholder*="traffic"]'] },
     // Monthly Visitors
-    { value: details.monthlyVisitors, selectors: ['#visitors', '#monthlyVisitors', 'input[name="visitors"]', 'input[name="monthlyVisitors"]'] },
+    { name: 'Visitors', value: details.monthlyVisitors, selectors: ['#visitors', '#monthlyVisitors', 'input[name="visitors"]', 'input[name="monthlyVisitors"]'] },
     // Promotion Methods
-    { value: details.promotionMethods, selectors: ['#promotion', '#promotionMethods', 'input[name="promotion"]', 'textarea[name="promotionMethods"]'] },
+    { name: 'Promotion', value: details.promotionMethods, selectors: ['#promotion', '#promotionMethods', 'input[name="promotion"]', 'textarea[name="promotionMethods"]'] },
     // Comments
-    { value: details.comments, selectors: ['#comments', '#message', '#notes', 'textarea[name="comments"]', 'textarea[name="message"]', 'textarea[name="notes"]', 'textarea'] },
+    { name: 'Comments', value: details.comments, selectors: ['#comments', '#message', '#notes', 'textarea[name="comments"]', 'textarea[name="message"]', 'textarea[name="notes"]', 'textarea'] },
   ];
 
   let filledCount = 0;
-
+  
   for (const field of fieldMappings) {
     if (!field.value) continue;
-
+    
+    let filled = false;
     for (const selector of field.selectors) {
       try {
         const element = await page.$(selector);
         if (element) {
           await element.click({ clickCount: 3 }); // Select all existing text
-          await element.type(field.value, { delay: 50 });
+          await element.type(field.value, { delay: 30 });
           filledCount++;
-          console.log(`    ✓ Filled: ${selector}`);
+          console.log(`    ✓ ${field.name}: ${selector}`);
+          filled = true;
           break;
         }
       } catch (e) {
         // Try next selector
       }
+    }
+    if (!filled && field.value) {
+      console.log(`    ✗ ${field.name}: NOT FOUND`);
+    }
+  }
+
+  // Handle password fields separately - they need special handling
+  console.log('  Filling password fields...');
+  const passwordFields = await page.$$('input[type="password"]');
+  console.log(`    Found ${passwordFields.length} password field(s)`);
+  
+  for (let i = 0; i < passwordFields.length; i++) {
+    try {
+      await passwordFields[i].click({ clickCount: 3 });
+      await passwordFields[i].type(details.password, { delay: 30 });
+      console.log(`    ✓ Password field ${i + 1} filled`);
+      filledCount++;
+    } catch (e) {
+      console.log(`    ✗ Password field ${i + 1} failed: ${e.message}`);
     }
   }
 
@@ -289,6 +316,17 @@ async function main() {
     return;
   }
 
+  // Show list of programs
+  console.log('Programs to process:');
+  for (let i = 0; i < Math.min(programs.length, 20); i++) {
+    console.log(`  ${i + 1}. ${programs[i].name}`);
+  }
+  if (programs.length > 20) {
+    console.log(`  ... and ${programs.length - 20} more`);
+  }
+  console.log('\nPress Enter to start (or Ctrl+C to cancel)...');
+  await new Promise(resolve => process.stdin.once('data', resolve));
+
   // Launch browser
   const browser = await puppeteer.launch({
     headless: false, // Show browser so you can see what's happening
@@ -298,10 +336,11 @@ async function main() {
 
   let signedUp = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (let i = 0; i < programs.length; i++) {
     const program = programs[i];
-    const progress = `[${i + 1}/${programs.length}]`;
+    const progress = `\n[${ i + 1}/${programs.length}]`;
 
     console.log(`${progress} ${program.name}`);
     console.log(`  URL: ${program.finalJoinUrl}`);
@@ -379,6 +418,10 @@ async function main() {
             failed++;
           } else if (input === 's' || input === 'skip') {
             console.log('  ⏭️  Skipped\n');
+            skipped++;
+          } else if (input === 'q' || input === 'quit') {
+            console.log('  👋 Quitting...\n');
+            break;
           } else {
             // Default: mark as signed up
             await prisma.statsDrone_Program.update({
@@ -411,7 +454,8 @@ async function main() {
   console.log('=' .repeat(50));
   console.log('✅ Auto-signup complete!');
   console.log(`   Signed up: ${signedUp}`);
-  console.log(`   Failed: ${failed}`);
+  console.log(`   Closed: ${failed}`);
+  console.log(`   Skipped: ${skipped}`);
   console.log('=' .repeat(50));
 
   await prisma.$disconnect();
