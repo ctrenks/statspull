@@ -324,60 +324,84 @@ async function fillCellXpertForm(page, details) {
   // Show the password being used so user can manually enter if needed
   console.log(`    Password to use: ${details.password}`);
 
-  // Handle country dropdown - try multiple values since different sites use different formats
+  // Handle country dropdown - find US option and select it robustly
   console.log('  Selecting country...');
-  const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]', 'select[name="country_id"]'];
-  // Try different country value formats
-  const countryValues = ['US', 'USA', 'United States', 'United States of America', '1', '226', 'united_states'];
-
+  const countrySelectors = ['#country', 'select[name="country"]', 'select[name="countryCode"]', 'select[name="country_id"]', 'select[id*="country"]', 'select[name*="country"]'];
+  
   let countrySelected = false;
   for (const selector of countrySelectors) {
     if (countrySelected) break;
-
+    
     const selectEl = await page.$(selector);
     if (!selectEl) continue;
-
-    // Try each country value
-    for (const val of countryValues) {
-      try {
-        await page.select(selector, val);
-        console.log(`    ✓ Selected country: ${val} (selector: ${selector})`);
-        countrySelected = true;
-        break;
-      } catch (e) {
-        // Value not found in dropdown, try next
-      }
-    }
-
-    // If none worked, try to find option containing "United States" or "US"
-    if (!countrySelected) {
-      try {
-        const optionValue = await page.evaluate((sel) => {
-          const select = document.querySelector(sel);
-          if (!select) return null;
-          const options = select.querySelectorAll('option');
-          for (const opt of options) {
-            const text = opt.textContent?.toLowerCase() || '';
-            if (text.includes('united states') || text === 'us' || text === 'usa') {
-              return opt.value;
-            }
+    
+    try {
+      // Find the US option value by searching option text
+      const usValue = await page.evaluate((sel) => {
+        const select = document.querySelector(sel);
+        if (!select) return null;
+        
+        const options = Array.from(select.querySelectorAll('option'));
+        
+        // First try exact matches
+        for (const opt of options) {
+          const text = opt.textContent?.trim().toLowerCase() || '';
+          const val = opt.value?.toLowerCase() || '';
+          if (text === 'united states' || text === 'united states of america' || 
+              val === 'us' || val === 'usa' || val === 'united states') {
+            return opt.value;
           }
-          return null;
-        }, selector);
-
-        if (optionValue) {
-          await page.select(selector, optionValue);
-          console.log(`    ✓ Selected country by text search: ${optionValue}`);
-          countrySelected = true;
         }
-      } catch (e) {
-        // Continue
+        
+        // Then try contains
+        for (const opt of options) {
+          const text = opt.textContent?.trim().toLowerCase() || '';
+          if (text.includes('united states')) {
+            return opt.value;
+          }
+        }
+        
+        return null;
+      }, selector);
+      
+      if (usValue) {
+        // Click the select first to ensure focus
+        await selectEl.click();
+        await delay(100);
+        
+        // Select the US value
+        await page.select(selector, usValue);
+        await delay(200);
+        
+        // Verify the selection stuck
+        const selectedValue = await page.evaluate((sel) => {
+          const select = document.querySelector(sel);
+          return select ? select.value : null;
+        }, selector);
+        
+        console.log(`    ✓ Selected country: "${usValue}" (verified: "${selectedValue}")`);
+        countrySelected = true;
+        
+        // If it didn't stick, try clicking the option directly
+        if (selectedValue !== usValue) {
+          console.log(`    ⚠️ Selection didn't stick, trying direct option click...`);
+          await page.evaluate((sel, val) => {
+            const select = document.querySelector(sel);
+            if (select) {
+              select.value = val;
+              select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          }, selector, usValue);
+          await delay(200);
+        }
       }
+    } catch (e) {
+      console.log(`    ⚠️ Country selection error: ${e.message}`);
     }
   }
-
+  
   if (!countrySelected) {
-    console.log(`    ⚠️ Country selection failed - may need manual selection`);
+    console.log(`    ⚠️ Country selection failed - will need manual selection`);
   }
 
   // Check terms checkbox if present
