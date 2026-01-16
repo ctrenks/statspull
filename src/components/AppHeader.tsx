@@ -52,6 +52,12 @@ export default function AppHeader({ activePage }: AppHeaderProps) {
             >
               Dashboard
             </Link>
+            <Link href="/downloads" className="btn-ghost text-sm">
+              Download
+            </Link>
+            <Link href="/subscribe" className="btn-ghost text-sm">
+              Pricing
+            </Link>
             {user?.role === 9 && (
               <Link href="/admin" className="btn-ghost text-sm">
                 Admin Panel
