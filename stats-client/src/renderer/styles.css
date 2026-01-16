@@ -701,6 +701,35 @@ body {
   gap: 8px;
 }
 
+.templates-filter-bar .checkbox-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.templates-filter-bar .checkbox-filter:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.templates-filter-bar .checkbox-filter input {
+  accent-color: #fbbf24;
+}
+
+.templates-filter-bar .checkbox-filter:has(input:checked) {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
 .templates-filter-bar .template-count {
   margin-left: auto;
   font-size: 0.85rem;
@@ -741,15 +770,56 @@ body {
   margin-bottom: 12px;
 }
 
+.template-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .template-name {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
+.btn-signup-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.btn-signup-inline:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.web-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--radius-sm);
+}
+
+.template-card.selected-on-web {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(251, 191, 36, 0.05) 100%);
+}
+
 .template-provider {
   font-size: 0.75rem;
-  font-family: var(--font-mono);
   padding: 4px 8px;
   background: rgba(34, 211, 238, 0.15);
   color: var(--accent-secondary);
@@ -758,7 +828,6 @@ body {
 
 .template-code {
   font-size: 0.8125rem;
-  font-family: var(--font-mono);
   color: var(--text-muted);
   margin-bottom: 8px;
 }

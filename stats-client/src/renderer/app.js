@@ -797,6 +797,11 @@ function renderTemplates() {
     );
   }
 
+  // Apply "web selected only" filter
+  if (templateWebSelectedOnly) {
+    availableTemplates = availableTemplates.filter(t => t.isSelected);
+  }
+
   // Apply software filter
   if (templateSoftwareFilter) {
     availableTemplates = availableTemplates.filter(t => t.provider === templateSoftwareFilter);
@@ -831,6 +836,9 @@ function renderTemplates() {
       : '<span class="sort-icon active">▼</span>';
   };
 
+  // Count web-selected templates
+  const webSelectedCount = availableTemplates.filter(t => t.isSelected).length;
+
   // Build filter bar HTML
   const filterBarHtml = `
     <div class="templates-filter-bar">
@@ -845,6 +853,10 @@ function renderTemplates() {
         <option value="">All Software</option>
         ${softwareTypes.map(sw => `<option value="${escapeHtml(sw)}" ${templateSoftwareFilter === sw ? 'selected' : ''}>${escapeHtml(sw)}</option>`).join('')}
       </select>
+      <label class="checkbox-filter">
+        <input type="checkbox" id="webSelectedFilter" ${templateWebSelectedOnly ? 'checked' : ''}>
+        <span>Web Selected (${webSelectedCount})</span>
+      </label>
       <div class="sort-buttons">
         <button class="btn btn-sm ${templateSortColumn === 'name' ? 'btn-primary' : 'btn-secondary'}" id="sortByName">
           Name ${getSortIcon('name')}
@@ -853,7 +865,7 @@ function renderTemplates() {
           Software ${getSortIcon('software')}
         </button>
       </div>
-      <span class="template-count">${availableTemplates.length} programs</span>
+      <span class="template-count">${availableTemplates.length} available</span>
     </div>
   `;
 
@@ -899,11 +911,20 @@ function renderTemplates() {
         const icon = t.icon || '';
         const description = t.description || '';
         const referralUrl = t.referralUrl || '';
+        const isSelectedOnWeb = t.isSelected || false;
 
         return `
-          <div class="template-card">
+          <div class="template-card${isSelectedOnWeb ? ' selected-on-web' : ''}">
             <div class="template-header">
-              <span class="template-name">${icon ? icon + ' ' : ''}${escapeHtml(t.name)}</span>
+              <div class="template-name-row">
+                <span class="template-name">${icon ? icon + ' ' : ''}${escapeHtml(t.name)}</span>
+                ${referralUrl ? `
+                  <a href="${escapeHtml(referralUrl)}" target="_blank" class="btn-signup-inline" title="Sign up for this program">
+                    Sign Up
+                  </a>
+                ` : ''}
+                ${isSelectedOnWeb ? '<span class="web-selected-badge">★ Web</span>' : ''}
+              </div>
               <span class="template-provider">${escapeHtml(t.provider)}</span>
             </div>
             ${description ? `<div class="template-description">${escapeHtml(description)}</div>` : ''}
@@ -911,17 +932,6 @@ function renderTemplates() {
               <button class="btn btn-sm btn-primary import-btn" data-code="${escapeHtml(t.code)}">
                 Import
               </button>
-              ${referralUrl ? `
-                <button class="btn btn-sm btn-signup signup-btn" data-url="${escapeHtml(referralUrl)}" title="Sign up for this program">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="8.5" cy="7" r="4"/>
-                    <line x1="20" y1="8" x2="20" y2="14"/>
-                    <line x1="23" y1="11" x2="17" y2="11"/>
-                  </svg>
-                  Sign Up
-                </button>
-              ` : ''}
             </div>
           </div>
         `;
@@ -978,6 +988,14 @@ function attachTemplateFilterHandlers() {
   if (softwareSelect) {
     softwareSelect.addEventListener("change", (e) => {
       templateSoftwareFilter = e.target.value;
+      renderTemplates();
+    });
+  }
+
+  const webSelectedCheckbox = document.getElementById("webSelectedFilter");
+  if (webSelectedCheckbox) {
+    webSelectedCheckbox.addEventListener("change", (e) => {
+      templateWebSelectedOnly = e.target.checked;
       renderTemplates();
     });
   }
@@ -1324,6 +1342,7 @@ let templateSortColumn = "name";
 let templateSortDirection = "asc";
 let templateSearchQuery = "";
 let templateSoftwareFilter = "";
+let templateWebSelectedOnly = false;
 
 // Load stats for program(s)
 async function loadStats() {
