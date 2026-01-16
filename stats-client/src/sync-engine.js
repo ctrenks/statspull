@@ -1174,293 +1174,59 @@ class SyncEngine {
       return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
     }
 
-    // Affilka API structure (from docs: https://wiki.affilka.net/en/home/affiliate-interface-manual)
-    // API endpoint: /api/customer/v1/partner/report
+    // Affilka API structure - using traffic_report endpoint
+    // API endpoint: /api/customer/v1/partner/traffic_report
     // Authorization: statistic token in header
-    const endpoints = [];
-
-    if (hasToken) {
-      // First, get available report attributes to see what fields are available
-      let availableAttributes = [];
-      try {
-        this.log('Fetching available report attributes...');
-        const attrsResponse = await this.httpRequest(`${baseUrl}/partner/api_docs/customer/partner/reports/available_report_attributes`, {
-          headers: { 'Authorization': token, 'Accept': 'application/json' }
-        });
-        this.log(`Attributes response: ${JSON.stringify(attrsResponse.data)}`);
-      } catch (error) {
-        this.log(`Could not fetch attributes: ${error.message}`, 'warn');
-      }
-
-      // Affilka API endpoints with correct parameter format
-      // Ref: https://dashboard.7bitpartners.com/partner/api_docs/customer/partner/reports/report_with_ngr_column_and_grouping.md
-
-      const today = new Date().toISOString().split('T')[0];
-
-      endpoints.push(
-        // 1. Partner report with CORRECT columns (partner_income = commission!)
-        {
-          url: `${baseUrl}/api/customer/v1/partner/report`,
-          params: {
-            async: 'false',
-            from: startDateISO,
-            to: endDateISO,
-            exchange_rates_date: today,
-            'columns[]': [
-              'visits_count',           // Clicks
-              'registrations_count',    // Signups
-              'first_deposits_count',   // FTDs
-              'deposits_sum',           // Total deposits amount
-              'ngr',                    // Net Gaming Revenue
-              'partner_income'          // AFFILIATE COMMISSION (this is what we need!)
-            ],
-            'group_by[]': ['month']     // Group by month as suggested
-          },
-          authHeader: token,
-          format: 'partner-report-with-income'
-        },
-        // 2. Try with date grouping for daily breakdown
-        {
-          url: `${baseUrl}/api/customer/v1/partner/report`,
-          params: {
-            async: 'false',
-            from: startDateISO,
-            to: endDateISO,
-            exchange_rates_date: today,
-            'columns[]': [
-              'visits_count',
-              'registrations_count',
-              'first_deposits_count',
-              'deposits_sum',
-              'ngr',
-              'partner_income'
-            ],
-            'group_by[]': ['date']
-          },
-          authHeader: token,
-          format: 'partner-report-by-date'
-        },
-        // 3. Traffic report (fallback)
-        {
-          url: `${baseUrl}/api/customer/v1/partner/traffic_report`,
-          params: {
-            from: startDateISO,
-            to: endDateISO
-          },
-          authHeader: token,
-          format: 'traffic-report'
-        }
-      );
+    // Response: { overall_totals: { data: [{name, value, type}, ...] } }
+    
+    if (!hasToken) {
+      throw new Error('Affilka programs require an API Token');
     }
 
-    let lastError;
+    const trafficReportUrl = `${baseUrl}/api/customer/v1/partner/traffic_report?from=${startDateISO}&to=${endDateISO}`;
+    this.log(`Calling Affilka traffic_report API: ${trafficReportUrl.replace(token, 'TOKEN')}`);
 
-    for (const endpoint of endpoints) {
-      try {
-        // Build URL with query params (handle arrays for Affilka API)
-        let queryString = '';
-        const params = endpoint.params || {};
+    const response = await this.httpRequest(trafficReportUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': token
+      }
+    });
 
-        for (const [key, value] of Object.entries(params)) {
-          if (Array.isArray(value)) {
-            // Handle array parameters like columns[] and group_by[]
-            value.forEach(item => {
-              queryString += `${queryString ? '&' : ''}${encodeURIComponent(key)}=${encodeURIComponent(item)}`;
-            });
-          } else {
-            queryString += `${queryString ? '&' : ''}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
-          }
-        }
+    this.log(`API Response status: ${response.status}`);
 
-        const fullUrl = `${endpoint.url}?${queryString}`;
+    if (response.status !== 200) {
+      throw new Error(`API returned status ${response.status}`);
+    }
 
-        const displayUrl = token ? fullUrl.replace(token, 'TOKEN_HIDDEN') : fullUrl;
-        this.log(`Trying endpoint (${endpoint.format || 'unknown format'}): ${displayUrl}${endpoint.auth === 'basic' ? ' (Basic Auth)' : ''}`);
-
-        const headers = {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        };
-
-        if (endpoint.auth === 'basic' && basicAuth) {
-          headers['Authorization'] = `Basic ${basicAuth}`;
-        }
-
-        if (endpoint.authHeader) {
-          headers['Authorization'] = endpoint.authHeader;
-        }
-
-        if (endpoint.customHeader) {
-          Object.assign(headers, endpoint.customHeader);
-        }
-
-        const response = await this.httpRequest(fullUrl, { headers });
-
-        // Show raw API response for debugging
-        this.log(`RAW API RESPONSE: ${JSON.stringify(response, null, 2)}`);
-
-        // Affilka API response structure: { rows: { data: [...] }, totals/overall_totals: { data: [...] } }
-        const rows = response.data?.rows?.data || [];
-        // Some Affilka APIs use "totals", others use "overall_totals"
-        const totals = response.data?.totals?.data || response.data?.overall_totals?.data || [];
-
-        this.log(`Affilka API returned ${rows.length} row(s), ${totals.length} total(s)`);
-
-        // If we got absolutely no data structure, try next endpoint
-        if (rows.length === 0 && totals.length === 0) {
-          // Check if API explicitly returned empty results vs connection/auth issues
-          if (response.status === 200 && response.data) {
-            this.log('✓ API responded successfully but with zero activity - this is valid data');
-            // Return zero stats instead of trying more endpoints
-            return [{
-              date: new Date().toISOString().split('T')[0],
-              clicks: 0,
-              impressions: 0,
-              signups: 0,
-              ftds: 0,
-              deposits: 0,
-              revenue: 0
-            }];
-          }
-          this.log('⚠ No data structure in response, trying next endpoint...');
-          await this.delay(1000); // Small delay between attempts
-          continue; // Try next endpoint
-        }
-
-        const stats = [];
-        const statsByDate = new Map(); // Aggregate multiple currency rows by date
-
-        // Helper to parse Affilka money objects: { currency: "EUR", amount_cents: "41711.0" }
-        const parseMoneyValue = (value) => {
-          if (!value) return 0;
-          if (typeof value === 'number') return Math.round(value * 100);
-          if (typeof value === 'object' && value.amount_cents) {
-            return Math.round(parseFloat(value.amount_cents));
-          }
-          return Math.round(parseFloat(value) * 100);
-        };
-
-        // Use rows data (daily breakdown) if available
-        const dataToUse = rows.length > 0 ? rows : totals;
-
-        for (const row of dataToUse) {
-          // Check if this is the traffic_report format (array of name/value objects)
-          if (Array.isArray(row)) {
-            this.log(`Parsing traffic_report format (array of ${row.length} name/value pairs)`);
-
-            // Convert array of { name, value, type } to a simple object
-            const rowObj = {};
-            for (const field of row) {
-              if (field.name && field.value !== undefined) {
-                rowObj[field.name] = field.value;
-              }
-            }
-
-            this.log(`Converted to object: ${JSON.stringify(rowObj)}`);
-
-            // Aggregate by date (Affilka returns one row per currency)
-            const date = (rowObj.date || rowObj.month || startDateISO).split('T')[0]; // Just the date part
-            const existing = statsByDate.get(date) || {
-              date: date,
-              clicks: 0,
-              impressions: 0,
-              signups: 0,
-              ftds: 0,
-              deposits: 0,
-              revenue: 0
-            };
-
-            existing.clicks += parseInt(rowObj.visits_count || rowObj.visits || rowObj.clicks || rowObj.hits || 0);
-            existing.impressions += parseInt(rowObj.impressions || rowObj.views || 0);
-            existing.signups += parseInt(rowObj.registrations_count || rowObj.registrations || rowObj.signups || 0);
-            existing.ftds += parseInt(rowObj.first_deposits_count || rowObj.first_depositors_count || rowObj.depositors_count || rowObj.ftd_count || rowObj.first_deposits || rowObj.ftd || rowObj.depositors || 0);
-            existing.deposits += parseMoneyValue(rowObj.deposits_sum || rowObj.deposits || rowObj.deposit_amount);
-            existing.revenue += parseMoneyValue(rowObj.partner_income || rowObj.commission || rowObj.revenue);
-
-            statsByDate.set(date, existing);
-          } else {
-            // Standard object format
-            if (stats.length === 0) {
-              this.log(`Parsing standard format, keys: ${Object.keys(row).join(', ')}`);
-              // Log all values for debugging FTD issue
-              for (const [key, val] of Object.entries(row)) {
-                if (key.toLowerCase().includes('deposit') || key.toLowerCase().includes('ftd')) {
-                  this.log(`  -> ${key}: ${JSON.stringify(val)}`);
-                }
-              }
-            }
-
-            // Aggregate by date (handle multiple currency rows)
-            const date = (row.date || row.month || row.report_date || row.day || startDateISO).split('T')[0];
-            const existing = statsByDate.get(date) || {
-              date: date,
-              clicks: 0,
-              impressions: 0,
-              signups: 0,
-              ftds: 0,
-              deposits: 0,
-              revenue: 0
-            };
-
-            existing.clicks += parseInt(row.visits_count || row.clicks || row.hits || row.unique_clicks || 0);
-            existing.impressions += parseInt(row.impressions || row.views || row.banner_views || 0);
-            existing.signups += parseInt(row.registrations_count || row.registrations || row.signups || row.sign_ups || row.players || 0);
-            existing.ftds += parseInt(row.first_deposits_count || row.first_depositors_count || row.depositors_count || row.first_deposits || row.ftd || row.ftds || row.first_time_depositors || row.new_depositors || row.depositors || 0);
-            existing.deposits += Math.round(parseFloat(row.deposits_sum || row.deposits || row.deposit_amount || row.total_deposits || 0) * 100);
-            existing.revenue += Math.round(parseFloat(row.partner_income || row.commission || row.revenue || row.earnings || row.profit || row.total_commission || 0) * 100);
-
-            statsByDate.set(date, existing);
-          }
-        }
-
-        // Convert aggregated stats map to array
-        for (const stat of statsByDate.values()) {
-          stats.push(stat);
-        }
-
-        if (stats.length > 0) {
-          this.log(`✓ Parsed ${stats.length} stats records`);
-          return stats;
-        } else {
-          this.log('No stats after parsing');
-          // Return at least one empty record so sync doesn't completely fail
-          return [{
-            date: new Date().toISOString().split('T')[0],
-            clicks: 0,
-            impressions: 0,
-            signups: 0,
-            ftds: 0,
-            deposits: 0,
-            revenue: 0
-          }];
-        }
-      } catch (error) {
-        lastError = error;
-
-        // Check if it's a rate limit error
-        if (error.message.includes('429')) {
-          this.log('⚠ API rate limit reached - wait before syncing again', 'warn');
-          // Don't try more endpoints if rate limited
-          break;
-        }
-
-        this.log(`Endpoint failed: ${error.message}`, 'warn');
-        // Add delay to avoid rate limiting on next attempt
-        await this.delay(3000);
+    // Parse the response - totals are in overall_totals.data as array of {name, value, type}
+    const totalsArray = response.data?.overall_totals?.data || [];
+    
+    // Convert array to object for easier access
+    const totals = {};
+    for (const field of totalsArray) {
+      if (field.name && field.value !== undefined) {
+        totals[field.name] = parseFloat(field.value) || 0;
       }
     }
 
-    // If all failed, return empty record rather than throwing
-    this.log('All endpoints returned no data - check API token or account activity', 'warn');
-    return [{
+    this.log(`Parsed totals: ${JSON.stringify(totals)}`);
+
+    // Map Affilka fields to our stats format
+    // visits = clicks, registrations_count = signups, ftd_count = FTDs
+    const stats = [{
       date: new Date().toISOString().split('T')[0],
-      clicks: 0,
+      clicks: totals.visits || 0,
       impressions: 0,
-      signups: 0,
-      ftds: 0,
-      deposits: 0,
-      revenue: 0
+      signups: totals.registrations_count || 0,
+      ftds: totals.ftd_count || 0,
+      deposits: totals.deposits_sum || 0,
+      revenue: totals.partner_income || totals.ngr || 0
     }];
+
+    this.log(`✓ Affilka sync complete: clicks=${stats[0].clicks}, signups=${stats[0].signups}, ftds=${stats[0].ftds}, revenue=${stats[0].revenue}`);
+    return stats;
   }
 
   // 7BitPartners Scrape - web login
