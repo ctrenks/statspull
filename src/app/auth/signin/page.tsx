@@ -3,9 +3,7 @@
 import { useState, useEffect, Suspense, useCallback } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import Link from "next/link";
-import ReCaptchaProvider from "@/components/ReCaptchaProvider";
 
 function SignInContent() {
   const [email, setEmail] = useState("");
@@ -13,7 +11,6 @@ function SignInContent() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const searchParams = useSearchParams();
-  const { executeRecaptcha } = useGoogleReCaptcha();
 
   // Capture referral code from URL and store it
   useEffect(() => {
@@ -31,27 +28,6 @@ function SignInContent() {
       setError("");
 
       try {
-        // Verify reCAPTCHA if available
-        if (executeRecaptcha) {
-          const token = await executeRecaptcha("signin");
-
-          const verifyRes = await fetch("/api/recaptcha/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token, action: "signin" }),
-          });
-
-          const verifyData = await verifyRes.json();
-
-          if (!verifyData.success) {
-            setError(
-              verifyData.error || "Security check failed. Please try again."
-            );
-            setLoading(false);
-            return;
-          }
-        }
-
         // Store email in localStorage so we can track referral after signin
         localStorage.setItem("pendingSigninEmail", email);
 
@@ -73,7 +49,7 @@ function SignInContent() {
         setLoading(false);
       }
     },
-    [email, executeRecaptcha]
+    [email]
   );
 
   if (sent) {
@@ -249,16 +225,14 @@ function SignInContent() {
 
 export default function SignIn() {
   return (
-    <ReCaptchaProvider>
-      <Suspense
-        fallback={
-          <div className="min-h-screen animated-bg grid-pattern flex items-center justify-center">
-            <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full"></div>
-          </div>
-        }
-      >
-        <SignInContent />
-      </Suspense>
-    </ReCaptchaProvider>
+    <Suspense
+      fallback={
+        <div className="min-h-screen animated-bg grid-pattern flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full"></div>
+        </div>
+      }
+    >
+      <SignInContent />
+    </Suspense>
   );
 }
