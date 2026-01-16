@@ -104,6 +104,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     showBrowserCheckbox.checked = showBrowser === "true";
   }
 
+  // Load upload settings
+  const statsUploadEnabled = await window.api.getSetting("statsUploadEnabled");
+  const statsUploadCheckbox = document.getElementById("statsUploadEnabled");
+  if (statsUploadCheckbox) {
+    statsUploadCheckbox.checked = statsUploadEnabled === "true";
+  }
+
+  const templateSyncEnabled = await window.api.getSetting("templateSyncEnabled");
+  const templateSyncCheckbox = document.getElementById("templateSyncEnabled");
+  if (templateSyncCheckbox) {
+    templateSyncCheckbox.checked = templateSyncEnabled === "true";
+  }
+
   // Load sync concurrency setting
   const syncConcurrency = await window.api.getSetting("syncConcurrency");
   const syncConcurrencySelect = document.getElementById("syncConcurrency");
@@ -1499,6 +1512,42 @@ function setupEventListeners() {
         `Browser visibility ${
           e.target.checked ? "enabled" : "disabled"
         } - restart app to apply`,
+        "info"
+      );
+    });
+
+  // Stats upload setting
+  document
+    .getElementById("statsUploadEnabled")
+    .addEventListener("change", async (e) => {
+      await window.api.setSetting(
+        "statsUploadEnabled",
+        e.target.checked.toString()
+      );
+      showToast(
+        `Stats upload ${e.target.checked ? "enabled" : "disabled"}`,
+        "success"
+      );
+      log(
+        `Stats upload ${e.target.checked ? "enabled" : "disabled"}`,
+        "info"
+      );
+    });
+
+  // Template sync setting
+  document
+    .getElementById("templateSyncEnabled")
+    .addEventListener("change", async (e) => {
+      await window.api.setSetting(
+        "templateSyncEnabled",
+        e.target.checked.toString()
+      );
+      showToast(
+        `Template sync ${e.target.checked ? "enabled" : "disabled"}`,
+        "success"
+      );
+      log(
+        `Template sync ${e.target.checked ? "enabled" : "disabled"}`,
         "info"
       );
     });

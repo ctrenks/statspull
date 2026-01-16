@@ -431,6 +431,82 @@ const SOFTWARE_TO_PROVIDER = {
   'custom': 'CUSTOM'
 };
 
+// Upload stats to the web server
+async function uploadStatsToServer(apiKey, stats) {
+  return new Promise((resolve) => {
+    const request = net.request({
+      method: 'POST',
+      url: `${API_URL}/api/client/stats/upload`,
+    });
+
+    request.setHeader('Content-Type', 'application/json');
+    request.setHeader('X-API-Key', apiKey);
+
+    let responseData = '';
+
+    request.on('response', (response) => {
+      response.on('data', (chunk) => {
+        responseData += chunk.toString();
+      });
+
+      response.on('end', () => {
+        try {
+          const data = JSON.parse(responseData);
+          resolve(data);
+        } catch (e) {
+          resolve({ success: false, error: 'Failed to parse response' });
+        }
+      });
+    });
+
+    request.on('error', (error) => {
+      console.error('[UPLOAD] Network error:', error.message);
+      resolve({ success: false, error: error.message });
+    });
+
+    request.write(JSON.stringify({ stats }));
+    request.end();
+  });
+}
+
+// Sync program selection to the web server (when importing a template)
+async function syncProgramToServer(apiKey, programCode, programName, action = 'add') {
+  return new Promise((resolve) => {
+    const request = net.request({
+      method: 'POST',
+      url: `${API_URL}/api/client/programs/sync`,
+    });
+
+    request.setHeader('Content-Type', 'application/json');
+    request.setHeader('X-API-Key', apiKey);
+
+    let responseData = '';
+
+    request.on('response', (response) => {
+      response.on('data', (chunk) => {
+        responseData += chunk.toString();
+      });
+
+      response.on('end', () => {
+        try {
+          const data = JSON.parse(responseData);
+          resolve(data);
+        } catch (e) {
+          resolve({ success: false, error: 'Failed to parse response' });
+        }
+      });
+    });
+
+    request.on('error', (error) => {
+      console.error('[PROGRAM SYNC] Network error:', error.message);
+      resolve({ success: false, error: error.message });
+    });
+
+    request.write(JSON.stringify({ programCode, programName, action }));
+    request.end();
+  });
+}
+
 // Fetch templates from statsfetch.com API
 async function fetchTemplates() {
   return new Promise((resolve, reject) => {
@@ -610,7 +686,32 @@ function setupIpcHandlers() {
 
   // Import template as local program
   ipcMain.handle('import-template', async (event, template) => {
-    return db.importTemplate(template);
+    const result = db.importTemplate(template);
+    
+    // If template sync is enabled, also sync to web
+    if (result && result.id) {
+      const templateSyncEnabled = db.getSetting('templateSyncEnabled');
+      const apiKey = db.getSecureSetting('api_key');
+      
+      if (templateSyncEnabled === 'true' && apiKey) {
+        console.log('[TEMPLATE SYNC] Syncing imported program to web dashboard...');
+        try {
+          const syncResult = await syncProgramToServer(
+            apiKey,
+            template.code || template.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            template.name,
+            'import'
+          );
+          if (syncResult.synced) {
+            console.log(`[TEMPLATE SYNC] Program "${template.name}" synced to web selections`);
+          }
+        } catch (error) {
+          console.error('[TEMPLATE SYNC] Error:', error.message);
+        }
+      }
+    }
+    
+    return result;
   });
 
   // Get stats for a program
@@ -677,6 +778,31 @@ function setupIpcHandlers() {
   ipcMain.handle('sync-all', async () => {
     try {
       const result = await syncEngine.syncAll();
+      
+      // If stats upload is enabled and we have pending data, upload it
+      if (result.pendingStatsUpload && result.pendingStatsUpload.length > 0) {
+        const apiKey = db.getSecureSetting('api_key');
+        if (apiKey) {
+          console.log('[STATS UPLOAD] Uploading stats to web dashboard...');
+          try {
+            const uploadResult = await uploadStatsToServer(apiKey, result.pendingStatsUpload);
+            if (uploadResult.success) {
+              console.log(`[STATS UPLOAD] Successfully uploaded ${uploadResult.saved} program stats`);
+              if (mainWindow && mainWindow.webContents) {
+                mainWindow.webContents.send('sync-log', {
+                  message: `📤 Uploaded stats for ${uploadResult.saved} programs to web dashboard`,
+                  type: 'success'
+                });
+              }
+            } else {
+              console.error('[STATS UPLOAD] Upload failed:', uploadResult.error);
+            }
+          } catch (uploadError) {
+            console.error('[STATS UPLOAD] Error:', uploadError.message);
+          }
+        }
+      }
+      
       return result;
     } catch (error) {
       console.error('Sync error:', error);

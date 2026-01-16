@@ -261,7 +261,53 @@ class SyncEngine {
     // No shared browser cleanup needed
     this.log('All isolated browsers cleaned up');
 
-    return { success: true, synced, failed, results };
+    // Check if stats upload is enabled
+    const statsUploadEnabled = this.db.getSetting('statsUploadEnabled');
+    if (statsUploadEnabled === 'true') {
+      this.log('📤 Stats upload enabled - preparing data for web dashboard...');
+      
+      // Gather monthly stats for all programs that synced successfully
+      const statsToUpload = [];
+      const now = new Date();
+      const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+      
+      for (const result of results) {
+        if (result.success) {
+          // Find the program to get its code and currency
+          const program = programs.find(p => p.name === result.program);
+          if (!program) continue;
+          
+          // Get current month stats for this program
+          const startDate = `${currentMonth}-01`;
+          const endDate = now.toISOString().split('T')[0];
+          const stats = this.db.getStats(program.id, startDate, endDate);
+          
+          // Aggregate stats for the month
+          const monthStats = stats.reduce((acc, s) => ({
+            clicks: acc.clicks + (s.clicks || 0),
+            impressions: acc.impressions + (s.impressions || 0),
+            signups: acc.signups + (s.signups || 0),
+            ftds: acc.ftds + (s.ftds || 0),
+            deposits: acc.deposits + (s.deposits || 0),
+            revenue: acc.revenue + (s.revenue || 0),
+          }), { clicks: 0, impressions: 0, signups: 0, ftds: 0, deposits: 0, revenue: 0 });
+          
+          statsToUpload.push({
+            programName: program.name,
+            programCode: program.code,
+            month: currentMonth,
+            currency: program.currency || 'USD',
+            ...monthStats
+          });
+        }
+      }
+      
+      // Store for upload by main process (can't do HTTP from here directly)
+      this.pendingStatsUpload = statsToUpload;
+      this.log(`📊 Prepared ${statsToUpload.length} programs for stats upload`);
+    }
+
+    return { success: true, synced, failed, results, pendingStatsUpload: this.pendingStatsUpload };
   }
 
   // Sync a single program

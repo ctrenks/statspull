@@ -44,6 +44,7 @@ model User {
   commissionsEarned Commission[] @relation("AffiliateCommissions")
   commissionsPaid   Commission[] @relation("UserCommissions")
   programSelections UserProgramSelection[]
+  uploadedStats     UserUploadedStats[]
 
   @@index([referralCode])
   @@index([referredById])
@@ -470,6 +471,35 @@ model UserProgramSelection {
   @@index([userId])
   @@index([programId])
   @@index([selectedAt])
+}
+
+// User's uploaded stats from the Electron client
+// No credentials - just anonymous aggregate stats per program
+model UserUploadedStats {
+  id          String   @id @default(cuid())
+  userId      String
+  programName String   // Program name from the client
+  programCode String   // Program code (unique identifier)
+  month       String   // YYYY-MM format
+  
+  // Stats data (stored as cents where applicable)
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  signups     Int      @default(0)
+  ftds        Int      @default(0)
+  deposits    Int      @default(0)  // in cents
+  revenue     Int      @default(0)  // in cents
+  currency    String   @default("USD")
+  
+  uploadedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programCode, month])
+  @@index([userId])
+  @@index([month])
+  @@index([uploadedAt])
 }
 
 model SignupProfile {

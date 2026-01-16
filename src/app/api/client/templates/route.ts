@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       const isSelected = template.statsDronePrograms.some((p) =>
         selectedProgramIds.has(p.id)
       );
-      
+
       // Get the most recent scraped date
       const mostRecent = template.statsDronePrograms.length > 0
         ? new Date(

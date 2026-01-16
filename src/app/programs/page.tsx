@@ -25,7 +25,7 @@ type SortDirection = "asc" | "desc";
 export default function ProgramsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [recent, setRecent] = useState<Program[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [softwareTypes, setSoftwareTypes] = useState<string[]>([]);
@@ -33,7 +33,7 @@ export default function ProgramsPage() {
   const [selectedCount, setSelectedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
-  
+
   // Filters and sorting
   const [search, setSearch] = useState("");
   const [softwareFilter, setSoftwareFilter] = useState("");
@@ -58,10 +58,10 @@ export default function ProgramsPage() {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (softwareFilter) params.set("software", softwareFilter);
-      
+
       const response = await fetch(`/api/programs?${params}`);
       if (!response.ok) throw new Error("Failed to fetch");
-      
+
       const data = await response.json();
       setRecent(data.recent || []);
       setPrograms(data.programs || []);
@@ -84,13 +84,13 @@ export default function ProgramsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ programId }),
       });
-      
+
       if (!response.ok) throw new Error("Failed to update");
-      
+
       // Update local state
       const updateProgram = (p: Program) =>
         p.id === programId ? { ...p, isSelected: !isCurrentlySelected } : p;
-      
+
       setRecent((prev) => prev.map(updateProgram));
       setPrograms((prev) => prev.map(updateProgram));
       setSelectedCount((prev) => prev + (isCurrentlySelected ? -1 : 1));
@@ -105,7 +105,7 @@ export default function ProgramsPage() {
     return [...list].sort((a, b) => {
       let aVal: string | number = "";
       let bVal: string | number = "";
-      
+
       switch (sortField) {
         case "name":
           aVal = a.name.toLowerCase();
@@ -120,7 +120,7 @@ export default function ProgramsPage() {
           bVal = new Date(b.scrapedAt).getTime();
           break;
       }
-      
+
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
       if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
       return 0;
@@ -243,7 +243,7 @@ export default function ProgramsPage() {
       {/* All Programs Section */}
       <section className="all-programs-section">
         <h2 className="section-title">
-          <span className="icon">📋</span> 
+          <span className="icon">📋</span>
           {search || softwareFilter ? "Search Results" : "All Programs"}
           <span className="count">({search || softwareFilter ? programs.length + recent.length : sortedPrograms.length})</span>
         </h2>

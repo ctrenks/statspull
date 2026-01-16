@@ -415,6 +415,34 @@
           </div>
 
           <div class="settings-section">
+            <h2 class="section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Upload Settings
+            </h2>
+            <p class="settings-note" style="margin-bottom: 16px;">Share your stats with the web interface. No usernames or passwords are uploaded - only program names and stats numbers (FTDs, deposits, revenue totals).</p>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="statsUploadEnabled">
+                <span>Upload Stats to Web Dashboard</span>
+              </label>
+              <p class="settings-note">After syncing, automatically send your stats to the web interface so you can view them from any device.</p>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="templateSyncEnabled">
+                <span>Sync Template Additions</span>
+              </label>
+              <p class="settings-note">When you add a program from templates, mark it as "selected" on the web interface automatically.</p>
+            </div>
+          </div>
+
+          <div class="settings-section">
             <h2 class="section-title">Developer Settings</h2>
             <div class="form-group">
               <label class="checkbox-label">
