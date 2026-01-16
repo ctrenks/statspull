@@ -780,13 +780,86 @@ function renderTemplates() {
   });
 
   // Filter out templates that are already set up as programs
-  const availableTemplates = allTemplates.filter((t) => {
+  let availableTemplates = allTemplates.filter((t) => {
     // Check if this template code is already used by any existing program
     return !programs.some((p) => p.code === t.code || p.name === t.name);
   });
 
-  if (availableTemplates.length === 0) {
+  // Get unique software types for filter dropdown
+  const softwareTypes = [...new Set(availableTemplates.map(t => t.provider).filter(Boolean))].sort();
+
+  // Apply search filter
+  if (templateSearchQuery) {
+    const query = templateSearchQuery.toLowerCase();
+    availableTemplates = availableTemplates.filter(t => 
+      t.name.toLowerCase().includes(query) || 
+      (t.provider && t.provider.toLowerCase().includes(query))
+    );
+  }
+
+  // Apply software filter
+  if (templateSoftwareFilter) {
+    availableTemplates = availableTemplates.filter(t => t.provider === templateSoftwareFilter);
+  }
+
+  // Sort templates
+  availableTemplates.sort((a, b) => {
+    let aVal, bVal;
+    switch (templateSortColumn) {
+      case "name":
+        aVal = (a.name || "").toLowerCase();
+        bVal = (b.name || "").toLowerCase();
+        break;
+      case "software":
+        aVal = (a.provider || "").toLowerCase();
+        bVal = (b.provider || "").toLowerCase();
+        break;
+      default:
+        aVal = (a.name || "").toLowerCase();
+        bVal = (b.name || "").toLowerCase();
+    }
+    if (aVal < bVal) return templateSortDirection === "asc" ? -1 : 1;
+    if (aVal > bVal) return templateSortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Build sort icon helper
+  const getSortIcon = (col) => {
+    if (templateSortColumn !== col) return '<span class="sort-icon">⇅</span>';
+    return templateSortDirection === "asc"
+      ? '<span class="sort-icon active">▲</span>'
+      : '<span class="sort-icon active">▼</span>';
+  };
+
+  // Build filter bar HTML
+  const filterBarHtml = `
+    <div class="templates-filter-bar">
+      <div class="search-box">
+        <input type="text" id="templateSearch" placeholder="Search programs..." value="${escapeHtml(templateSearchQuery)}">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </div>
+      <select id="templateSoftwareFilter" class="select">
+        <option value="">All Software</option>
+        ${softwareTypes.map(sw => `<option value="${escapeHtml(sw)}" ${templateSoftwareFilter === sw ? 'selected' : ''}>${escapeHtml(sw)}</option>`).join('')}
+      </select>
+      <div class="sort-buttons">
+        <button class="btn btn-sm ${templateSortColumn === 'name' ? 'btn-primary' : 'btn-secondary'}" id="sortByName">
+          Name ${getSortIcon('name')}
+        </button>
+        <button class="btn btn-sm ${templateSortColumn === 'software' ? 'btn-primary' : 'btn-secondary'}" id="sortBySoftware">
+          Software ${getSortIcon('software')}
+        </button>
+      </div>
+      <span class="template-count">${availableTemplates.length} programs</span>
+    </div>
+  `;
+
+  if (availableTemplates.length === 0 && !templateSearchQuery && !templateSoftwareFilter) {
     elements.templatesList.innerHTML = `
+      ${filterBarHtml}
       <div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M12 2L2 7l10 5 10-5-10-5z"/>
@@ -797,53 +870,73 @@ function renderTemplates() {
         <p>All configured programs have already been imported</p>
       </div>
     `;
+    attachTemplateFilterHandlers();
     return;
   }
 
-  // Sort templates alphabetically and use filtered list
-  templates = availableTemplates.sort((a, b) =>
-    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-  );
-
-  elements.templatesList.innerHTML = templates
-    .map((t, index) => {
-      const icon = t.icon || '';
-      const description = t.description || '';
-      const referralUrl = t.referralUrl || '';
-
-      return `
-    <div class="template-card">
-      <div class="template-header">
-        <span class="template-name">${icon ? icon + ' ' : ''}${escapeHtml(t.name)}</span>
-        <span class="template-provider">${escapeHtml(t.provider)}</span>
+  if (availableTemplates.length === 0) {
+    elements.templatesList.innerHTML = `
+      ${filterBarHtml}
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <h3>No Results</h3>
+        <p>No programs match your search criteria</p>
       </div>
-      ${description ? `<div class="template-description">${escapeHtml(description)}</div>` : ''}
-      <div class="template-actions">
-        <button class="btn btn-sm btn-primary import-btn" data-index="${index}">
-          Import
-        </button>
-        ${referralUrl ? `
-          <button class="btn btn-sm btn-signup signup-btn" data-url="${escapeHtml(referralUrl)}" title="Sign up for this program">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="8.5" cy="7" r="4"/>
-              <line x1="20" y1="8" x2="20" y2="14"/>
-              <line x1="23" y1="11" x2="17" y2="11"/>
-            </svg>
-            Sign Up
-          </button>
-        ` : ''}
-      </div>
+    `;
+    attachTemplateFilterHandlers();
+    return;
+  }
+
+  // Store sorted templates for import handler
+  const displayedTemplates = availableTemplates;
+
+  elements.templatesList.innerHTML = filterBarHtml + `
+    <div class="templates-grid">
+      ${displayedTemplates.map((t, index) => {
+        const icon = t.icon || '';
+        const description = t.description || '';
+        const referralUrl = t.referralUrl || '';
+
+        return `
+          <div class="template-card">
+            <div class="template-header">
+              <span class="template-name">${icon ? icon + ' ' : ''}${escapeHtml(t.name)}</span>
+              <span class="template-provider">${escapeHtml(t.provider)}</span>
+            </div>
+            ${description ? `<div class="template-description">${escapeHtml(description)}</div>` : ''}
+            <div class="template-actions">
+              <button class="btn btn-sm btn-primary import-btn" data-code="${escapeHtml(t.code)}">
+                Import
+              </button>
+              ${referralUrl ? `
+                <button class="btn btn-sm btn-signup signup-btn" data-url="${escapeHtml(referralUrl)}" title="Sign up for this program">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="8.5" cy="7" r="4"/>
+                    <line x1="20" y1="8" x2="20" y2="14"/>
+                    <line x1="23" y1="11" x2="17" y2="11"/>
+                  </svg>
+                  Sign Up
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
     </div>
   `;
-    })
-    .join("");
+
+  // Store displayed templates globally for import handler
+  window._displayedTemplates = displayedTemplates;
 
   // Add click handlers for import buttons
   document.querySelectorAll(".import-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
-      const index = parseInt(e.target.dataset.index);
-      const template = templates[index];
+      const code = e.target.dataset.code;
+      const template = window._displayedTemplates.find(t => t.code === code);
       if (template) {
         await importTemplate(template);
       }
@@ -859,6 +952,59 @@ function renderTemplates() {
       }
     });
   });
+
+  attachTemplateFilterHandlers();
+}
+
+// Attach filter handlers for templates
+function attachTemplateFilterHandlers() {
+  const searchInput = document.getElementById("templateSearch");
+  const softwareSelect = document.getElementById("templateSoftwareFilter");
+  const sortByNameBtn = document.getElementById("sortByName");
+  const sortBySoftwareBtn = document.getElementById("sortBySoftware");
+
+  if (searchInput) {
+    // Debounce search
+    let searchTimeout;
+    searchInput.addEventListener("input", (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        templateSearchQuery = e.target.value;
+        renderTemplates();
+      }, 300);
+    });
+  }
+
+  if (softwareSelect) {
+    softwareSelect.addEventListener("change", (e) => {
+      templateSoftwareFilter = e.target.value;
+      renderTemplates();
+    });
+  }
+
+  if (sortByNameBtn) {
+    sortByNameBtn.addEventListener("click", () => {
+      if (templateSortColumn === "name") {
+        templateSortDirection = templateSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        templateSortColumn = "name";
+        templateSortDirection = "asc";
+      }
+      renderTemplates();
+    });
+  }
+
+  if (sortBySoftwareBtn) {
+    sortBySoftwareBtn.addEventListener("click", () => {
+      if (templateSortColumn === "software") {
+        templateSortDirection = templateSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        templateSortColumn = "software";
+        templateSortDirection = "asc";
+      }
+      renderTemplates();
+    });
+  }
 }
 
 // Import template
@@ -1172,6 +1318,12 @@ function setDateRange(range) {
 let currentStats = [];
 let sortColumn = "date";
 let sortDirection = "desc";
+
+// Global templates state for sorting/filtering
+let templateSortColumn = "name";
+let templateSortDirection = "asc";
+let templateSearchQuery = "";
+let templateSoftwareFilter = "";
 
 // Load stats for program(s)
 async function loadStats() {

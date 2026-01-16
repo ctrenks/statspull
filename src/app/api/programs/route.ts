@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Filter based on showInstalled preference
-    const templates = showInstalled 
-      ? allTemplates 
+    const templates = showInstalled
+      ? allTemplates
       : allTemplates.filter(t => !selectedIds.has(t.id));
 
     // Get unique software types for filter
