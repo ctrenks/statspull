@@ -8,19 +8,15 @@ import AppHeader from "@/components/AppHeader";
 interface Program {
   id: string;
   name: string;
-  software: string | null;
-  logoUrl: string | null;
-  scrapedAt: string;
+  softwareType: string;
+  icon: string | null;
+  description: string | null;
+  referralUrl: string | null;
+  createdAt: string;
   isSelected: boolean;
-  template: {
-    id: string;
-    name: string;
-    softwareType: string;
-    icon: string | null;
-  } | null;
 }
 
-type SortField = "name" | "software" | "scrapedAt";
+type SortField = "name" | "softwareType" | "createdAt";
 type SortDirection = "asc" | "desc";
 
 export default function ProgramsPage() {
@@ -112,13 +108,13 @@ export default function ProgramsPage() {
           aVal = a.name.toLowerCase();
           bVal = b.name.toLowerCase();
           break;
-        case "software":
-          aVal = (a.software || "").toLowerCase();
-          bVal = (b.software || "").toLowerCase();
+        case "softwareType":
+          aVal = (a.softwareType || "").toLowerCase();
+          bVal = (b.softwareType || "").toLowerCase();
           break;
-        case "scrapedAt":
-          aVal = new Date(a.scrapedAt).getTime();
-          bVal = new Date(b.scrapedAt).getTime();
+        case "createdAt":
+          aVal = new Date(a.createdAt).getTime();
+          bVal = new Date(b.createdAt).getTime();
           break;
       }
 
@@ -154,15 +150,15 @@ export default function ProgramsPage() {
       </td>
       <td className="name-cell">
         <div className="program-name">
-          {program.template?.icon && (
-            <span className="program-icon">{program.template.icon}</span>
+          {program.icon && (
+            <span className="program-icon">{program.icon}</span>
           )}
           <span>{program.name}</span>
         </div>
       </td>
-      <td className="software-cell">{program.software || "—"}</td>
+      <td className="software-cell">{program.softwareType || "—"}</td>
       <td className="date-cell">
-        {new Date(program.scrapedAt).toLocaleDateString()}
+        {new Date(program.createdAt).toLocaleDateString()}
       </td>
     </tr>
   );
@@ -264,11 +260,11 @@ export default function ProgramsPage() {
                 <th className="sortable-header" onClick={() => handleSort("name")}>
                   Program <SortIcon field="name" />
                 </th>
-                <th className="sortable-header" onClick={() => handleSort("software")}>
-                  Software <SortIcon field="software" />
+                <th className="sortable-header" onClick={() => handleSort("softwareType")}>
+                  Software <SortIcon field="softwareType" />
                 </th>
-                <th className="sortable-header" onClick={() => handleSort("scrapedAt")}>
-                  Added <SortIcon field="scrapedAt" />
+                <th className="sortable-header" onClick={() => handleSort("createdAt")}>
+                  Added <SortIcon field="createdAt" />
                 </th>
               </tr>
             </thead>

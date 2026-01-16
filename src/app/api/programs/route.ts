@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// GET - Fetch programs for user selection page
-// Returns programs with template info, sorted by recent first
+// GET - Fetch program templates for user selection page
+// Returns templates with selection status
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -15,11 +15,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const software = searchParams.get("software") || "";
 
-    // Build where clause - only show programs that have templates
+    // Build where clause for templates
     const where: Record<string, unknown> = {
-      status: { not: "closed" },
       isActive: true,
-      template: { isNot: null }, // Must have a template linked
     };
 
     if (search) {
@@ -27,29 +25,25 @@ export async function GET(request: NextRequest) {
     }
 
     if (software) {
-      where.software = software;
+      where.softwareType = software;
     }
 
-    // Fetch all matching programs
-    const programs = await prisma.statsDrone_Program.findMany({
+    // Fetch all program templates
+    const templates = await prisma.programTemplate.findMany({
       where,
       select: {
         id: true,
         name: true,
-        software: true,
-        logoUrl: true,
-        scrapedAt: true,
-        finalJoinUrl: true,
-        template: {
-          select: {
-            id: true,
-            name: true,
-            softwareType: true,
-            icon: true,
-          },
-        },
+        softwareType: true,
+        icon: true,
+        description: true,
+        referralUrl: true,
+        createdAt: true,
       },
-      orderBy: { scrapedAt: "desc" },
+      orderBy: [
+        { displayOrder: "asc" },
+        { name: "asc" },
+      ],
     });
 
     // Get user's selections
@@ -59,22 +53,19 @@ export async function GET(request: NextRequest) {
     });
     const selectedIds = new Set(selections.map((s) => s.programId));
 
-    // Get unique software types for filter (only from programs with templates)
-    const softwareTypes = await prisma.statsDrone_Program.findMany({
+    // Get unique software types for filter
+    const softwareTypes = await prisma.programTemplate.findMany({
       where: {
-        status: { not: "closed" },
         isActive: true,
-        software: { not: null },
-        template: { isNot: null },
       },
-      distinct: ["software"],
-      select: { software: true },
-      orderBy: { software: "asc" },
+      distinct: ["softwareType"],
+      select: { softwareType: true },
+      orderBy: { softwareType: "asc" },
     });
 
     // Split into recent (10) and rest
-    const recent = programs.slice(0, 10);
-    const rest = programs.slice(10);
+    const recent = templates.slice(0, 10);
+    const rest = templates.slice(10);
 
     return NextResponse.json({
       recent: recent.map((p) => ({
@@ -85,10 +76,8 @@ export async function GET(request: NextRequest) {
         ...p,
         isSelected: selectedIds.has(p.id),
       })),
-      softwareTypes: softwareTypes
-        .map((s) => s.software)
-        .filter((s): s is string => s !== null),
-      totalCount: programs.length,
+      softwareTypes: softwareTypes.map((s) => s.softwareType),
+      totalCount: templates.length,
       selectedCount: selections.length,
     });
   } catch (error) {
