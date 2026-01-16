@@ -13,11 +13,11 @@ function generatePassword(): string {
     'Blue', 'Green', 'Red', 'Gold', 'Silver', 'Iron',
     'Star', 'Moon', 'Sun', 'Sky', 'Cloud', 'Rain'
   ];
-  
+
   const word1 = words[crypto.randomInt(words.length)];
   const word2 = words[crypto.randomInt(words.length)];
   const num = crypto.randomInt(10, 99);
-  
+
   return word1 + word2 + num;
 }
 
