@@ -72,7 +72,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { programId, mappedToTemplate, status, finalJoinUrl, generateNewPassword, signupUsername, signupEmail } = await request.json();
+    const { programId, mappedToTemplate, status, finalJoinUrl, generateNewPassword, signupUsername, signupEmail, templateId } = await request.json();
 
     if (!programId) {
       return NextResponse.json(
@@ -104,6 +104,10 @@ export async function PATCH(request: Request) {
     }
     if (typeof signupEmail === 'string') {
       updateData.signupEmail = signupEmail || null;
+    }
+    if (typeof templateId === 'string') {
+      updateData.templateId = templateId || null;
+      updateData.mappedToTemplate = !!templateId;
     }
 
     if (Object.keys(updateData).length === 0) {

@@ -791,8 +791,8 @@ function renderTemplates() {
   // Apply search filter
   if (templateSearchQuery) {
     const query = templateSearchQuery.toLowerCase();
-    availableTemplates = availableTemplates.filter(t => 
-      t.name.toLowerCase().includes(query) || 
+    availableTemplates = availableTemplates.filter(t =>
+      t.name.toLowerCase().includes(query) ||
       (t.provider && t.provider.toLowerCase().includes(query))
     );
   }

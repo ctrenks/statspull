@@ -25,6 +25,22 @@ interface StatsDroneProgram {
   scrapedAt: string;
 }
 
+interface TemplateFormData {
+  name: string;
+  softwareType: string;
+  authType: 'CREDENTIALS' | 'API_KEY' | 'OAUTH';
+  baseUrl: string;
+  loginUrl: string;
+  description: string;
+  icon: string;
+  referralUrl: string;
+  apiKeyLabel: string;
+  usernameLabel: string;
+  passwordLabel: string;
+  baseUrlLabel: string;
+  requiresBaseUrl: boolean;
+}
+
 type SortField = 'name' | 'software' | 'scrapedAt';
 type SortDirection = 'asc' | 'desc';
 
@@ -42,6 +58,27 @@ export default function StatsDroneProgramsPage() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
   const [editUrlValue, setEditUrlValue] = useState<string>('');
+  
+  // Template generation modal state
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateForm, setTemplateForm] = useState<TemplateFormData>({
+    name: '',
+    softwareType: '',
+    authType: 'CREDENTIALS',
+    baseUrl: '',
+    loginUrl: '',
+    description: '',
+    icon: '',
+    referralUrl: '',
+    apiKeyLabel: '',
+    usernameLabel: '',
+    passwordLabel: '',
+    baseUrlLabel: '',
+    requiresBaseUrl: false,
+  });
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const [sourceProgramId, setSourceProgramId] = useState<string | null>(null);
 
   useEffect(() => {
     loadPrograms();
@@ -236,6 +273,111 @@ export default function StatsDroneProgramsPage() {
     navigator.clipboard.writeText(text);
   };
 
+  // Convert software name to softwareType format (lowercase, hyphenated)
+  const formatSoftwareType = (software: string | null): string => {
+    if (!software) return '';
+    return software.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  };
+
+  // Extract base URL from a full URL
+  const extractBaseUrl = (url: string | null): string => {
+    if (!url) return '';
+    try {
+      const urlObj = new URL(url);
+      return urlObj.origin;
+    } catch {
+      return url;
+    }
+  };
+
+  // Open template generation modal with pre-filled data from a program
+  const openTemplateModal = (program: StatsDroneProgram) => {
+    const joinUrl = program.finalJoinUrl || program.joinUrl;
+    const baseUrl = extractBaseUrl(joinUrl);
+    
+    setTemplateForm({
+      name: program.name,
+      softwareType: formatSoftwareType(program.software),
+      authType: program.apiSupport ? 'API_KEY' : 'CREDENTIALS',
+      baseUrl: baseUrl,
+      loginUrl: joinUrl || '',
+      description: program.commission || '',
+      icon: '',
+      referralUrl: joinUrl || '',
+      apiKeyLabel: program.apiSupport ? 'API Key' : '',
+      usernameLabel: 'Username',
+      passwordLabel: 'Password',
+      baseUrlLabel: '',
+      requiresBaseUrl: false,
+    });
+    setSourceProgramId(program.id);
+    setTemplateError(null);
+    setShowTemplateModal(true);
+  };
+
+  // Save the template
+  const saveTemplate = async () => {
+    setTemplateSaving(true);
+    setTemplateError(null);
+    
+    try {
+      const res = await fetch('/api/admin/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateForm.name,
+          softwareType: templateForm.softwareType,
+          authType: templateForm.authType,
+          baseUrl: templateForm.baseUrl || null,
+          loginUrl: templateForm.loginUrl || null,
+          description: templateForm.description || null,
+          icon: templateForm.icon || null,
+          referralUrl: templateForm.referralUrl || null,
+          apiKeyLabel: templateForm.apiKeyLabel || null,
+          usernameLabel: templateForm.usernameLabel || null,
+          passwordLabel: templateForm.passwordLabel || null,
+          baseUrlLabel: templateForm.baseUrlLabel || null,
+          requiresBaseUrl: templateForm.requiresBaseUrl,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setTemplateError(data.error || 'Failed to create template');
+        return;
+      }
+
+      // Update the program status to "added_as_template" and link the template
+      if (sourceProgramId) {
+        await fetch('/api/admin/statsdrone/programs', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            programId: sourceProgramId,
+            status: 'added_as_template',
+            templateId: data.template.id,
+          }),
+        });
+
+        // Update local state
+        setPrograms(programs.map(p =>
+          p.id === sourceProgramId
+            ? { ...p, status: 'added_as_template', templateId: data.template.id }
+            : p
+        ));
+      }
+
+      setShowTemplateModal(false);
+      setSourceProgramId(null);
+    } catch (error) {
+      console.error('Failed to create template:', error);
+      setTemplateError('Failed to create template');
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
+
   const cleanUrl = (url: string | null) => {
     if (!url) return null;
     try {
@@ -402,6 +544,7 @@ export default function StatsDroneProgramsPage() {
                 <th className="text-left p-3">Status</th>
                 <th className="text-left p-3">Password</th>
                 <th className="text-left p-3">Links</th>
+                <th className="text-center p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -578,12 +721,226 @@ export default function StatsDroneProgramsPage() {
                       )}
                     </div>
                   </td>
+                  <td className="p-3 text-center">
+                    {program.status === 'added_as_template' ? (
+                      <span className="text-green-400 text-sm">✓ Template</span>
+                    ) : (
+                      <button
+                        onClick={() => openTemplateModal(program)}
+                        className="px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/50 rounded text-sm hover:bg-purple-500/30"
+                      >
+                        + Template
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Template Generation Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-900 border border-dark-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-dark-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold">Generate Template</h2>
+                <button
+                  onClick={() => setShowTemplateModal(false)}
+                  className="text-dark-400 hover:text-white text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              {templateError && (
+                <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded text-red-400 text-sm">
+                  {templateError}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Template Name *</label>
+                <input
+                  type="text"
+                  value={templateForm.name}
+                  onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                  placeholder="e.g., 7BitPartners"
+                />
+              </div>
+
+              {/* Software Type */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Software Type *</label>
+                <input
+                  type="text"
+                  value={templateForm.softwareType}
+                  onChange={(e) => setTemplateForm({ ...templateForm, softwareType: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                  placeholder="e.g., cellxpert, income-access"
+                />
+                <p className="text-xs text-dark-400 mt-1">Lowercase, use hyphens for spaces</p>
+              </div>
+
+              {/* Auth Type */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Auth Type</label>
+                <select
+                  value={templateForm.authType}
+                  onChange={(e) => setTemplateForm({ ...templateForm, authType: e.target.value as 'CREDENTIALS' | 'API_KEY' | 'OAUTH' })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                >
+                  <option value="CREDENTIALS">Credentials (Username/Password)</option>
+                  <option value="API_KEY">API Key</option>
+                  <option value="OAUTH">OAuth</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Base URL */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Base URL</label>
+                  <input
+                    type="text"
+                    value={templateForm.baseUrl}
+                    onChange={(e) => setTemplateForm({ ...templateForm, baseUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                    placeholder="https://affiliate.example.com"
+                  />
+                </div>
+
+                {/* Login URL */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Login URL</label>
+                  <input
+                    type="text"
+                    value={templateForm.loginUrl}
+                    onChange={(e) => setTemplateForm({ ...templateForm, loginUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                    placeholder="https://affiliate.example.com/login"
+                  />
+                </div>
+              </div>
+
+              {/* Referral URL */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Referral/Signup URL</label>
+                <input
+                  type="text"
+                  value={templateForm.referralUrl}
+                  onChange={(e) => setTemplateForm({ ...templateForm, referralUrl: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                  placeholder="Affiliate signup link"
+                />
+              </div>
+
+              {/* Description/Notes */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Description / Notes</label>
+                <textarea
+                  value={templateForm.description}
+                  onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded h-24"
+                  placeholder="Commission structure, notes, etc."
+                />
+              </div>
+
+              {/* Icon */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Icon (Emoji)</label>
+                <input
+                  type="text"
+                  value={templateForm.icon}
+                  onChange={(e) => setTemplateForm({ ...templateForm, icon: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
+                  placeholder="🎰"
+                />
+              </div>
+
+              {/* Field Labels */}
+              <div className="border-t border-dark-700 pt-4 mt-4">
+                <h3 className="font-medium mb-3">Field Labels (optional)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-dark-400 mb-1">Username Label</label>
+                    <input
+                      type="text"
+                      value={templateForm.usernameLabel}
+                      onChange={(e) => setTemplateForm({ ...templateForm, usernameLabel: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded text-sm"
+                      placeholder="Username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-dark-400 mb-1">Password Label</label>
+                    <input
+                      type="text"
+                      value={templateForm.passwordLabel}
+                      onChange={(e) => setTemplateForm({ ...templateForm, passwordLabel: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded text-sm"
+                      placeholder="Password"
+                    />
+                  </div>
+                  {templateForm.authType === 'API_KEY' && (
+                    <div>
+                      <label className="block text-sm text-dark-400 mb-1">API Key Label</label>
+                      <input
+                        type="text"
+                        value={templateForm.apiKeyLabel}
+                        onChange={(e) => setTemplateForm({ ...templateForm, apiKeyLabel: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded text-sm"
+                        placeholder="API Key"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm text-dark-400 mb-1">Base URL Label</label>
+                    <input
+                      type="text"
+                      value={templateForm.baseUrlLabel}
+                      onChange={(e) => setTemplateForm({ ...templateForm, baseUrlLabel: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded text-sm"
+                      placeholder="Dashboard URL"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={templateForm.requiresBaseUrl}
+                      onChange={(e) => setTemplateForm({ ...templateForm, requiresBaseUrl: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Requires Base URL (user must enter their affiliate URL)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-dark-700 flex justify-end gap-3">
+              <button
+                onClick={() => setShowTemplateModal(false)}
+                className="px-4 py-2 bg-dark-700 rounded hover:bg-dark-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveTemplate}
+                disabled={templateSaving || !templateForm.name || !templateForm.softwareType}
+                className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {templateSaving ? 'Creating...' : 'Create Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
