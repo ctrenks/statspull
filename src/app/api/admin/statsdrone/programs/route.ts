@@ -97,7 +97,7 @@ export async function PATCH(request: Request) {
       updateData.finalJoinUrl = finalJoinUrl || null;
     }
     if (generateNewPassword) {
-      updateData.signupPassword = generatePassword(16);
+      updateData.signupPassword = generatePassword();
     }
     if (typeof signupUsername === 'string') {
       updateData.signupUsername = signupUsername || null;
