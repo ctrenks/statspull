@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-size: 13px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.8);
+    }
+    
+    .actions {
+      padding: 12px;
+      background: #16162a;
+      border-bottom: 1px solid #2a2a4a;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+      background: #2a2a4a;
+      color: #e0e0e0;
+    }
+    
+    .btn-secondary:hover {
+      background: #3a3a5a;
+    }
+    
+    .tabs {
+      display: flex;
+      background: #16162a;
+      border-bottom: 1px solid #2a2a4a;
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: #888;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    
+    .tab.active {
+      color: #667eea;
+      border-bottom: 2px solid #667eea;
+    }
+    
+    .tab:hover:not(.active) {
+      color: #aaa;
+    }
+    
+    .content {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    
+    .section {
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #667eea;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    
+    .field {
+      margin-bottom: 10px;
+    }
+    
+    .field label {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    
+    .field input, .field select, .field textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #2a2a4a;
+      border-radius: 4px;
+      background: #16162a;
+      color: #e0e0e0;
+      font-size: 13px;
+    }
+    
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .field textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+    
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .row .field {
+      flex: 1;
+    }
+    
+    .status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    
+    .status.success {
+      display: block;
+      background: rgba(76, 175, 80, 0.2);
+      color: #81c784;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+    
+    .status.error {
+      display: block;
+      background: rgba(244, 67, 54, 0.2);
+      color: #e57373;
+      border: 1px solid rgba(244, 67, 54, 0.3);
+    }
+    
+    .profiles-list {
+      margin-bottom: 12px;
+    }
+    
+    .profile-item {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background: #16162a;
+      border: 1px solid #2a2a4a;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .profile-item:hover {
+      border-color: #667eea;
+    }
+    
+    .profile-item.active {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .profile-item .name {
+      flex: 1;
+      font-weight: 500;
+    }
+    
+    .profile-item .email {
+      font-size: 11px;
+      color: #888;
+    }
+    
+    .profile-item .delete-btn {
+      background: none;
+      border: none;
+      color: #e57373;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 16px;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎰 Affiliate Form Filler</h1>
+    <p>Fill casino signup forms instantly</p>
+  </div>
+  
+  <div class="actions">
+    <button class="btn btn-primary" id="fillBtn">⚡ Fill This Page</button>
+    <button class="btn btn-secondary" id="generatePwdBtn">🔑 New Password</button>
+  </div>
+  
+  <div class="tabs">
+    <button class="tab active" data-tab="profile">Profile</button>
+    <button class="tab" data-tab="profiles">Profiles</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </div>
+  
+  <div class="content" id="profileTab">
+    <div id="status" class="status"></div>
+    
+    <div class="section">
+      <div class="section-title">Personal Info</div>
+      <div class="row">
+        <div class="field">
+          <label>First Name</label>
+          <input type="text" id="firstName" placeholder="John">
+        </div>
+        <div class="field">
+          <label>Last Name</label>
+          <input type="text" id="lastName" placeholder="Doe">
+        </div>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="john@example.com">
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="tel" id="phone" placeholder="+1 555 123 4567">
+      </div>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="johndoe">
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Business Info</div>
+      <div class="field">
+        <label>Company Name</label>
+        <input type="text" id="companyName" placeholder="My Company LLC">
+      </div>
+      <div class="field">
+        <label>Business Reg Number</label>
+        <input type="text" id="businessRegNumber" placeholder="12345678">
+      </div>
+      <div class="field">
+        <label>Website</label>
+        <input type="url" id="website" placeholder="https://example.com">
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Address</div>
+      <div class="field">
+        <label>Street Address</label>
+        <input type="text" id="address" placeholder="123 Main St">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="city" placeholder="New York">
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="state" placeholder="NY">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Zip Code</label>
+          <input type="text" id="zipCode" placeholder="10001">
+        </div>
+        <div class="field">
+          <label>Country</label>
+          <select id="country">
+            <option value="US">United States</option>
+            <option value="CA">Canada</option>
+            <option value="GB">United Kingdom</option>
+            <option value="AU">Australia</option>
+            <option value="DE">Germany</option>
+            <option value="FR">France</option>
+            <option value="IT">Italy</option>
+            <option value="ES">Spain</option>
+            <option value="NL">Netherlands</option>
+            <option value="CH">Switzerland</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Messaging</div>
+      <div class="row">
+        <div class="field">
+          <label>Skype</label>
+          <input type="text" id="skype" placeholder="live:johndoe">
+        </div>
+        <div class="field">
+          <label>Telegram</label>
+          <input type="text" id="telegram" placeholder="@johndoe">
+        </div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Marketing</div>
+      <div class="field">
+        <label>Traffic Sources</label>
+        <input type="text" id="trafficSources" placeholder="SEO, PPC, Social Media">
+      </div>
+      <div class="field">
+        <label>Monthly Visitors</label>
+        <input type="text" id="monthlyVisitors" placeholder="10000+">
+      </div>
+      <div class="field">
+        <label>Promotion Methods</label>
+        <textarea id="promotionMethods" placeholder="Content marketing, reviews, comparison sites..."></textarea>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Current Password</div>
+      <div class="field">
+        <label>Generated Password (click 🔑 to generate new)</label>
+        <input type="text" id="currentPassword" readonly style="background: #0d0d1a; cursor: pointer;" onclick="this.select(); document.execCommand('copy');">
+      </div>
+    </div>
+    
+    <button class="btn btn-primary" id="saveBtn" style="width: 100%;">💾 Save Profile</button>
+  </div>
+  
+  <div class="content hidden" id="profilesTab">
+    <div class="section">
+      <div class="section-title">Saved Profiles</div>
+      <div id="profilesList" class="profiles-list">
+        <!-- Profiles will be listed here -->
+      </div>
+      <button class="btn btn-secondary" id="addProfileBtn" style="width: 100%;">+ Add New Profile</button>
+    </div>
+  </div>
+  
+  <div class="content hidden" id="settingsTab">
+    <div class="section">
+      <div class="section-title">Password Settings</div>
+      <div class="field">
+        <label>Password Format</label>
+        <select id="passwordFormat">
+          <option value="simple">Simple (AlphaBeta42)</option>
+          <option value="complex">Complex (Xy9#mK2$pL)</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Auto-Fill Options</div>
+      <div class="field">
+        <label>Business Type Default</label>
+        <select id="businessType">
+          <option value="corporate">Corporate</option>
+          <option value="individual">Individual</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Marketing Method Default</label>
+        <select id="marketingDefault">
+          <option value="website">Website</option>
+          <option value="social">Social Media</option>
+          <option value="email">Email</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Data</div>
+      <button class="btn btn-secondary" id="exportBtn" style="width: 100%; margin-bottom: 8px;">📤 Export All Data</button>
+      <button class="btn btn-secondary" id="importBtn" style="width: 100%;">📥 Import Data</button>
+      <input type="file" id="importFile" accept=".json" style="display: none;">
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Extension Icons</title>
+  <style>
+    body { font-family: system-ui; padding: 40px; background: #1a1a2e; color: white; }
+    canvas { border: 1px solid #333; margin: 10px; }
+    .icons { display: flex; gap: 20px; align-items: end; margin-bottom: 20px; }
+    button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #764ba2; }
+    a { color: #667eea; margin: 5px; display: inline-block; }
+  </style>
+</head>
+<body>
+  <h1>🎰 Create Extension Icons</h1>
+  <p>Click "Generate & Download" to create the PNG icons needed for the extension.</p>
+  
+  <div class="icons">
+    <div>
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <div>128x128</div>
+    </div>
+    <div>
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <div>48x48</div>
+    </div>
+    <div>
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <div>16x16</div>
+    </div>
+  </div>
+  
+  <button onclick="downloadAll()">📥 Generate & Download All Icons</button>
+  
+  <div id="links" style="margin-top: 20px;"></div>
+  
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const radius = size * 0.15;
+      
+      // Create gradient
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#667eea');
+      gradient.addColorStop(1, '#764ba2');
+      
+      // Draw rounded rectangle
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(size - radius, 0);
+      ctx.quadraticCurveTo(size, 0, size, radius);
+      ctx.lineTo(size, size - radius);
+      ctx.quadraticCurveTo(size, size, size - radius, size);
+      ctx.lineTo(radius, size);
+      ctx.quadraticCurveTo(0, size, 0, size - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Draw lightning bolt
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${size * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚡', size / 2, size / 2);
+    }
+    
+    // Draw all icons
+    ['icon128', 'icon48', 'icon16'].forEach(id => {
+      drawIcon(document.getElementById(id));
+    });
+    
+    function downloadAll() {
+      const sizes = [128, 48, 16];
+      const links = document.getElementById('links');
+      links.innerHTML = '<p>Right-click each link and "Save As" to the icons folder:</p>';
+      
+      sizes.forEach(size => {
+        const canvas = document.getElementById('icon' + size);
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `icon${size}.png`;
+        a.textContent = `icon${size}.png`;
+        a.click();
+        
+        links.appendChild(a);
+      });
+    }
+  </script>
+</body>
+</html>
