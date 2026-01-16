@@ -15,10 +15,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const software = searchParams.get("software") || "";
 
-    // Build where clause - show all programs that are available (not closed)
+    // Build where clause - only show programs that have templates
     const where: Record<string, unknown> = {
       status: { not: "closed" },
       isActive: true,
+      template: { isNot: null }, // Must have a template linked
     };
 
     if (search) {
@@ -58,12 +59,13 @@ export async function GET(request: NextRequest) {
     });
     const selectedIds = new Set(selections.map((s) => s.programId));
 
-    // Get unique software types for filter
+    // Get unique software types for filter (only from programs with templates)
     const softwareTypes = await prisma.statsDrone_Program.findMany({
       where: {
         status: { not: "closed" },
         isActive: true,
         software: { not: null },
+        template: { isNot: null },
       },
       distinct: ["software"],
       select: { software: true },

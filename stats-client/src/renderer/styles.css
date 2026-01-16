@@ -742,29 +742,77 @@ body {
   border-radius: var(--radius-lg);
   overflow: hidden;
   max-height: 600px;
+  overflow-x: auto;
   overflow-y: auto;
 }
 
 .stats-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  table-layout: fixed;
 }
 
 .stats-table th,
 .stats-table td {
-  padding: 14px 20px;
+  padding: 12px 10px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Column widths for stats table */
+/* Column 1: Program name */
+.stats-table th:nth-child(1),
+.stats-table td:nth-child(1) {
+  width: 180px;
+  max-width: 180px;
+}
+
+/* Column 2: Date */
+.stats-table th:nth-child(2),
+.stats-table td:nth-child(2) {
+  width: 90px;
+}
+
+/* Columns 3-5: Clicks, Signups, FTDs */
+.stats-table th:nth-child(3),
+.stats-table td:nth-child(3),
+.stats-table th:nth-child(4),
+.stats-table td:nth-child(4),
+.stats-table th:nth-child(5),
+.stats-table td:nth-child(5) {
+  width: 70px;
+  text-align: right;
+}
+
+/* Columns 6-7: Deposits, Revenue - wider for $XXX,XXX.XX */
+.stats-table th:nth-child(6),
+.stats-table td:nth-child(6),
+.stats-table th:nth-child(7),
+.stats-table td:nth-child(7) {
+  width: 110px;
+  min-width: 110px;
+  text-align: right;
+}
+
+/* Column 8: Actions */
+.stats-table th:nth-child(8),
+.stats-table td:nth-child(8) {
+  width: 40px;
+  text-align: center;
 }
 
 .stats-table th {
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--bg-tertiary);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -795,6 +843,7 @@ body {
 
 .stats-table td {
   font-family: var(--font-mono);
+  font-size: 0.75rem;
   color: var(--text-primary);
 }
 
