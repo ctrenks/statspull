@@ -92,6 +92,7 @@ async function fillCurrentPage() {
     const el = document.getElementById(id);
     if (el) {
       profile[id] = el.value;
+      console.log(`[AFF Popup] Profile field ${id} = "${el.value}"`);
     }
   });
 
@@ -103,17 +104,21 @@ async function fillCurrentPage() {
   profile.autoCheckTerms = settings.autoCheckTerms !== false;
   profile.skipNewsletters = settings.skipNewsletters !== false;
 
+  console.log('[AFF Popup] Full profile being sent:', JSON.stringify(profile, null, 2));
+
   // Get current tab and inject content script
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   try {
-    await chrome.scripting.executeScript({
+    const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: fillForm,
       args: [profile]
     });
+    console.log('[AFF Popup] Fill results:', results);
     showStatus('Business fields filled! Use 1Password for passwords.');
   } catch (err) {
+    console.error('[AFF Popup] Error:', err);
     showStatus('Error: ' + err.message, true);
   }
 }

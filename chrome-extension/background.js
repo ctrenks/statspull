@@ -136,7 +136,7 @@ function fillFormFromBackground(profile) {
   for (const [fieldName, selectors] of Object.entries(fieldMappings)) {
     let value = profile[fieldName] || '';
     if (!value) continue;
-    
+
     for (const selector of selectors) {
       try {
         const el = document.querySelector(selector);
