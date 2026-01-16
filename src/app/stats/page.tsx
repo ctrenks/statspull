@@ -29,7 +29,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 export default function StatsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [stats, setStats] = useState<UploadedStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
@@ -52,10 +52,10 @@ export default function StatsPage() {
       setLoading(true);
       const response = await fetch("/api/stats/uploaded");
       if (!response.ok) throw new Error("Failed to fetch");
-      
+
       const data = await response.json();
       setStats(data.stats || []);
-      
+
       // Extract unique months
       const uniqueMonths = [...new Set(data.stats?.map((s: UploadedStat) => s.month) || [])].sort().reverse();
       setMonths(uniqueMonths as string[]);

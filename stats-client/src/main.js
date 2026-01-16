@@ -687,12 +687,12 @@ function setupIpcHandlers() {
   // Import template as local program
   ipcMain.handle('import-template', async (event, template) => {
     const result = db.importTemplate(template);
-    
+
     // If template sync is enabled, also sync to web
     if (result && result.id) {
       const templateSyncEnabled = db.getSetting('templateSyncEnabled');
       const apiKey = db.getSecureSetting('api_key');
-      
+
       if (templateSyncEnabled === 'true' && apiKey) {
         console.log('[TEMPLATE SYNC] Syncing imported program to web dashboard...');
         try {
@@ -710,7 +710,7 @@ function setupIpcHandlers() {
         }
       }
     }
-    
+
     return result;
   });
 
@@ -778,7 +778,7 @@ function setupIpcHandlers() {
   ipcMain.handle('sync-all', async () => {
     try {
       const result = await syncEngine.syncAll();
-      
+
       // If stats upload is enabled and we have pending data, upload it
       if (result.pendingStatsUpload && result.pendingStatsUpload.length > 0) {
         const apiKey = db.getSecureSetting('api_key');
@@ -802,7 +802,7 @@ function setupIpcHandlers() {
           }
         }
       }
-      
+
       return result;
     } catch (error) {
       console.error('Sync error:', error);

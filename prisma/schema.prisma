@@ -481,7 +481,7 @@ model UserUploadedStats {
   programName String   // Program name from the client
   programCode String   // Program code (unique identifier)
   month       String   // YYYY-MM format
-  
+
   // Stats data (stored as cents where applicable)
   clicks      Int      @default(0)
   impressions Int      @default(0)
@@ -490,7 +490,7 @@ model UserUploadedStats {
   deposits    Int      @default(0)  // in cents
   revenue     Int      @default(0)  // in cents
   currency    String   @default("USD")
-  
+
   uploadedAt  DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
