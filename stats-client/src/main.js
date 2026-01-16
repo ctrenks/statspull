@@ -714,6 +714,45 @@ function setupIpcHandlers() {
     return result;
   });
 
+  // Sync all existing programs to web (mark as "installed" on web)
+  ipcMain.handle('sync-all-programs-to-web', async () => {
+    const apiKey = db.getSecureSetting('api_key');
+    if (!apiKey) {
+      return { success: false, error: 'API key not configured' };
+    }
+
+    const programs = db.getPrograms();
+    if (!programs || programs.length === 0) {
+      return { success: false, error: 'No programs to sync' };
+    }
+
+    let syncedCount = 0;
+    const errors = [];
+
+    for (const program of programs) {
+      try {
+        const programCode = program.template || program.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const result = await syncProgramToServer(apiKey, programCode, program.name, 'import');
+        if (result.synced) {
+          syncedCount++;
+          console.log(`[SYNC ALL] Synced: ${program.name}`);
+        } else {
+          console.log(`[SYNC ALL] No match for: ${program.name}`);
+        }
+      } catch (error) {
+        errors.push(`${program.name}: ${error.message}`);
+        console.error(`[SYNC ALL] Error syncing ${program.name}:`, error.message);
+      }
+    }
+
+    return {
+      success: true,
+      syncedCount,
+      totalCount: programs.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  });
+
   // Get stats for a program
   ipcMain.handle('get-stats', async (event, programId, startDate, endDate) => {
     return db.getStats(programId, startDate, endDate);

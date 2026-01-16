@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   // Templates from server
   fetchTemplates: () => ipcRenderer.invoke('fetch-templates'),
   importTemplate: (template) => ipcRenderer.invoke('import-template', template),
+  syncAllProgramsToWeb: () => ipcRenderer.invoke('sync-all-programs-to-web'),
 
   // Stats
   getStats: (programId, startDate, endDate) => ipcRenderer.invoke('get-stats', programId, startDate, endDate),
