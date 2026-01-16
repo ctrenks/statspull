@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       where: { userId: session.user.id },
       select: { programId: true },
     });
-    
+
     // Build set of installed template IDs
     const installedTemplateIds = new Set(selections.map((s) => s.programId));
 
