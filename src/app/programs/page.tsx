@@ -454,18 +454,31 @@ export default function ProgramsPage() {
 
         .software-filter {
           padding: 0.75rem 1rem;
-          background: rgba(255, 255, 255, 0.05);
+          background: #1f2937;
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 8px;
           color: #fff;
           font-size: 1rem;
           min-width: 180px;
           cursor: pointer;
+          appearance: none;
+          -webkit-appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23fff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 0.75rem center;
+          background-size: 1rem;
+          padding-right: 2.5rem;
         }
 
         .software-filter:focus {
           outline: none;
           border-color: #6366f1;
+        }
+
+        .software-filter option {
+          background: #1f2937;
+          color: #fff;
+          padding: 0.5rem;
         }
 
         .section-title {
