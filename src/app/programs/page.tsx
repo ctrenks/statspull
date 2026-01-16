@@ -338,7 +338,7 @@ export default function ProgramsPage() {
         .programs-page * {
           font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
         }
-        
+
         .programs-page h1,
         .programs-page h2,
         .programs-page h3 {
