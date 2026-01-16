@@ -13,7 +13,7 @@ interface Program {
   description: string | null;
   referralUrl: string | null;
   createdAt: string;
-  isSelected: boolean;
+  isInstalled: boolean;
 }
 
 type SortField = "name" | "softwareType" | "createdAt";
@@ -27,13 +27,14 @@ export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [softwareTypes, setSoftwareTypes] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [selectedCount, setSelectedCount] = useState(0);
+  const [installedCount, setInstalledCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
   // Filters and sorting
   const [search, setSearch] = useState("");
   const [softwareFilter, setSoftwareFilter] = useState("");
+  const [showInstalled, setShowInstalled] = useState(false);
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -47,7 +48,7 @@ export default function ProgramsPage() {
     if (status === "authenticated") {
       fetchPrograms();
     }
-  }, [status, search, softwareFilter]);
+  }, [status, search, softwareFilter, showInstalled]);
 
   const fetchPrograms = async () => {
     try {
@@ -55,6 +56,7 @@ export default function ProgramsPage() {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (softwareFilter) params.set("software", softwareFilter);
+      params.set("showInstalled", showInstalled.toString());
 
       const response = await fetch(`/api/programs?${params}`);
       if (!response.ok) throw new Error("Failed to fetch");
@@ -64,7 +66,7 @@ export default function ProgramsPage() {
       setPrograms(data.programs || []);
       setSoftwareTypes(data.softwareTypes || []);
       setTotalCount(data.totalCount || 0);
-      setSelectedCount(data.selectedCount || 0);
+      setInstalledCount(data.installedCount || 0);
     } catch (error) {
       console.error("Error fetching programs:", error);
     } finally {
@@ -72,10 +74,10 @@ export default function ProgramsPage() {
     }
   };
 
-  const toggleSelection = async (programId: string, isCurrentlySelected: boolean) => {
+  const toggleSelection = async (programId: string, isCurrentlyInstalled: boolean) => {
     setUpdating(programId);
     try {
-      const method = isCurrentlySelected ? "DELETE" : "POST";
+      const method = isCurrentlyInstalled ? "DELETE" : "POST";
       const response = await fetch("/api/programs/selections", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -86,11 +88,11 @@ export default function ProgramsPage() {
 
       // Update local state
       const updateProgram = (p: Program) =>
-        p.id === programId ? { ...p, isSelected: !isCurrentlySelected } : p;
+        p.id === programId ? { ...p, isInstalled: !isCurrentlyInstalled } : p;
 
       setRecent((prev) => prev.map(updateProgram));
       setPrograms((prev) => prev.map(updateProgram));
-      setSelectedCount((prev) => prev + (isCurrentlySelected ? -1 : 1));
+      setInstalledCount((prev) => prev + (isCurrentlyInstalled ? -1 : 1));
     } catch (error) {
       console.error("Error updating selection:", error);
     } finally {
@@ -139,13 +141,13 @@ export default function ProgramsPage() {
   };
 
   const ProgramRow = ({ program }: { program: Program }) => (
-    <tr key={program.id} className={program.isSelected ? "selected" : ""}>
+    <tr key={program.id} className={`program-row ${program.isInstalled ? "installed" : ""}`}>
       <td className="checkbox-cell">
         <input
           type="checkbox"
-          checked={program.isSelected}
+          checked={program.isInstalled}
           disabled={updating === program.id}
-          onChange={() => toggleSelection(program.id, program.isSelected)}
+          onChange={() => toggleSelection(program.id, program.isInstalled)}
         />
       </td>
       <td className="name-cell">
@@ -154,6 +156,9 @@ export default function ProgramsPage() {
             <span className="program-icon">{program.icon}</span>
           )}
           <span>{program.name}</span>
+          {program.isInstalled && (
+            <span className="installed-badge">✓ Installed</span>
+          )}
         </div>
       </td>
       <td className="software-cell">{program.softwareType || "—"}</td>
@@ -189,7 +194,7 @@ export default function ProgramsPage() {
           <p className="subtitle">
             Select the affiliate programs you want to track in your stats client.
             <span className="stats">
-              {selectedCount} selected of {totalCount} available
+              {installedCount} installed of {totalCount} available
             </span>
           </p>
         </div>
@@ -217,6 +222,14 @@ export default function ProgramsPage() {
             </option>
           ))}
         </select>
+        <label className="show-installed-toggle">
+          <input
+            type="checkbox"
+            checked={showInstalled}
+            onChange={(e) => setShowInstalled(e.target.checked)}
+          />
+          <span>Show Installed ({installedCount})</span>
+        </label>
       </div>
 
       {/* Recent Section */}
@@ -341,6 +354,32 @@ export default function ProgramsPage() {
           gap: 1rem;
           margin-bottom: 2rem;
           flex-wrap: wrap;
+          align-items: center;
+        }
+
+        .show-installed-toggle {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          padding: 0.5rem 1rem;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          font-size: 0.9rem;
+          color: #ccc;
+          transition: all 0.2s;
+        }
+
+        .show-installed-toggle:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .show-installed-toggle input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
         }
 
         .search-box {
@@ -482,6 +521,25 @@ export default function ProgramsPage() {
 
         .program-icon {
           font-size: 1.2rem;
+        }
+
+        .installed-badge {
+          font-size: 0.7rem;
+          padding: 0.2rem 0.5rem;
+          background: rgba(16, 185, 129, 0.2);
+          color: #10b981;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 4px;
+          margin-left: 0.5rem;
+          font-weight: 600;
+        }
+
+        .program-row.installed {
+          background: rgba(16, 185, 129, 0.05);
+        }
+
+        .program-row.installed td {
+          border-color: rgba(16, 185, 129, 0.15);
         }
 
         .sortable-header {

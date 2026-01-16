@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const software = searchParams.get("software") || "";
+    const showInstalled = searchParams.get("showInstalled") !== "false"; // Default to true
 
     // Build where clause for templates
     const where: Record<string, unknown> = {
@@ -28,8 +29,15 @@ export async function GET(request: NextRequest) {
       where.softwareType = software;
     }
 
+    // Get user's selections (installed programs from client)
+    const selections = await prisma.userProgramSelection.findMany({
+      where: { userId: session.user.id },
+      select: { programId: true },
+    });
+    const selectedIds = new Set(selections.map((s) => s.programId));
+
     // Fetch all program templates
-    const templates = await prisma.programTemplate.findMany({
+    const allTemplates = await prisma.programTemplate.findMany({
       where,
       select: {
         id: true,
@@ -46,12 +54,10 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Get user's selections
-    const selections = await prisma.userProgramSelection.findMany({
-      where: { userId: session.user.id },
-      select: { programId: true },
-    });
-    const selectedIds = new Set(selections.map((s) => s.programId));
+    // Filter based on showInstalled preference
+    const templates = showInstalled 
+      ? allTemplates 
+      : allTemplates.filter(t => !selectedIds.has(t.id));
 
     // Get unique software types for filter
     const softwareTypes = await prisma.programTemplate.findMany({
@@ -70,15 +76,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       recent: recent.map((p) => ({
         ...p,
-        isSelected: selectedIds.has(p.id),
+        isInstalled: selectedIds.has(p.id),
       })),
       programs: rest.map((p) => ({
         ...p,
-        isSelected: selectedIds.has(p.id),
+        isInstalled: selectedIds.has(p.id),
       })),
       softwareTypes: softwareTypes.map((s) => s.softwareType),
-      totalCount: templates.length,
-      selectedCount: selections.length,
+      totalCount: allTemplates.length,
+      installedCount: selections.length,
+      displayedCount: templates.length,
     });
   } catch (error) {
     console.error("Error fetching programs:", error);
