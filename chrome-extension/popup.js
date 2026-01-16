@@ -23,14 +23,14 @@ async function loadProfile(profileId = 'default') {
   const data = await chrome.storage.local.get(['profiles', 'activeProfile', 'settings']);
   const profiles = data.profiles || {};
   const profile = profiles[profileId] || {};
-  
+
   FIELD_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.value = profile[id] || '';
     }
   });
-  
+
   // Load settings
   const settings = data.settings || {};
   SETTINGS_IDS.forEach(id => {
@@ -43,7 +43,7 @@ async function loadProfile(profileId = 'default') {
       }
     }
   });
-  
+
   return profileId;
 }
 
@@ -51,7 +51,7 @@ async function loadProfile(profileId = 'default') {
 async function saveProfile(profileId = 'default') {
   const data = await chrome.storage.local.get(['profiles']);
   const profiles = data.profiles || {};
-  
+
   const profile = {};
   FIELD_IDS.forEach(id => {
     const el = document.getElementById(id);
@@ -59,9 +59,9 @@ async function saveProfile(profileId = 'default') {
       profile[id] = el.value;
     }
   });
-  
+
   profiles[profileId] = profile;
-  
+
   // Save settings too
   const settings = {};
   SETTINGS_IDS.forEach(id => {
@@ -74,13 +74,13 @@ async function saveProfile(profileId = 'default') {
       }
     }
   });
-  
-  await chrome.storage.local.set({ 
-    profiles, 
+
+  await chrome.storage.local.set({
+    profiles,
     activeProfile: profileId,
-    settings 
+    settings
   });
-  
+
   showStatus('Profile saved!');
 }
 
@@ -93,17 +93,17 @@ async function fillCurrentPage() {
       profile[id] = el.value;
     }
   });
-  
+
   // Get settings
   const data = await chrome.storage.local.get(['settings']);
   const settings = data.settings || {};
   profile.businessType = settings.businessType || 'corporate';
   profile.marketingDefault = settings.marketingDefault || 'website';
   profile.autoCheckTerms = settings.autoCheckTerms !== false;
-  
+
   // Get current tab and inject content script
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
+
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -120,7 +120,7 @@ async function fillCurrentPage() {
 function fillForm(profile) {
   // Clean company name - remove spaces for strict validation
   const cleanCompany = (profile.companyName || '').replace(/\s+/g, '');
-  
+
   // Field mappings: name -> [selectors] - BUSINESS FIELDS ONLY
   const fieldMappings = {
     // Company/Business Name
@@ -205,21 +205,21 @@ function fillForm(profile) {
       'input[placeholder*="promot" i]', 'textarea[placeholder*="promot" i]'
     ]
   };
-  
+
   let filledCount = 0;
-  
+
   // Fill text fields
   for (const [fieldName, selectors] of Object.entries(fieldMappings)) {
     let value = profile[fieldName] || '';
-    
+
     // Special handling for company name (some sites don't like spaces)
     if (fieldName === 'companyName' && cleanCompany) {
       // Try clean version first, fall back to original
       value = profile.companyName;
     }
-    
+
     if (!value) continue;
-    
+
     for (const selector of selectors) {
       try {
         const el = document.querySelector(selector);
@@ -235,29 +235,29 @@ function fillForm(profile) {
       }
     }
   }
-  
+
   // Fill country dropdowns
   const countrySelectors = [
     '#fld_country', '#fld_business_country', '#country', '#businessCountry',
     'select[name="country"]', 'select[name="business_country"]', 'select[name="countryCode"]'
   ];
-  
+
   for (const selector of countrySelectors) {
     try {
       const el = document.querySelector(selector);
       if (el) {
         const options = Array.from(el.options);
         let found = options.find(opt => opt.value === profile.country);
-        
+
         // Try text search for US
         if (!found && profile.country === 'US') {
-          found = options.find(opt => 
+          found = options.find(opt =>
             opt.text.toLowerCase().includes('united states') ||
             opt.value.toLowerCase() === 'us' ||
             opt.value.toLowerCase() === 'usa'
           );
         }
-        
+
         if (found && el.value !== found.value) {
           el.value = found.value;
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -268,7 +268,7 @@ function fillForm(profile) {
       // Continue
     }
   }
-  
+
   // Select business type radio
   try {
     const businessRadio = document.querySelector('input[name="business_type"][value="' + profile.businessType + '"]');
@@ -277,7 +277,7 @@ function fillForm(profile) {
       filledCount++;
     }
   } catch (e) {}
-  
+
   // Select marketing dropdown
   try {
     const marketingSelect = document.querySelector('#fld_marketing, select[name="marketing"]');
@@ -287,7 +287,7 @@ function fillForm(profile) {
       filledCount++;
     }
   } catch (e) {}
-  
+
   // Check terms checkboxes (if enabled)
   if (profile.autoCheckTerms) {
     const termsSelectors = [
@@ -299,7 +299,7 @@ function fillForm(profile) {
       'input[type="checkbox"][name*="term" i]',
       'input[type="checkbox"][name*="agree" i]'
     ];
-    
+
     for (const selector of termsSelectors) {
       try {
         const checkboxes = document.querySelectorAll(selector);
@@ -312,7 +312,7 @@ function fillForm(profile) {
       } catch (e) {}
     }
   }
-  
+
   console.log(`[Affiliate Form Filler] Filled ${filledCount} business fields`);
   return { success: true, filledCount };
 }
@@ -322,15 +322,15 @@ async function loadProfilesList() {
   const data = await chrome.storage.local.get(['profiles', 'activeProfile']);
   const profiles = data.profiles || {};
   const activeProfile = data.activeProfile || 'default';
-  
+
   const list = document.getElementById('profilesList');
   list.innerHTML = '';
-  
+
   // Ensure default profile exists
   if (!profiles['default']) {
     profiles['default'] = { companyName: '', website: '' };
   }
-  
+
   for (const [id, profile] of Object.entries(profiles)) {
     const item = document.createElement('div');
     item.className = 'profile-item' + (id === activeProfile ? ' active' : '');
@@ -341,7 +341,7 @@ async function loadProfilesList() {
       </div>
       ${id !== 'default' ? '<button class="delete-btn" data-id="' + id + '">×</button>' : ''}
     `;
-    
+
     item.addEventListener('click', async (e) => {
       if (e.target.classList.contains('delete-btn')) {
         const idToDelete = e.target.dataset.id;
@@ -350,20 +350,20 @@ async function loadProfilesList() {
         loadProfilesList();
         return;
       }
-      
+
       await chrome.storage.local.set({ activeProfile: id });
       await loadProfile(id);
-      
+
       // Switch to profile tab
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelector('[data-tab="profile"]').classList.add('active');
       document.getElementById('profileTab').classList.remove('hidden');
       document.getElementById('profilesTab').classList.add('hidden');
       document.getElementById('settingsTab').classList.add('hidden');
-      
+
       showStatus('Profile loaded!');
     });
-    
+
     list.appendChild(item);
   }
 }
@@ -373,12 +373,12 @@ async function exportData() {
   const data = await chrome.storage.local.get(null);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  
+
   const a = document.createElement('a');
   a.href = url;
   a.download = 'affiliate-form-filler-backup.json';
   a.click();
-  
+
   URL.revokeObjectURL(url);
   showStatus('Data exported!');
 }
@@ -399,33 +399,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const data = await chrome.storage.local.get(['activeProfile']);
   await loadProfile(data.activeProfile || 'default');
   await loadProfilesList();
-  
+
   // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      
+
       document.getElementById('profileTab').classList.add('hidden');
       document.getElementById('profilesTab').classList.add('hidden');
       document.getElementById('settingsTab').classList.add('hidden');
       document.getElementById(tab.dataset.tab + 'Tab').classList.remove('hidden');
-      
+
       if (tab.dataset.tab === 'profiles') {
         loadProfilesList();
       }
     });
   });
-  
+
   // Save button
   document.getElementById('saveBtn').addEventListener('click', async () => {
     const data = await chrome.storage.local.get(['activeProfile']);
     await saveProfile(data.activeProfile || 'default');
   });
-  
+
   // Fill button
   document.getElementById('fillBtn').addEventListener('click', fillCurrentPage);
-  
+
   // Add profile button
   document.getElementById('addProfileBtn').addEventListener('click', async () => {
     const id = 'profile_' + Date.now();
@@ -433,29 +433,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     const profiles = data.profiles || {};
     profiles[id] = { companyName: 'New Business', website: '' };
     await chrome.storage.local.set({ profiles, activeProfile: id });
-    
+
     // Clear form and switch to profile tab
     FIELD_IDS.forEach(fieldId => {
       const el = document.getElementById(fieldId);
       if (el) el.value = '';
     });
-    
+
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelector('[data-tab="profile"]').classList.add('active');
     document.getElementById('profileTab').classList.remove('hidden');
     document.getElementById('profilesTab').classList.add('hidden');
-    
+
     showStatus('New profile created!');
   });
-  
+
   // Export button
   document.getElementById('exportBtn').addEventListener('click', exportData);
-  
+
   // Import button
   document.getElementById('importBtn').addEventListener('click', () => {
     document.getElementById('importFile').click();
   });
-  
+
   document.getElementById('importFile').addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
       importData(e.target.files[0]);

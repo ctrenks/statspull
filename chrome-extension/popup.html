@@ -8,7 +8,7 @@
       margin: 0;
       padding: 0;
     }
-    
+
     body {
       width: 380px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -16,31 +16,31 @@
       color: #e0e0e0;
       font-size: 13px;
     }
-    
+
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 16px;
       text-align: center;
     }
-    
+
     .header h1 {
       font-size: 16px;
       font-weight: 600;
       color: white;
       margin-bottom: 4px;
     }
-    
+
     .header p {
       font-size: 11px;
       color: rgba(255,255,255,0.8);
     }
-    
+
     .actions {
       padding: 12px;
       background: #16162a;
       border-bottom: 1px solid #2a2a4a;
     }
-    
+
     .btn {
       width: 100%;
       padding: 12px 16px;
@@ -51,40 +51,40 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    
+
     .btn-primary {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
     }
-    
+
     .btn-primary:hover {
       opacity: 0.9;
       transform: translateY(-1px);
     }
-    
+
     .btn-secondary {
       background: #2a2a4a;
       color: #e0e0e0;
       margin-top: 8px;
     }
-    
+
     .btn-secondary:hover {
       background: #3a3a5a;
     }
-    
+
     .note {
       font-size: 11px;
       color: #888;
       text-align: center;
       margin-top: 8px;
     }
-    
+
     .tabs {
       display: flex;
       background: #16162a;
       border-bottom: 1px solid #2a2a4a;
     }
-    
+
     .tab {
       flex: 1;
       padding: 10px;
@@ -96,26 +96,26 @@
       font-size: 12px;
       transition: all 0.2s;
     }
-    
+
     .tab.active {
       color: #667eea;
       border-bottom: 2px solid #667eea;
     }
-    
+
     .tab:hover:not(.active) {
       color: #aaa;
     }
-    
+
     .content {
       max-height: 400px;
       overflow-y: auto;
       padding: 12px;
     }
-    
+
     .section {
       margin-bottom: 16px;
     }
-    
+
     .section-title {
       font-size: 11px;
       text-transform: uppercase;
@@ -123,18 +123,18 @@
       margin-bottom: 8px;
       font-weight: 600;
     }
-    
+
     .field {
       margin-bottom: 10px;
     }
-    
+
     .field label {
       display: block;
       font-size: 11px;
       color: #888;
       margin-bottom: 4px;
     }
-    
+
     .field input, .field select, .field textarea {
       width: 100%;
       padding: 8px 10px;
@@ -144,26 +144,26 @@
       color: #e0e0e0;
       font-size: 13px;
     }
-    
+
     .field input:focus, .field select:focus, .field textarea:focus {
       outline: none;
       border-color: #667eea;
     }
-    
+
     .field textarea {
       resize: vertical;
       min-height: 60px;
     }
-    
+
     .row {
       display: flex;
       gap: 10px;
     }
-    
+
     .row .field {
       flex: 1;
     }
-    
+
     .status {
       padding: 8px 12px;
       border-radius: 4px;
@@ -171,25 +171,25 @@
       margin-bottom: 12px;
       display: none;
     }
-    
+
     .status.success {
       display: block;
       background: rgba(76, 175, 80, 0.2);
       color: #81c784;
       border: 1px solid rgba(76, 175, 80, 0.3);
     }
-    
+
     .status.error {
       display: block;
       background: rgba(244, 67, 54, 0.2);
       color: #e57373;
       border: 1px solid rgba(244, 67, 54, 0.3);
     }
-    
+
     .profiles-list {
       margin-bottom: 12px;
     }
-    
+
     .profile-item {
       display: flex;
       align-items: center;
@@ -201,26 +201,26 @@
       cursor: pointer;
       transition: all 0.2s;
     }
-    
+
     .profile-item:hover {
       border-color: #667eea;
     }
-    
+
     .profile-item.active {
       border-color: #667eea;
       background: rgba(102, 126, 234, 0.1);
     }
-    
+
     .profile-item .name {
       flex: 1;
       font-weight: 500;
     }
-    
+
     .profile-item .email {
       font-size: 11px;
       color: #888;
     }
-    
+
     .profile-item .delete-btn {
       background: none;
       border: none;
@@ -229,7 +229,7 @@
       padding: 4px 8px;
       font-size: 16px;
     }
-    
+
     .hidden {
       display: none !important;
     }
@@ -240,21 +240,21 @@
     <h1>🎰 Affiliate Form Filler</h1>
     <p>Fill business fields that 1Password doesn't handle</p>
   </div>
-  
+
   <div class="actions">
     <button class="btn btn-primary" id="fillBtn">⚡ Fill Business Fields</button>
     <p class="note">Use 1Password for passwords & basic identity</p>
   </div>
-  
+
   <div class="tabs">
     <button class="tab active" data-tab="profile">Profile</button>
     <button class="tab" data-tab="profiles">Profiles</button>
     <button class="tab" data-tab="settings">Settings</button>
   </div>
-  
+
   <div class="content" id="profileTab">
     <div id="status" class="status"></div>
-    
+
     <div class="section">
       <div class="section-title">Business Info</div>
       <div class="field">
@@ -274,7 +274,7 @@
         <input type="text" id="username" placeholder="myaffiliateuser">
       </div>
     </div>
-    
+
     <div class="section">
       <div class="section-title">Business Address</div>
       <div class="field">
@@ -313,7 +313,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="section">
       <div class="section-title">Messaging (Affiliate Managers)</div>
       <div class="row">
@@ -327,7 +327,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="section">
       <div class="section-title">Marketing Info</div>
       <div class="field">
@@ -343,10 +343,10 @@
         <textarea id="promotionMethods" placeholder="Content marketing, reviews, comparison sites..."></textarea>
       </div>
     </div>
-    
+
     <button class="btn btn-primary" id="saveBtn" style="width: 100%;">💾 Save Profile</button>
   </div>
-  
+
   <div class="content hidden" id="profilesTab">
     <div class="section">
       <div class="section-title">Saved Profiles</div>
@@ -356,7 +356,7 @@
       <button class="btn btn-secondary" id="addProfileBtn" style="width: 100%;">+ Add New Profile</button>
     </div>
   </div>
-  
+
   <div class="content hidden" id="settingsTab">
     <div class="section">
       <div class="section-title">Auto-Fill Options</div>
@@ -382,7 +382,7 @@
         </label>
       </div>
     </div>
-    
+
     <div class="section">
       <div class="section-title">Data</div>
       <button class="btn btn-secondary" id="exportBtn" style="width: 100%; margin-bottom: 8px;">📤 Export All Data</button>
@@ -390,7 +390,7 @@
       <input type="file" id="importFile" accept=".json" style="display: none;">
     </div>
   </div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>

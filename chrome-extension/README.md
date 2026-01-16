@@ -1,8 +1,8 @@
 # Affiliate Form Filler - Chrome Extension
 
-Fill the **business fields** that 1Password doesn't handle on casino affiliate signup forms. 
+Fill the **business fields** that 1Password doesn't handle on casino affiliate signup forms.
 
-**1Password handles:** Email, name, phone, passwords  
+**1Password handles:** Email, name, phone, passwords
 **This extension handles:** Company info, business address, Skype/Telegram, marketing info, terms checkboxes
 
 ## Features
@@ -83,7 +83,7 @@ Perfect for managing multiple affiliate businesses:
 
 Works with most affiliate signup forms including:
 - CellXpert
-- MyAffiliates  
+- MyAffiliates
 - Income Access
 - NetRefer
 - And most custom signup forms
