@@ -225,12 +225,16 @@ function fillForm(profile) {
     for (const selector of selectors) {
       try {
         const el = document.querySelector(selector);
-        if (el && !el.value) {
-          el.value = value;
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-          filledCount++;
-          break;
+        if (el) {
+          // Fill if empty OR if it's a field we manage (username, etc.)
+          const shouldFill = !el.value || fieldName === 'username';
+          if (shouldFill) {
+            el.value = value;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            filledCount++;
+            break;
+          }
         }
       } catch (e) {
         // Selector might be invalid, continue
@@ -243,23 +247,23 @@ function fillForm(profile) {
     '#fld_country', '#fld_business_country', '#country', '#businessCountry',
     'select[name="country"]', 'select[name="business_country"]', 'select[name="countryCode"]'
   ];
-  
+
   for (const selector of countrySelectors) {
     try {
       const el = document.querySelector(selector);
       if (el) {
         const options = Array.from(el.options);
         let found = options.find(opt => opt.value === profile.country);
-        
+
         // Try text search for US
         if (!found && profile.country === 'US') {
-          found = options.find(opt => 
+          found = options.find(opt =>
             opt.text.toLowerCase().includes('united states') ||
             opt.value.toLowerCase() === 'us' ||
             opt.value.toLowerCase() === 'usa'
           );
         }
-        
+
         if (found && el.value !== found.value) {
           el.value = found.value;
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -270,28 +274,28 @@ function fillForm(profile) {
       // Continue
     }
   }
-  
+
   // Fill currency dropdown
   const currencySelectors = [
     '#fld_currency', '#currency',
     'select[name="currency"]', 'select[name="currencyCode"]'
   ];
-  
+
   for (const selector of currencySelectors) {
     try {
       const el = document.querySelector(selector);
       if (el && profile.currency) {
         const options = Array.from(el.options);
         let found = options.find(opt => opt.value === profile.currency);
-        
+
         // Try text search
         if (!found) {
-          found = options.find(opt => 
+          found = options.find(opt =>
             opt.text.toLowerCase().includes(profile.currency.toLowerCase()) ||
             opt.value.toLowerCase() === profile.currency.toLowerCase()
           );
         }
-        
+
         if (found && el.value !== found.value) {
           el.value = found.value;
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -333,7 +337,7 @@ function fillForm(profile) {
       'input[type="checkbox"][name*="term" i]',
       'input[type="checkbox"][name*="agree" i]'
     ];
-    
+
     for (const selector of termsSelectors) {
       try {
         const checkboxes = document.querySelectorAll(selector);
@@ -346,7 +350,7 @@ function fillForm(profile) {
       } catch (e) {}
     }
   }
-  
+
   // Skip newsletter/email subscription checkboxes (if enabled)
   if (profile.skipNewsletters) {
     const newsletterSelectors = [
@@ -359,7 +363,7 @@ function fillForm(profile) {
       'input[type="checkbox"][name*="mailout" i]',
       'input[type="checkbox"][name*="promo" i]'
     ];
-    
+
     for (const selector of newsletterSelectors) {
       try {
         const checkboxes = document.querySelectorAll(selector);
