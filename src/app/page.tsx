@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import ReferralCapture from "@/components/ReferralCapture";
 
 export default async function Home() {
   const session = await auth();
+
+  // Redirect logged-in users to dashboard
+  if (session) {
+    redirect("/dashboard");
+  }
 
   return (
     <div className="min-h-screen animated-bg grid-pattern">
@@ -35,25 +41,12 @@ export default async function Home() {
               <Link href="/forum" className="btn-ghost">
                 Forum
               </Link>
-              {session ? (
-                <>
-                  <Link href="/affiliate" className="btn-ghost">
-                    Affiliate
-                  </Link>
-                  <Link href="/dashboard" className="btn-primary">
-                    Dashboard
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/auth/signin" className="btn-ghost">
-                    Sign In
-                  </Link>
-                  <Link href="/auth/signup" className="btn-primary">
-                    Get Started
-                  </Link>
-                </>
-              )}
+              <Link href="/auth/signin" className="btn-ghost">
+                Sign In
+              </Link>
+              <Link href="/auth/signup" className="btn-primary">
+                Get Started
+              </Link>
             </div>
           </div>
         </div>

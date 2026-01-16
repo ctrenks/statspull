@@ -234,12 +234,10 @@ export default function StatsPage() {
 const pageStyles = `
 
   .header-content h1 {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 2.5rem;
+    font-weight: 700;
     margin: 0 0 0.5rem 0;
-    background: linear-gradient(135deg, #00d4ff, #7b2cbf);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: white;
     background-clip: text;
   }
 
@@ -259,7 +257,7 @@ const pageStyles = `
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.85rem;
-    color: #00d4ff;
+    color: #a5b4fc;
   }
 
   .controls {
@@ -291,7 +289,7 @@ const pageStyles = `
 
   .month-select:focus {
     outline: none;
-    border-color: #00d4ff;
+    border-color: rgba(99, 102, 241, 0.5);
   }
 
   .summary-grid {
@@ -320,9 +318,8 @@ const pageStyles = `
   }
 
   .card-value {
-    font-family: 'JetBrains Mono', monospace;
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700;
     color: #fff;
     margin-bottom: 0.5rem;
   }

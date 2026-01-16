@@ -353,13 +353,10 @@ export default function ProgramsPage() {
         }
 
         .header-content h1 {
-          font-family: 'JetBrains Mono', 'Fira Code', monospace;
           font-size: 2.5rem;
+          font-weight: 700;
           margin: 0 0 0.5rem 0;
-          background: linear-gradient(135deg, #00d4ff, #7b2cbf);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          color: white;
         }
 
         .subtitle {
@@ -373,12 +370,12 @@ export default function ProgramsPage() {
         }
 
         .stats {
-          background: rgba(0, 212, 255, 0.1);
-          border: 1px solid rgba(0, 212, 255, 0.3);
+          background: rgba(99, 102, 241, 0.1);
+          border: 1px solid rgba(99, 102, 241, 0.3);
           padding: 0.25rem 0.75rem;
           border-radius: 20px;
-          font-size: 0.9rem;
-          color: #00d4ff;
+          font-size: 0.85rem;
+          color: #a5b4fc;
         }
 
         .filters-bar {
@@ -434,7 +431,7 @@ export default function ProgramsPage() {
 
         .search-box input:focus {
           outline: none;
-          border-color: #00d4ff;
+          border-color: #6366f1;
           background: rgba(0, 212, 255, 0.05);
         }
 
@@ -459,7 +456,7 @@ export default function ProgramsPage() {
 
         .software-filter:focus {
           outline: none;
-          border-color: #00d4ff;
+          border-color: #6366f1;
         }
 
         .section-title {
@@ -542,7 +539,7 @@ export default function ProgramsPage() {
           width: 18px;
           height: 18px;
           cursor: pointer;
-          accent-color: #00d4ff;
+          accent-color: #6366f1;
         }
 
         .program-name {
@@ -622,7 +619,7 @@ export default function ProgramsPage() {
         }
 
         .sortable-header:hover {
-          color: #00d4ff;
+          color: #6366f1;
         }
 
         .sort-icon {
@@ -632,7 +629,7 @@ export default function ProgramsPage() {
 
         .sort-icon.active {
           opacity: 1;
-          color: #00d4ff;
+          color: #6366f1;
         }
 
         .software-cell {
