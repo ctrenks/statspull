@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import AppHeader from "@/components/AppHeader";
 
 interface Program {
   id: string;
@@ -169,8 +169,13 @@ export default function ProgramsPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="programs-page">
-        <div className="loading">Loading programs...</div>
+      <div className="min-h-screen bg-dark-950">
+        <AppHeader activePage="programs" />
+        <main className="max-w-7xl mx-auto px-6 py-10">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <p className="text-dark-400 text-lg">Loading programs...</p>
+          </div>
+        </main>
       </div>
     );
   }
@@ -178,24 +183,11 @@ export default function ProgramsPage() {
   const sortedPrograms = sortPrograms(programs);
 
   return (
-    <div className="programs-page">
-      {/* Navigation */}
-      <nav className="top-nav">
-        <Link href="/dashboard" className="nav-brand">
-          <span className="nav-icon">📊</span>
-          Stats Fetch
-        </Link>
-        <div className="nav-links">
-          <Link href="/programs" className="nav-link active">My Programs</Link>
-          <Link href="/stats" className="nav-link">My Stats</Link>
-          <Link href="/dashboard" className="nav-link">Dashboard</Link>
-          <button onClick={() => signOut({ callbackUrl: "/" })} className="nav-link sign-out">
-            Sign Out
-          </button>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-dark-950">
+      <AppHeader activePage="programs" />
 
-      <header className="page-header">
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <header className="page-header">
         <div className="header-content">
           <h1>My Programs</h1>
           <p className="subtitle">
@@ -295,80 +287,13 @@ export default function ProgramsPage() {
           </table>
         </div>
       </section>
+      </main>
 
       <style jsx>{`
-        .programs-page {
-          min-height: 100vh;
-          background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
-          color: #e0e0e0;
-          padding: 0;
-        }
-
-        .top-nav {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 1rem 2rem;
-          background: rgba(0, 0, 0, 0.3);
+        .page-header {
+          margin-bottom: 2rem;
+          padding-bottom: 1.5rem;
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .nav-brand {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: #fff;
-          text-decoration: none;
-        }
-
-        .nav-icon {
-          font-size: 1.5rem;
-        }
-
-        .nav-links {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .nav-link {
-          padding: 0.5rem 1rem;
-          color: #888;
-          text-decoration: none;
-          border-radius: 6px;
-          transition: all 0.2s;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          font-size: 0.95rem;
-        }
-
-        .nav-link:hover {
-          color: #fff;
-          background: rgba(255, 255, 255, 0.1);
-        }
-
-        .nav-link.active {
-          color: #00d4ff;
-          background: rgba(0, 212, 255, 0.1);
-        }
-
-        .nav-link.sign-out {
-          color: #f87171;
-        }
-
-        .nav-link.sign-out:hover {
-          background: rgba(248, 113, 113, 0.1);
-        }
-
-        .page-header,
-        .filters-bar,
-        .recent-section,
-        .all-programs-section {
-          padding-left: 2rem;
-          padding-right: 2rem;
         }
 
         .loading {

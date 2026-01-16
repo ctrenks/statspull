@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import AppHeader from "@/components/AppHeader";
 
 interface UploadedStat {
   id: string;
@@ -100,82 +100,56 @@ export default function StatsPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="stats-page">
-        <div className="loading">Loading stats...</div>
-        <style jsx>{pageStyles}</style>
+      <div className="min-h-screen bg-dark-950">
+        <AppHeader activePage="stats" />
+        <main className="max-w-7xl mx-auto px-6 py-10">
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <p className="text-dark-400 text-lg">Loading stats...</p>
+          </div>
+        </main>
       </div>
     );
   }
 
   if (stats.length === 0) {
     return (
-      <div className="stats-page">
-        {/* Navigation */}
-        <nav className="top-nav">
-          <Link href="/dashboard" className="nav-brand">
-            <span className="nav-icon">📊</span>
-            Stats Fetch
-          </Link>
-          <div className="nav-links">
-            <Link href="/programs" className="nav-link">My Programs</Link>
-            <Link href="/stats" className="nav-link active">My Stats</Link>
-            <Link href="/dashboard" className="nav-link">Dashboard</Link>
-            <button onClick={() => signOut({ callbackUrl: "/" })} className="nav-link sign-out">
-              Sign Out
-            </button>
+      <div className="min-h-screen bg-dark-950">
+        <AppHeader activePage="stats" />
+        <main className="max-w-7xl mx-auto px-6 py-10">
+          <header className="mb-10">
+            <h1 className="text-3xl font-bold font-display mb-2">My Stats</h1>
+            <p className="text-dark-400">
+              Stats uploaded from your desktop client will appear here.
+            </p>
+          </header>
+          <div className="card text-center py-16">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-bold mb-2">No Stats Yet</h3>
+            <p className="text-dark-400 max-w-md mx-auto">
+              Enable "Upload Stats to Web Dashboard" in your desktop client settings,
+              then sync your programs to see your stats here.
+            </p>
           </div>
-        </nav>
-
-        <header className="page-header">
-          <h1>My Stats</h1>
-          <p className="subtitle">
-            Stats uploaded from your desktop client will appear here.
-          </p>
-        </header>
-        <div className="empty-state">
-          <div className="empty-icon">📊</div>
-          <h3>No Stats Yet</h3>
-          <p>
-            Enable "Upload Stats to Web Dashboard" in your desktop client settings,
-            then sync your programs to see your stats here.
-          </p>
-        </div>
-        <style jsx>{pageStyles}</style>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="stats-page">
-      {/* Navigation */}
-      <nav className="top-nav">
-        <Link href="/dashboard" className="nav-brand">
-          <span className="nav-icon">📊</span>
-          Stats Fetch
-        </Link>
-        <div className="nav-links">
-          <Link href="/programs" className="nav-link">My Programs</Link>
-          <Link href="/stats" className="nav-link active">My Stats</Link>
-          <Link href="/dashboard" className="nav-link">Dashboard</Link>
-          <button onClick={() => signOut({ callbackUrl: "/" })} className="nav-link sign-out">
-            Sign Out
-          </button>
-        </div>
-      </nav>
-
-      <header className="page-header">
-        <div className="header-content">
-          <h1>My Stats</h1>
-          <p className="subtitle">
+    <div className="min-h-screen bg-dark-950">
+      <AppHeader activePage="stats" />
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <header className="mb-10">
+          <h1 className="text-3xl font-bold font-display mb-2">My Stats</h1>
+          <p className="text-dark-400 flex items-center gap-4 flex-wrap">
             Stats uploaded from your desktop client.
-            <span className="last-update">
+            <span className="px-3 py-1 rounded-full bg-primary-500/10 text-primary-400 text-sm">
               Last updated: {stats.length > 0 ? new Date(stats[0].updatedAt).toLocaleString() : "Never"}
             </span>
           </p>
-        </div>
-      </header>
+        </header>
 
-      <div className="controls">
+        <div className="mb-8">
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
@@ -249,7 +223,8 @@ export default function StatsPage() {
             </tr>
           </tfoot>
         </table>
-      </div>
+        </div>
+      </main>
 
       <style jsx>{pageStyles}</style>
     </div>
@@ -257,86 +232,6 @@ export default function StatsPage() {
 }
 
 const pageStyles = `
-  .stats-page {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
-    color: #e0e0e0;
-    padding: 0;
-  }
-
-  .top-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 2rem;
-    background: rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .nav-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #fff;
-    text-decoration: none;
-  }
-
-  .nav-icon {
-    font-size: 1.5rem;
-  }
-
-  .nav-links {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .nav-link {
-    padding: 0.5rem 1rem;
-    color: #888;
-    text-decoration: none;
-    border-radius: 6px;
-    transition: all 0.2s;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 0.95rem;
-  }
-
-  .nav-link:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .nav-link.active {
-    color: #00d4ff;
-    background: rgba(0, 212, 255, 0.1);
-  }
-
-  .nav-link.sign-out {
-    color: #f87171;
-  }
-
-  .nav-link.sign-out:hover {
-    background: rgba(248, 113, 113, 0.1);
-  }
-
-  .loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 50vh;
-    font-size: 1.2rem;
-    color: #888;
-  }
-
-  .page-header {
-    margin: 0 2rem 2rem 2rem;
-    padding: 2rem 0 1.5rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
 
   .header-content h1 {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;

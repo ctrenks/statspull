@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { maskApiKey } from "@/lib/api-key";
+import AppHeader from "@/components/AppHeader";
 
 interface User {
   id: string;
@@ -87,50 +87,7 @@ export default function DashboardContent({ user }: { user: User }) {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      {/* Navigation */}
-      <nav className="border-b border-dark-800 bg-dark-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <span className="text-xl font-bold font-display">Stats Fetch</span>
-            </Link>
-
-            <div className="flex items-center gap-4">
-              <Link href="/programs" className="btn-ghost text-sm">
-                My Programs
-              </Link>
-              <Link href="/stats" className="btn-ghost text-sm">
-                My Stats
-              </Link>
-              {user.role === 9 && (
-                <Link href="/admin" className="btn-ghost text-sm">
-                  Admin Panel
-                </Link>
-              )}
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-semibold">
-                  {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
-                </div>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium">{user.name || "User"}</p>
-                  <p className="text-xs text-dark-400">{user.email}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="btn-ghost text-sm"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <AppHeader activePage="dashboard" />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-10">
