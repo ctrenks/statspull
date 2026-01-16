@@ -157,7 +157,7 @@ export default function ProgramsPage() {
           )}
           <span>{program.name}</span>
           {program.isInstalled && (
-            <span className="installed-badge">✓ Installed</span>
+            <span className="installed-badge">✓ Selected</span>
           )}
         </div>
       </td>
@@ -190,11 +190,11 @@ export default function ProgramsPage() {
       <main className="max-w-7xl mx-auto px-6 py-10">
         <header className="page-header">
         <div className="header-content">
-          <h1>My Programs</h1>
+          <h1>Program Templates</h1>
           <p className="subtitle">
-            Select the affiliate programs you want to track in your stats client.
+            Pre-select templates to appear in your desktop client. Checked programs will be shown first when importing templates.
             <span className="stats">
-              {installedCount} installed of {totalCount} available
+              {installedCount} selected of {totalCount} templates
             </span>
           </p>
         </div>
@@ -228,7 +228,7 @@ export default function ProgramsPage() {
             checked={showInstalled}
             onChange={(e) => setShowInstalled(e.target.checked)}
           />
-          <span>Show Installed ({installedCount})</span>
+          <span>Show Already Selected ({installedCount})</span>
         </label>
       </div>
 

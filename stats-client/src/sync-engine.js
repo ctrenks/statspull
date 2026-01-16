@@ -1140,7 +1140,7 @@ class SyncEngine {
     // 2. Remove trailing slashes to prevent double slashes when appending paths
     baseUrl = baseUrl
       .replace(/\/api\/customer.*$/, '')  // Remove API path if included
-      .replace(/\/partner.*$/, '')         // Remove partner path if included  
+      .replace(/\/partner.*$/, '')         // Remove partner path if included
       .replace(/\/+$/, '');                // Remove trailing slashes
 
     return this.sync7BitPartners({ program, credentials, config, apiUrl: baseUrl });
@@ -1148,10 +1148,10 @@ class SyncEngine {
 
   async sync7BitPartners({ program, credentials, config, apiUrl }) {
     let baseUrl = apiUrl || config?.apiUrl || 'https://dashboard.7bitpartners.com';
-    
+
     // Clean up the base URL - remove trailing slashes and any API paths
     baseUrl = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
-    
+
     const token = credentials.apiKey || ''; // This is the "statistic token" from Affilka
     const username = credentials.username || '';
     const password = credentials.password || '';

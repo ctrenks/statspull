@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const software = searchParams.get("software") || "";
-    const showInstalled = searchParams.get("showInstalled") !== "false"; // Default to true
+    const showInstalled = searchParams.get("showInstalled") === "true"; // Default to false - hide installed by default
 
     // Build where clause for templates
     const where: Record<string, unknown> = {
