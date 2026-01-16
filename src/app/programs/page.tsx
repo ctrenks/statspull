@@ -332,17 +332,17 @@ export default function ProgramsPage() {
       </section>
       </main>
 
-      <style jsx>{`
-        /* Use site's global fonts - force inheritance */
-        :global(.programs-page),
-        :global(.programs-page) * {
-          font-family: 'Satoshi', system-ui, -apple-system, sans-serif !important;
+      <style jsx global>{`
+        /* Use site's global fonts */
+        .programs-page,
+        .programs-page * {
+          font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
         }
-
-        :global(.programs-page) h1,
-        :global(.programs-page) h2,
-        :global(.programs-page) h3 {
-          font-family: 'Cabinet Grotesk', system-ui, sans-serif !important;
+        
+        .programs-page h1,
+        .programs-page h2,
+        .programs-page h3 {
+          font-family: 'Cabinet Grotesk', system-ui, sans-serif;
         }
 
         .page-header {

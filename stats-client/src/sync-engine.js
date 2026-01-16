@@ -1181,7 +1181,7 @@ class SyncEngine {
 
     // Affilka API - using traffic_report endpoint
     // Authorization: statistic token in header
-    
+
     if (!hasToken) {
       throw new Error('Affilka programs require an API Token');
     }
