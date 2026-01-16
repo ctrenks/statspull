@@ -3,7 +3,7 @@
 // Initialize default profile on install
 chrome.runtime.onInstalled.addListener(async () => {
   const data = await chrome.storage.local.get(['profiles']);
-  
+
   if (!data.profiles) {
     await chrome.storage.local.set({
       profiles: {
@@ -33,7 +33,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         skipNewsletters: true
       }
     });
-    
+
     console.log('[Affiliate Form Filler] Default profile created');
   }
 });
@@ -42,23 +42,23 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'fill-form') {
     console.log('[Affiliate Form Filler] Keyboard shortcut triggered');
-    
+
     // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
-    
+
     // Get profile and settings
     const data = await chrome.storage.local.get(['profiles', 'activeProfile', 'settings']);
     const profileId = data.activeProfile || 'default';
     const profile = data.profiles?.[profileId] || {};
     const settings = data.settings || {};
-    
+
     // Add settings to profile
     profile.businessType = settings.businessType || 'corporate';
     profile.marketingDefault = settings.marketingDefault || 'website';
     profile.autoCheckTerms = settings.autoCheckTerms !== false;
     profile.skipNewsletters = settings.skipNewsletters !== false;
-    
+
     // Execute the fill script
     try {
       await chrome.scripting.executeScript({
@@ -76,7 +76,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Copy of fillForm function for background script use
 function fillFormFromBackground(profile) {
   const cleanCompany = (profile.companyName || '').replace(/\s+/g, '');
-  
+
   const fieldMappings = {
     username: [
       '#fld_signup_username', '#username', '#signup_username', '#affiliateUsername',
@@ -130,9 +130,9 @@ function fillFormFromBackground(profile) {
       '#promotion', 'textarea[name="promotionMethods"]', 'textarea[name="promotion"]'
     ]
   };
-  
+
   let filledCount = 0;
-  
+
   for (const [fieldName, selectors] of Object.entries(fieldMappings)) {
     let value = profile[fieldName] || '';
     if (!value) continue;
@@ -141,19 +141,19 @@ function fillFormFromBackground(profile) {
       try {
         const el = document.querySelector(selector);
         if (el) {
-          const shouldFill = !el.value || fieldName === 'username';
-          if (shouldFill) {
-            el.value = value;
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            filledCount++;
-            break;
-          }
+          // Always fill our managed fields
+          el.value = value;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          el.dispatchEvent(new Event('blur', { bubbles: true }));
+          console.log(`[AFF] Filled ${fieldName}: ${selector} = ${value}`);
+          filledCount++;
+          break;
         }
       } catch (e) {}
     }
   }
-  
+
   // Country dropdown
   const countrySelectors = ['#fld_country', '#fld_business_country', '#country', 'select[name="country"]', 'select[name="business_country"]'];
   for (const selector of countrySelectors) {
@@ -173,7 +173,7 @@ function fillFormFromBackground(profile) {
       }
     } catch (e) {}
   }
-  
+
   // Currency dropdown
   const currencySelectors = ['#fld_currency', '#currency', 'select[name="currency"]'];
   for (const selector of currencySelectors) {
@@ -190,33 +190,33 @@ function fillFormFromBackground(profile) {
       }
     } catch (e) {}
   }
-  
+
   // Business type radio
   try {
     const radio = document.querySelector('input[name="business_type"][value="' + profile.businessType + '"]');
     if (radio && !radio.checked) { radio.click(); filledCount++; }
   } catch (e) {}
-  
+
   // Marketing dropdown
   try {
     const marketing = document.querySelector('#fld_marketing, select[name="marketing"]');
     if (marketing) { marketing.value = profile.marketingDefault; marketing.dispatchEvent(new Event('change', { bubbles: true })); filledCount++; }
   } catch (e) {}
-  
+
   // Terms checkboxes
   if (profile.autoCheckTerms) {
     ['input[name="termsagreement[]"]', 'input[name="terms"]', 'input[name="agree"]'].forEach(sel => {
       try { document.querySelectorAll(sel).forEach(cb => { if (!cb.checked) { cb.click(); filledCount++; } }); } catch (e) {}
     });
   }
-  
+
   // Skip newsletters
   if (profile.skipNewsletters) {
     ['input[name="email_unsubscribed[]"]', 'input[name="newsletter"]', 'input[name="subscribe"]'].forEach(sel => {
       try { document.querySelectorAll(sel).forEach(cb => { if (cb.checked) { cb.click(); filledCount++; } }); } catch (e) {}
     });
   }
-  
+
   console.log(`[Affiliate Form Filler] Filled ${filledCount} fields via keyboard shortcut`);
   return { success: true, filledCount };
 }

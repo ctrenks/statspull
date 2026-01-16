@@ -226,15 +226,14 @@ function fillForm(profile) {
       try {
         const el = document.querySelector(selector);
         if (el) {
-          // Fill if empty OR if it's a field we manage (username, etc.)
-          const shouldFill = !el.value || fieldName === 'username';
-          if (shouldFill) {
-            el.value = value;
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            filledCount++;
-            break;
-          }
+          // Always fill our managed fields (override empty or existing values)
+          el.value = value;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          el.dispatchEvent(new Event('blur', { bubbles: true }));
+          console.log(`[AFF] Filled ${fieldName}: ${selector} = ${value}`);
+          filledCount++;
+          break;
         }
       } catch (e) {
         // Selector might be invalid, continue
