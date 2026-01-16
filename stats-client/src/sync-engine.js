@@ -1178,7 +1178,7 @@ class SyncEngine {
     // API endpoint: /api/customer/v1/partner/traffic_report
     // Authorization: statistic token in header
     // Response: { overall_totals: { data: [{name, value, type}, ...] } }
-    
+
     if (!hasToken) {
       throw new Error('Affilka programs require an API Token');
     }
@@ -1202,7 +1202,7 @@ class SyncEngine {
 
     // Parse the response - totals are in overall_totals.data as array of {name, value, type}
     const totalsArray = response.data?.overall_totals?.data || [];
-    
+
     // Convert array to object for easier access
     const totals = {};
     for (const field of totalsArray) {

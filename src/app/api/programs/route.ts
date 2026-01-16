@@ -29,12 +29,24 @@ export async function GET(request: NextRequest) {
       where.softwareType = software;
     }
 
-    // Get user's selections (installed programs from client)
+    // Get user's selections - these reference StatsDrone_Program.id
+    // We need to get the corresponding ProgramTemplate IDs via the templateId field
     const selections = await prisma.userProgramSelection.findMany({
       where: { userId: session.user.id },
-      select: { programId: true },
+      select: { 
+        programId: true,
+        program: {
+          select: { templateId: true }
+        }
+      },
     });
-    const selectedIds = new Set(selections.map((s) => s.programId));
+    
+    // Build set of installed template IDs (not StatsDrone IDs)
+    const installedTemplateIds = new Set(
+      selections
+        .filter((s) => s.program?.templateId)
+        .map((s) => s.program.templateId as string)
+    );
 
     // Fetch all program templates
     const allTemplates = await prisma.programTemplate.findMany({
@@ -57,7 +69,7 @@ export async function GET(request: NextRequest) {
     // Filter based on showInstalled preference
     const templates = showInstalled
       ? allTemplates
-      : allTemplates.filter(t => !selectedIds.has(t.id));
+      : allTemplates.filter(t => !installedTemplateIds.has(t.id));
 
     // Get unique software types for filter
     const softwareTypes = await prisma.programTemplate.findMany({
@@ -76,15 +88,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       recent: recent.map((p) => ({
         ...p,
-        isInstalled: selectedIds.has(p.id),
+        isInstalled: installedTemplateIds.has(p.id),
       })),
       programs: rest.map((p) => ({
         ...p,
-        isInstalled: selectedIds.has(p.id),
+        isInstalled: installedTemplateIds.has(p.id),
       })),
       softwareTypes: softwareTypes.map((s) => s.softwareType),
       totalCount: allTemplates.length,
-      installedCount: selections.length,
+      installedCount: installedTemplateIds.size,
       displayedCount: templates.length,
     });
   } catch (error) {
