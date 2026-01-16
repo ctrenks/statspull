@@ -43,21 +43,20 @@ export default async function SubscribePage() {
             <div className="flex items-center gap-4">
               {session ? (
                 <>
-                  <Link href="/dashboard" className="btn-ghost">
-                    Dashboard
-                  </Link>
-                  <Link href="/profile" className="btn-ghost">
-                    Profile
-                  </Link>
+                  <Link href="/programs" className="btn-ghost">My Programs</Link>
+                  <Link href="/stats" className="btn-ghost">My Stats</Link>
+                  <Link href="/dashboard" className="btn-ghost">Dashboard</Link>
+                  <Link href="/downloads" className="btn-ghost">Download</Link>
+                  <Link href="/subscribe" className="btn-ghost text-primary-400">Pricing</Link>
+                  <Link href="/forum" className="btn-ghost">Forum</Link>
                 </>
               ) : (
                 <>
-                  <Link href="/auth/signin" className="btn-ghost">
-                    Sign In
-                  </Link>
-                  <Link href="/auth/signup" className="btn-primary">
-                    Get Started
-                  </Link>
+                  <Link href="/downloads" className="btn-ghost">Download</Link>
+                  <Link href="/subscribe" className="btn-ghost text-primary-400">Pricing</Link>
+                  <Link href="/forum" className="btn-ghost">Forum</Link>
+                  <Link href="/auth/signin" className="btn-ghost">Sign In</Link>
+                  <Link href="/auth/signup" className="btn-primary">Get Started</Link>
                 </>
               )}
             </div>

@@ -5,37 +5,35 @@ import { prisma } from "@/lib/prisma";
 
 function Header({ session }: { session: { user?: { name?: string | null; email?: string | null } } | null }) {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-dark-900/80 backdrop-blur-md border-b border-dark-800">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <span className="text-xl font-bold text-white">Stats Fetch</span>
+            <span className="text-xl font-bold font-display text-white">Stats Fetch</span>
           </Link>
 
           <div className="flex items-center gap-4">
-            <Link href="/downloads" className="text-gray-400 hover:text-white transition">
-              Download
-            </Link>
-            <Link href="/forum" className="text-emerald-400 font-medium">
-              Forum
-            </Link>
             {session?.user ? (
-              <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition">
-                Dashboard
-              </Link>
+              <>
+                <Link href="/programs" className="btn-ghost">My Programs</Link>
+                <Link href="/stats" className="btn-ghost">My Stats</Link>
+                <Link href="/dashboard" className="btn-ghost">Dashboard</Link>
+                <Link href="/downloads" className="btn-ghost">Download</Link>
+                <Link href="/subscribe" className="btn-ghost">Pricing</Link>
+                <Link href="/forum" className="btn-ghost text-primary-400">Forum</Link>
+              </>
             ) : (
               <>
-                <Link href="/auth/signin" className="text-gray-400 hover:text-white transition">
-                  Sign In
-                </Link>
-                <Link href="/auth/signup" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition">
-                  Get Started
-                </Link>
+                <Link href="/downloads" className="btn-ghost">Download</Link>
+                <Link href="/subscribe" className="btn-ghost">Pricing</Link>
+                <Link href="/forum" className="btn-ghost text-primary-400">Forum</Link>
+                <Link href="/auth/signin" className="btn-ghost">Sign In</Link>
+                <Link href="/auth/signup" className="btn-primary">Get Started</Link>
               </>
             )}
           </div>
