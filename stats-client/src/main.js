@@ -677,6 +677,25 @@ function setupIpcHandlers() {
   ipcMain.handle('fetch-templates', async () => {
     try {
       const templates = await fetchTemplates();
+      
+      // Auto-sync existing programs to web (mark as "installed")
+      const apiKey = db.getSecureSetting('api_key');
+      if (apiKey) {
+        const programs = db.getPrograms();
+        if (programs && programs.length > 0) {
+          console.log(`[AUTO SYNC] Syncing ${programs.length} installed programs to web...`);
+          for (const program of programs) {
+            try {
+              const programCode = program.template || program.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+              await syncProgramToServer(apiKey, programCode, program.name, 'import');
+            } catch (e) {
+              // Ignore individual sync errors
+            }
+          }
+          console.log('[AUTO SYNC] Sync complete');
+        }
+      }
+      
       return { success: true, templates };
     } catch (error) {
       console.error('Failed to fetch templates:', error);

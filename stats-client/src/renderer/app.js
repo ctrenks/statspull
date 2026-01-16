@@ -1704,32 +1704,6 @@ function setupEventListeners() {
       );
     });
 
-  // Sync all programs to web button
-  const syncAllBtn = document.getElementById("syncAllProgramsBtn");
-  if (syncAllBtn) {
-    syncAllBtn.addEventListener("click", async () => {
-      syncAllBtn.disabled = true;
-      syncAllBtn.textContent = "Syncing...";
-      
-      try {
-        const result = await window.api.syncAllProgramsToWeb();
-        if (result.success) {
-          showToast(`Synced ${result.syncedCount} programs to web`, "success");
-          log(`Synced ${result.syncedCount}/${result.totalCount} programs to web`, "info");
-        } else {
-          showToast(result.error || "Sync failed", "error");
-          log(`Sync failed: ${result.error}`, "error");
-        }
-      } catch (error) {
-        showToast("Sync failed: " + error.message, "error");
-        log(`Sync error: ${error.message}`, "error");
-      } finally {
-        syncAllBtn.disabled = false;
-        syncAllBtn.textContent = "Sync All Programs to Web Now";
-      }
-    });
-  }
-
   // Sync concurrency setting
   document
     .getElementById("syncConcurrency")
