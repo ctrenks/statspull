@@ -30,25 +30,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find a StatsDrone program that matches this code/name
-    // Try by name first (more reliable), then by slug
-    let program = await prisma.statsDrone_Program.findFirst({
+    // Find a ProgramTemplate that matches this code/name
+    // Try by name first (more reliable), then by softwareType
+    let template = await prisma.programTemplate.findFirst({
       where: {
         OR: [
           { name: { equals: programName, mode: "insensitive" } },
-          { slug: programCode },
+          { softwareType: programCode },
         ],
-        status: "added_as_template",
-        mappedToTemplate: true,
+        isActive: true,
       },
       select: { id: true, name: true },
     });
 
-    if (!program) {
-      // No matching program found - this is OK, the program might not be in StatsDrone
+    if (!template) {
+      // No matching template found - this is OK, the program might not have a template
       return NextResponse.json({
         success: true,
-        message: "No matching web program found",
+        message: "No matching web program template found",
         synced: false,
       });
     }
@@ -59,12 +58,12 @@ export async function POST(request: NextRequest) {
         where: {
           userId_programId: {
             userId: user.id,
-            programId: program.id,
+            programId: template.id,
           },
         },
         create: {
           userId: user.id,
-          programId: program.id,
+          programId: template.id,
         },
         update: {}, // Already selected, nothing to update
       });
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         synced: true,
-        program: program.name,
+        program: template.name,
         action: "selected",
       });
     } else if (action === "remove") {
@@ -80,14 +79,14 @@ export async function POST(request: NextRequest) {
       await prisma.userProgramSelection.deleteMany({
         where: {
           userId: user.id,
-          programId: program.id,
+          programId: template.id,
         },
       });
 
       return NextResponse.json({
         success: true,
         synced: true,
-        program: program.name,
+        program: template.name,
         action: "unselected",
       });
     }
@@ -128,9 +127,9 @@ export async function GET(request: NextRequest) {
       include: {
         program: {
           select: {
+            id: true,
             name: true,
-            slug: true,
-            software: true,
+            softwareType: true,
           },
         },
       },
@@ -140,8 +139,8 @@ export async function GET(request: NextRequest) {
       programs: selections.map((s) => ({
         programId: s.programId,
         name: s.program.name,
-        code: s.program.slug,
-        software: s.program.software,
+        code: s.program.softwareType,
+        software: s.program.softwareType,
         selectedAt: s.selectedAt,
       })),
     });

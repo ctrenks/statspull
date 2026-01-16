@@ -122,6 +122,7 @@ model ProgramTemplate {
   updatedAt    DateTime @updatedAt
 
   statsDronePrograms StatsDrone_Program[]
+  userSelections     UserProgramSelection[]
 
   @@index([softwareType])
   @@index([isActive])
@@ -430,7 +431,6 @@ model StatsDrone_Program {
   mappedToTemplate  Boolean  @default(false)
   templateId        String?
   template          ProgramTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  userSelections    UserProgramSelection[]
 
   @@index([software])
   @@index([category])
@@ -461,11 +461,11 @@ model StatsDrone_ScrapingLog {
 model UserProgramSelection {
   id          String   @id @default(cuid())
   userId      String
-  programId   String   // StatsDrone_Program ID
+  programId   String   // ProgramTemplate ID
   selectedAt  DateTime @default(now())
 
-  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  program StatsDrone_Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program ProgramTemplate @relation(fields: [programId], references: [id], onDelete: Cascade)
 
   @@unique([userId, programId])
   @@index([userId])

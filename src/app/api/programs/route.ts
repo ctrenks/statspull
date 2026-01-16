@@ -29,24 +29,14 @@ export async function GET(request: NextRequest) {
       where.softwareType = software;
     }
 
-    // Get user's selections - these reference StatsDrone_Program.id
-    // We need to get the corresponding ProgramTemplate IDs via the templateId field
+    // Get user's selections - these now directly reference ProgramTemplate.id
     const selections = await prisma.userProgramSelection.findMany({
       where: { userId: session.user.id },
-      select: { 
-        programId: true,
-        program: {
-          select: { templateId: true }
-        }
-      },
+      select: { programId: true },
     });
     
-    // Build set of installed template IDs (not StatsDrone IDs)
-    const installedTemplateIds = new Set(
-      selections
-        .filter((s) => s.program?.templateId)
-        .map((s) => s.program.templateId as string)
-    );
+    // Build set of installed template IDs
+    const installedTemplateIds = new Set(selections.map((s) => s.programId));
 
     // Fetch all program templates
     const allTemplates = await prisma.programTemplate.findMany({
