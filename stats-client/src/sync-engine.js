@@ -1124,29 +1124,34 @@ class SyncEngine {
     }
   }
 
-  // 7BitPartners API
-  // Docs: https://dashboard.7bitpartners.com/partner/api_docs/customer/partner/traffic_reports/
+  // Affilka Platform API
   // Generic Affilka platform sync (works for any Affilka-based affiliate program)
+  // Examples: 7BitPartners, GoPartners, 50Partners, etc.
+  // API docs: {baseUrl}/partner/api_docs/customer/partner/traffic_reports/
   async syncAffilka({ program, credentials, config, apiUrl }) {
-    // Affilka is a white-label platform used by many affiliate programs
-    // Examples: 7BitPartners, GoPartners, etc.
-    // Users need to provide their dashboard URL (base domain only)
     let baseUrl = apiUrl || config?.apiUrl;
 
     if (!baseUrl) {
-      throw new Error('Affilka programs require a Base URL (e.g., https://affiliates.yourprogram.com)');
+      throw new Error('Affilka programs require a Base URL (e.g., https://dashboard.yourprogram.com)');
     }
 
-    // Clean up the base URL - remove any API path if included
-    // User might enter: https://affiliates.casinoadrenaline.com/api/customer/v1/partner
-    // We need: https://affiliates.casinoadrenaline.com
-    baseUrl = baseUrl.replace(/\/api\/customer.*$/, '').replace(/\/partner.*$/, '');
+    // Clean up the base URL:
+    // 1. Remove any API path if user accidentally included it
+    // 2. Remove trailing slashes to prevent double slashes when appending paths
+    baseUrl = baseUrl
+      .replace(/\/api\/customer.*$/, '')  // Remove API path if included
+      .replace(/\/partner.*$/, '')         // Remove partner path if included  
+      .replace(/\/+$/, '');                // Remove trailing slashes
 
     return this.sync7BitPartners({ program, credentials, config, apiUrl: baseUrl });
   }
 
   async sync7BitPartners({ program, credentials, config, apiUrl }) {
-    const baseUrl = apiUrl || config?.apiUrl || 'https://dashboard.7bitpartners.com';
+    let baseUrl = apiUrl || config?.apiUrl || 'https://dashboard.7bitpartners.com';
+    
+    // Clean up the base URL - remove trailing slashes and any API paths
+    baseUrl = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+    
     const token = credentials.apiKey || ''; // This is the "statistic token" from Affilka
     const username = credentials.username || '';
     const password = credentials.password || '';
@@ -1156,7 +1161,7 @@ class SyncEngine {
     const hasCredentials = username.length > 0 && password.length > 0;
 
     if (!hasToken && !hasCredentials) {
-      throw new Error('API token (statistic token) OR username/password required for 7BitPartners/Affilka');
+      throw new Error('API token (statistic token) OR username/password required for Affilka');
     }
 
     // Get CURRENT MONTH range (not last 30 days)
@@ -1166,7 +1171,7 @@ class SyncEngine {
     const startDateISO = this.formatDate(firstDayOfMonth);
     const endDateISO = this.formatDate(now);
 
-    this.log(`Fetching 7BitPartners/Affilka stats from ${startDateISO} to ${endDateISO} (current month)`);
+    this.log(`Fetching Affilka stats from ${startDateISO} to ${endDateISO} (current month)`);
 
     // If no token but have credentials, fall back to web scraping
     if (!hasToken && hasCredentials) {
@@ -1183,8 +1188,10 @@ class SyncEngine {
       throw new Error('Affilka programs require an API Token');
     }
 
-    const trafficReportUrl = `${baseUrl}/api/customer/v1/partner/traffic_report?from=${startDateISO}&to=${endDateISO}`;
-    this.log(`Calling Affilka traffic_report API: ${trafficReportUrl.replace(token, 'TOKEN')}`);
+    // Construct the API URL - base URL + API path (ensuring no double slashes)
+    const apiPath = '/api/customer/v1/partner/traffic_report';
+    const trafficReportUrl = `${baseUrl}${apiPath}?from=${startDateISO}&to=${endDateISO}`;
+    this.log(`Calling Affilka API: ${trafficReportUrl.replace(token, 'TOKEN')}`);
 
     const response = await this.httpRequest(trafficReportUrl, {
       headers: {
