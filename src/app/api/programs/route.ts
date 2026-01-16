@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         description: true,
         referralUrl: true,
         baseUrl: true,
+        loginUrl: true,
         createdAt: true,
       },
       orderBy: [

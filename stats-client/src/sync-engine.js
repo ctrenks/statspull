@@ -1181,7 +1181,7 @@ class SyncEngine {
 
     // Affilka API - try multiple endpoints as different instances may use different paths
     // Authorization: statistic token in header
-    
+
     if (!hasToken) {
       throw new Error('Affilka programs require an API Token');
     }
@@ -1240,20 +1240,20 @@ class SyncEngine {
 
         if (response.status === 200) {
           this.log(`✓ Endpoint ${endpoint.name} returned 200 OK`);
-          
+
           // Log raw response for debugging
           if (response.data) {
             const preview = JSON.stringify(response.data).substring(0, 500);
             this.log(`Response preview: ${preview}...`);
           }
-          
+
           break; // Success! Use this response
         }
 
         // Other error
         this.log(`⚠ Unexpected status ${response.status}`);
         lastError = `${endpoint.name}: HTTP ${response.status}`;
-        
+
       } catch (err) {
         this.log(`⚠ Error calling ${endpoint.name}: ${err.message}`);
         lastError = `${endpoint.name}: ${err.message}`;
@@ -1263,7 +1263,7 @@ class SyncEngine {
     // If no endpoint worked, try fallback
     if (!response || response.status !== 200) {
       this.log(`All API endpoints failed. Last error: ${lastError}`);
-      
+
       if (hasCredentials) {
         this.log('Falling back to web scraping...');
         return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
@@ -1273,7 +1273,7 @@ class SyncEngine {
     }
 
     // Parse the response - totals can be in different locations depending on endpoint
-    let totalsArray = response.data?.overall_totals?.data || 
+    let totalsArray = response.data?.overall_totals?.data ||
                       response.data?.totals?.data ||
                       response.data?.data ||
                       [];

@@ -13,6 +13,7 @@ interface Program {
   description: string | null;
   referralUrl: string | null;
   baseUrl: string | null;
+  loginUrl: string | null;
   createdAt: string;
   isSelected: boolean;   // Selected on web (for Electron filter)
   isInstalled: boolean;  // Installed on Electron client
@@ -145,7 +146,8 @@ export default function ProgramsPage() {
   };
 
   const getSignUpUrl = (program: Program) => {
-    return program.referralUrl || program.baseUrl || null;
+    // Try referralUrl first, then baseUrl, then use loginUrl as fallback
+    return program.referralUrl || program.baseUrl || program.loginUrl || null;
   };
 
   const ProgramRow = ({ program }: { program: Program }) => {
@@ -331,9 +333,16 @@ export default function ProgramsPage() {
       </main>
 
       <style jsx>{`
-        /* Use site's global fonts */
-        :global(.programs-page) {
-          font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+        /* Use site's global fonts - force inheritance */
+        :global(.programs-page),
+        :global(.programs-page) * {
+          font-family: 'Satoshi', system-ui, -apple-system, sans-serif !important;
+        }
+        
+        :global(.programs-page) h1,
+        :global(.programs-page) h2,
+        :global(.programs-page) h3 {
+          font-family: 'Cabinet Grotesk', system-ui, sans-serif !important;
         }
 
         .page-header {
