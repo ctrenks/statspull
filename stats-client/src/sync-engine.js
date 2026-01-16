@@ -257,9 +257,18 @@ class SyncEngine {
     // Exit batch mode
     this.inBatchMode = false;
 
-    // Note: Each program had its own isolated scraper which already closed itself
-    // No shared browser cleanup needed
-    this.log('All isolated browsers cleaned up');
+    // Close the main scraper if it was used (e.g., for Rival programs)
+    try {
+      if (this.scraper && this.scraper.isRunning()) {
+        this.log('Closing main scraper browser...');
+        await this.scraper.close();
+        this.log('Main scraper browser closed');
+      }
+    } catch (error) {
+      this.log(`Warning: Error closing main scraper: ${error.message}`, 'warn');
+    }
+
+    this.log('All browsers cleaned up');
 
     // Check if stats upload is enabled
     const statsUploadEnabled = this.db.getSetting('statsUploadEnabled');
