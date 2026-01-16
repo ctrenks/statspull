@@ -510,20 +510,20 @@ async function syncProgramToServer(apiKey, programCode, programName, action = 'a
 // Fetch templates from statsfetch.com API (authenticated with API key for user selections)
 async function fetchTemplates() {
   const apiKey = db.getSecureSetting('api_key');
-  
+
   return new Promise((resolve, reject) => {
     // Use authenticated endpoint to get user's web selections
-    const url = apiKey 
+    const url = apiKey
       ? `${API_URL}/api/client/templates`
       : `${API_URL}/api/templates`;
-    
+
     const request = net.request(url);
-    
+
     // Add API key header if available
     if (apiKey) {
       request.setHeader('X-API-Key', apiKey);
     }
-    
+
     let data = '';
 
     request.on('response', (response) => {

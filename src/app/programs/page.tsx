@@ -200,7 +200,7 @@ export default function ProgramsPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-dark-950">
+      <div className="min-h-screen bg-dark-950 programs-page">
         <AppHeader activePage="programs" />
         <main className="max-w-7xl mx-auto px-6 py-10">
           <div className="flex items-center justify-center min-h-[50vh]">
@@ -214,7 +214,7 @@ export default function ProgramsPage() {
   const sortedPrograms = sortPrograms(programs);
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-dark-950 programs-page">
       <AppHeader activePage="programs" />
 
       <main className="max-w-7xl mx-auto px-6 py-10">
@@ -331,6 +331,11 @@ export default function ProgramsPage() {
       </main>
 
       <style jsx>{`
+        /* Use site's global fonts */
+        :global(.programs-page) {
+          font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+        }
+
         .page-header {
           margin-bottom: 2rem;
           padding-bottom: 1.5rem;
@@ -346,17 +351,12 @@ export default function ProgramsPage() {
           color: #888;
         }
 
-        .page-header {
-          margin-bottom: 2rem;
-          padding-bottom: 1.5rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
         .header-content h1 {
           font-size: 2.5rem;
           font-weight: 700;
           margin: 0 0 0.5rem 0;
           color: white;
+          font-family: 'Cabinet Grotesk', system-ui, sans-serif;
         }
 
         .subtitle {
@@ -460,8 +460,8 @@ export default function ProgramsPage() {
         }
 
         .section-title {
-          font-family: 'JetBrains Mono', 'Fira Code', monospace;
           font-size: 1.3rem;
+          font-weight: 600;
           margin: 0 0 1rem 0;
           display: flex;
           align-items: center;
@@ -501,34 +501,39 @@ export default function ProgramsPage() {
         .programs-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
         }
 
         .programs-table th,
         .programs-table td {
-          padding: 0.75rem 1rem;
+          padding: 1rem 1.25rem;
           text-align: left;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .programs-table th {
           font-weight: 600;
-          color: #888;
-          font-size: 0.85rem;
+          color: #9ca3af;
+          font-size: 0.75rem;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.08em;
+          background: rgba(255, 255, 255, 0.02);
         }
 
-        .programs-table tr:hover {
-          background: rgba(255, 255, 255, 0.03);
+        .programs-table tbody tr {
+          transition: background 0.15s ease;
+        }
+
+        .programs-table tbody tr:hover {
+          background: rgba(255, 255, 255, 0.04);
         }
 
         .programs-table tr.selected {
-          background: rgba(0, 212, 255, 0.08);
+          background: rgba(251, 191, 36, 0.06);
         }
 
         .programs-table tr.selected:hover {
-          background: rgba(0, 212, 255, 0.12);
+          background: rgba(251, 191, 36, 0.1);
         }
 
         .checkbox-header {
@@ -545,11 +550,17 @@ export default function ProgramsPage() {
         .program-name {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
+          font-weight: 500;
+          color: #f3f4f6;
+        }
+
+        .program-name span {
+          font-size: 0.95rem;
         }
 
         .program-icon {
-          font-size: 1.2rem;
+          font-size: 1.3rem;
         }
 
         .installed-badge {
@@ -579,25 +590,34 @@ export default function ProgramsPage() {
           width: 100px;
         }
 
+        .action-cell {
+          text-align: center;
+          width: 100px;
+        }
+
         .signup-btn {
-          display: inline-block;
-          padding: 0.35rem 0.75rem;
-          font-size: 0.75rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem 1rem;
+          font-size: 0.8rem;
           font-weight: 600;
           color: #fff;
-          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-          border-radius: 6px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          border-radius: 8px;
           text-decoration: none;
           transition: all 0.2s ease;
+          min-width: 80px;
         }
 
         .signup-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
 
         .no-url {
-          color: #6b7280;
+          color: #4b5563;
+          font-size: 0.85rem;
         }
 
         .program-row.selected {
