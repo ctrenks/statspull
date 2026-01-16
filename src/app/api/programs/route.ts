@@ -29,14 +29,19 @@ export async function GET(request: NextRequest) {
       where.softwareType = software;
     }
 
-    // Get user's selections - these now directly reference ProgramTemplate.id
+    // Get user's selections - separate web selections from client installations
     const selections = await prisma.userProgramSelection.findMany({
       where: { userId: session.user.id },
-      select: { programId: true },
+      select: { programId: true, source: true },
     });
-
-    // Build set of installed template IDs
-    const installedTemplateIds = new Set(selections.map((s) => s.programId));
+    
+    // Build separate sets for web selections vs client installations
+    const selectedOnWebIds = new Set(
+      selections.filter(s => s.source === "web").map(s => s.programId)
+    );
+    const installedOnClientIds = new Set(
+      selections.filter(s => s.source === "client").map(s => s.programId)
+    );
 
     // Fetch all program templates
     const allTemplates = await prisma.programTemplate.findMany({
@@ -48,6 +53,7 @@ export async function GET(request: NextRequest) {
         icon: true,
         description: true,
         referralUrl: true,
+        baseUrl: true,
         createdAt: true,
       },
       orderBy: [
@@ -56,10 +62,10 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Filter based on showInstalled preference
+    // Filter based on showInstalled preference (hides templates installed on Electron client)
     const templates = showInstalled
       ? allTemplates
-      : allTemplates.filter(t => !installedTemplateIds.has(t.id));
+      : allTemplates.filter(t => !installedOnClientIds.has(t.id));
 
     // Get unique software types for filter
     const softwareTypes = await prisma.programTemplate.findMany({
@@ -75,18 +81,20 @@ export async function GET(request: NextRequest) {
     const recent = templates.slice(0, 10);
     const rest = templates.slice(10);
 
+    // Map programs with both selection states
+    const mapProgram = (p: typeof allTemplates[0]) => ({
+      ...p,
+      isSelected: selectedOnWebIds.has(p.id),      // Selected on web
+      isInstalled: installedOnClientIds.has(p.id), // Installed on Electron client
+    });
+
     return NextResponse.json({
-      recent: recent.map((p) => ({
-        ...p,
-        isInstalled: installedTemplateIds.has(p.id),
-      })),
-      programs: rest.map((p) => ({
-        ...p,
-        isInstalled: installedTemplateIds.has(p.id),
-      })),
+      recent: recent.map(mapProgram),
+      programs: rest.map(mapProgram),
       softwareTypes: softwareTypes.map((s) => s.softwareType),
       totalCount: allTemplates.length,
-      installedCount: installedTemplateIds.size,
+      selectedCount: selectedOnWebIds.size,
+      installedCount: installedOnClientIds.size,
       displayedCount: templates.length,
     });
   } catch (error) {

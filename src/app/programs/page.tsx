@@ -12,8 +12,10 @@ interface Program {
   icon: string | null;
   description: string | null;
   referralUrl: string | null;
+  baseUrl: string | null;
   createdAt: string;
-  isInstalled: boolean;
+  isSelected: boolean;   // Selected on web (for Electron filter)
+  isInstalled: boolean;  // Installed on Electron client
 }
 
 type SortField = "name" | "softwareType" | "createdAt";
@@ -27,7 +29,8 @@ export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [softwareTypes, setSoftwareTypes] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [installedCount, setInstalledCount] = useState(0);
+  const [selectedCount, setSelectedCount] = useState(0);   // Selected on web
+  const [installedCount, setInstalledCount] = useState(0); // Installed on client
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
@@ -66,6 +69,7 @@ export default function ProgramsPage() {
       setPrograms(data.programs || []);
       setSoftwareTypes(data.softwareTypes || []);
       setTotalCount(data.totalCount || 0);
+      setSelectedCount(data.selectedCount || 0);
       setInstalledCount(data.installedCount || 0);
     } catch (error) {
       console.error("Error fetching programs:", error);
@@ -74,10 +78,10 @@ export default function ProgramsPage() {
     }
   };
 
-  const toggleSelection = async (programId: string, isCurrentlyInstalled: boolean) => {
+  const toggleSelection = async (programId: string, isCurrentlySelected: boolean) => {
     setUpdating(programId);
     try {
-      const method = isCurrentlyInstalled ? "DELETE" : "POST";
+      const method = isCurrentlySelected ? "DELETE" : "POST";
       const response = await fetch("/api/programs/selections", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -86,13 +90,13 @@ export default function ProgramsPage() {
 
       if (!response.ok) throw new Error("Failed to update");
 
-      // Update local state
+      // Update local state - toggle isSelected (not isInstalled)
       const updateProgram = (p: Program) =>
-        p.id === programId ? { ...p, isInstalled: !isCurrentlyInstalled } : p;
+        p.id === programId ? { ...p, isSelected: !isCurrentlySelected } : p;
 
       setRecent((prev) => prev.map(updateProgram));
       setPrograms((prev) => prev.map(updateProgram));
-      setInstalledCount((prev) => prev + (isCurrentlyInstalled ? -1 : 1));
+      setSelectedCount((prev) => prev + (isCurrentlySelected ? -1 : 1));
     } catch (error) {
       console.error("Error updating selection:", error);
     } finally {
@@ -140,33 +144,59 @@ export default function ProgramsPage() {
     return <span className="sort-icon active">{sortDirection === "asc" ? "↑" : "↓"}</span>;
   };
 
-  const ProgramRow = ({ program }: { program: Program }) => (
-    <tr key={program.id} className={`program-row ${program.isInstalled ? "installed" : ""}`}>
-      <td className="checkbox-cell">
-        <input
-          type="checkbox"
-          checked={program.isInstalled}
-          disabled={updating === program.id}
-          onChange={() => toggleSelection(program.id, program.isInstalled)}
-        />
-      </td>
-      <td className="name-cell">
-        <div className="program-name">
-          {program.icon && (
-            <span className="program-icon">{program.icon}</span>
+  const getSignUpUrl = (program: Program) => {
+    return program.referralUrl || program.baseUrl || null;
+  };
+
+  const ProgramRow = ({ program }: { program: Program }) => {
+    const signUpUrl = getSignUpUrl(program);
+    
+    return (
+      <tr key={program.id} className={`program-row ${program.isInstalled ? "installed" : ""} ${program.isSelected ? "selected" : ""}`}>
+        <td className="checkbox-cell">
+          <input
+            type="checkbox"
+            checked={program.isSelected}
+            disabled={updating === program.id || program.isInstalled}
+            onChange={() => toggleSelection(program.id, program.isSelected)}
+            title={program.isInstalled ? "Already installed on client" : "Select for Electron client"}
+          />
+        </td>
+        <td className="name-cell">
+          <div className="program-name">
+            {program.icon && (
+              <span className="program-icon">{program.icon}</span>
+            )}
+            <span>{program.name}</span>
+            {program.isInstalled && (
+              <span className="installed-badge">✓ Installed</span>
+            )}
+            {program.isSelected && !program.isInstalled && (
+              <span className="selected-badge">★ Selected</span>
+            )}
+          </div>
+        </td>
+        <td className="software-cell">{program.softwareType || "—"}</td>
+        <td className="date-cell">
+          {new Date(program.createdAt).toLocaleDateString()}
+        </td>
+        <td className="action-cell">
+          {signUpUrl ? (
+            <a 
+              href={signUpUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="signup-btn"
+            >
+              Sign Up
+            </a>
+          ) : (
+            <span className="no-url">—</span>
           )}
-          <span>{program.name}</span>
-          {program.isInstalled && (
-            <span className="installed-badge">✓ Selected</span>
-          )}
-        </div>
-      </td>
-      <td className="software-cell">{program.softwareType || "—"}</td>
-      <td className="date-cell">
-        {new Date(program.createdAt).toLocaleDateString()}
-      </td>
-    </tr>
-  );
+        </td>
+      </tr>
+    );
+  };
 
   if (status === "loading" || loading) {
     return (
@@ -192,9 +222,9 @@ export default function ProgramsPage() {
         <div className="header-content">
           <h1>Program Templates</h1>
           <p className="subtitle">
-            Pre-select templates to appear in your desktop client. Checked programs will be shown first when importing templates.
+            Pre-select templates to appear in your desktop client. Use the Sign Up links to join affiliate programs.
             <span className="stats">
-              {installedCount} selected of {totalCount} templates
+              {selectedCount} selected • {installedCount} installed on client • {totalCount} total
             </span>
           </p>
         </div>
@@ -228,7 +258,7 @@ export default function ProgramsPage() {
             checked={showInstalled}
             onChange={(e) => setShowInstalled(e.target.checked)}
           />
-          <span>Show Already Selected ({installedCount})</span>
+          <span>Show Installed on Client ({installedCount})</span>
         </label>
       </div>
 
@@ -246,6 +276,7 @@ export default function ProgramsPage() {
                   <th>Program</th>
                   <th>Software</th>
                   <th>Added</th>
+                  <th>Sign Up</th>
                 </tr>
               </thead>
               <tbody>
@@ -279,6 +310,7 @@ export default function ProgramsPage() {
                 <th className="sortable-header" onClick={() => handleSort("createdAt")}>
                   Added <SortIcon field="createdAt" />
                 </th>
+                <th>Sign Up</th>
               </tr>
             </thead>
             <tbody>
@@ -532,6 +564,47 @@ export default function ProgramsPage() {
           border-radius: 4px;
           margin-left: 0.5rem;
           font-weight: 600;
+        }
+
+        .selected-badge {
+          font-size: 0.7rem;
+          padding: 0.2rem 0.5rem;
+          background: rgba(251, 191, 36, 0.2);
+          color: #fbbf24;
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 4px;
+          margin-left: 0.5rem;
+          font-weight: 600;
+        }
+
+        .action-cell {
+          text-align: center;
+          width: 100px;
+        }
+
+        .signup-btn {
+          display: inline-block;
+          padding: 0.35rem 0.75rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #fff;
+          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+          border-radius: 6px;
+          text-decoration: none;
+          transition: all 0.2s ease;
+        }
+
+        .signup-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .no-url {
+          color: #6b7280;
+        }
+
+        .program-row.selected {
+          background: rgba(251, 191, 36, 0.03);
         }
 
         .program-row.installed {

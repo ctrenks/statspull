@@ -457,11 +457,12 @@ model StatsDrone_ScrapingLog {
 }
 
 // Universal signup profile for affiliate program registrations
-// User's selected programs for their stats client
+// User's selected/installed programs for their stats client
 model UserProgramSelection {
   id          String   @id @default(cuid())
   userId      String
   programId   String   // ProgramTemplate ID
+  source      String   @default("web") // "web" = selected on web, "client" = installed from Electron
   selectedAt  DateTime @default(now())
 
   user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -471,6 +472,7 @@ model UserProgramSelection {
   @@index([userId])
   @@index([programId])
   @@index([selectedAt])
+  @@index([source])
 }
 
 // User's uploaded stats from the Electron client

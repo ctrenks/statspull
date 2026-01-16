@@ -26,9 +26,13 @@ export async function GET(request: NextRequest) {
     const software = searchParams.get("software") || "";
     const search = searchParams.get("search") || "";
 
-    // Get user's selected program IDs
+    // Get user's web-selected program IDs (source: "web")
+    // These are templates the user selected on the web interface
     const userSelections = await prisma.userProgramSelection.findMany({
-      where: { userId: user.id },
+      where: { 
+        userId: user.id,
+        source: "web", // Only get web selections, not client installations
+      },
       select: { programId: true },
     });
     const selectedProgramIds = new Set(userSelections.map((s) => s.programId));
@@ -73,10 +77,9 @@ export async function GET(request: NextRequest) {
 
     // Build result with additional metadata
     let result = templates.map((template) => {
-      // Check if any of the template's programs are in user's selections
-      const isSelected = template.statsDronePrograms.some((p) =>
-        selectedProgramIds.has(p.id)
-      );
+      // Check if this template is in user's web selections
+      // UserProgramSelection now stores ProgramTemplate.id directly
+      const isSelected = selectedProgramIds.has(template.id);
 
       // Get the most recent scraped date
       const mostRecent = template.statsDronePrograms.length > 0

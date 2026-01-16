@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create selection using the ProgramTemplate.id directly
+    // Source is "web" for selections made on the web interface
     await prisma.userProgramSelection.upsert({
       where: {
         userId_programId: {
@@ -69,8 +70,9 @@ export async function POST(request: NextRequest) {
       create: {
         userId: session.user.id,
         programId: programId,
+        source: "web",
       },
-      update: {}, // No update needed, just ensure it exists
+      update: { source: "web" }, // Update source if switching from client to web selection
     });
 
     return NextResponse.json({ success: true });

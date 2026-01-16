@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "add" || action === "import") {
-      // Add to user's selections
+      // Mark as installed from Electron client
+      // Source is "client" for installations synced from Electron
       await prisma.userProgramSelection.upsert({
         where: {
           userId_programId: {
@@ -64,8 +65,9 @@ export async function POST(request: NextRequest) {
         create: {
           userId: user.id,
           programId: template.id,
+          source: "client",
         },
-        update: {}, // Already selected, nothing to update
+        update: { source: "client" }, // Mark as installed on client
       });
 
       return NextResponse.json({

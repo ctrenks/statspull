@@ -1207,13 +1207,13 @@ class SyncEngine {
     if (response.status === 404 || (typeof response.data === 'string' && response.data.includes('<!doctype'))) {
       this.log(`⚠ API endpoint not found at ${baseUrl}${apiPath}`);
       this.log('This Affilka instance may not support the API or uses a different path.');
-      
+
       // If we have credentials, try web scraping as fallback
       if (hasCredentials) {
         this.log('Falling back to web scraping...');
         return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
       }
-      
+
       throw new Error(`Affilka API not found at ${baseUrl}. Check the base URL or try using login credentials instead of API token.`);
     }
 
