@@ -66,8 +66,9 @@ function SignInContent() {
         } else {
           setSent(true);
         }
-      } catch {
-        setError("An unexpected error occurred");
+      } catch (err) {
+        console.error("Sign-in error:", err);
+        setError(`An unexpected error occurred: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }

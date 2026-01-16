@@ -200,14 +200,14 @@ async function fillCellXpertForm(page, details) {
     { name: 'Phone', value: cleanPhone, selectors: [
       '#fld_mobile_number', // MyAffiliates
       '#phone', '#telephone', '#mobile', '#cell', '#mobile_number',
-      'input[name="mobile_number"]', 'input[name="phone"]', 'input[name="telephone"]', 
+      'input[name="mobile_number"]', 'input[name="phone"]', 'input[name="telephone"]',
       'input[name="mobile"]', 'input[type="tel"]'
     ]},
     // Company/Business Name (without spaces for CellXpert compatibility)
     { name: 'Company', value: cleanCompanyName, selectors: [
       '#fld_business_name', // MyAffiliates
       '#company', '#companyName', '#business_name',
-      'input[name="business_name"]', 'input[name="company"]', 'input[name="companyName"]', 
+      'input[name="business_name"]', 'input[name="company"]', 'input[name="companyName"]',
       'input[placeholder*="Company"]', 'input[placeholder*="Business"]'
     ]},
     // Website / Primary URL
@@ -215,48 +215,48 @@ async function fillCellXpertForm(page, details) {
       '#fld_business_website', '#fld_primary_url', // MyAffiliates
       '#website', '#url', '#business_website', '#primary_url',
       'input[name="business_website"]', 'input[name="primary_url"]',
-      'input[name="website"]', 'input[name="url"]', 
+      'input[name="website"]', 'input[name="url"]',
       'input[placeholder*="Website"]', 'input[placeholder*="URL"]'
     ]},
     // Username (MyAffiliates uses signup_username)
     { name: 'Username', value: details.username, selectors: [
       '#fld_signup_username', // MyAffiliates
       '#username', '#signup_username',
-      'input[name="signup_username"]', 'input[name="username"]', 
+      'input[name="signup_username"]', 'input[name="username"]',
       'input[placeholder*="Username"]', 'input[placeholder*="Login"]'
     ]},
     // Address / Business Address
     { name: 'Address', value: details.address, selectors: [
       '#fld_business_address', // MyAffiliates
       '#address', '#business_address',
-      'input[name="business_address"]', 'input[name="address"]', 
+      'input[name="business_address"]', 'input[name="address"]',
       'input[placeholder*="Address"]'
     ]},
     // City / Business City
     { name: 'City', value: details.city, selectors: [
       '#fld_business_city', // MyAffiliates
       '#city', '#business_city',
-      'input[name="business_city"]', 'input[name="city"]', 
+      'input[name="business_city"]', 'input[name="city"]',
       'input[placeholder*="City"]', 'input[placeholder*="Town"]'
     ]},
     // State / Business State
     { name: 'State', value: details.state, selectors: [
       '#fld_business_state', // MyAffiliates
       '#state', '#business_state',
-      'input[name="business_state"]', 'input[name="state"]', 
+      'input[name="business_state"]', 'input[name="state"]',
       'input[placeholder*="State"]'
     ]},
     // Zip / Postcode
     { name: 'Zip', value: details.zipCode, selectors: [
       '#fld_business_postcode', // MyAffiliates
       '#zip', '#zipCode', '#postalCode', '#postcode', '#business_postcode',
-      'input[name="business_postcode"]', 'input[name="zip"]', 
+      'input[name="business_postcode"]', 'input[name="zip"]',
       'input[name="zipCode"]', 'input[name="postalCode"]'
     ]},
     // Skype/IM
     { name: 'Skype', value: details.skype, selectors: [
       '#fld_skype', // MyAffiliates
-      '#skype', '#im', 
+      '#skype', '#im',
       'input[name="skype"]', 'input[name="im"]', 'input[placeholder*="Skype"]'
     ]},
     // Telegram
@@ -269,22 +269,22 @@ async function fillCellXpertForm(page, details) {
     ]},
     // Traffic Sources
     { name: 'Traffic', value: details.trafficSources, selectors: [
-      '#trafficSources', '#traffic', 
+      '#trafficSources', '#traffic',
       'input[name="trafficSources"]', 'input[name="traffic"]', 'input[placeholder*="traffic"]'
     ]},
     // Monthly Visitors
     { name: 'Visitors', value: details.monthlyVisitors, selectors: [
-      '#visitors', '#monthlyVisitors', 
+      '#visitors', '#monthlyVisitors',
       'input[name="visitors"]', 'input[name="monthlyVisitors"]'
     ]},
     // Promotion Methods
     { name: 'Promotion', value: details.promotionMethods, selectors: [
-      '#promotion', '#promotionMethods', 
+      '#promotion', '#promotionMethods',
       'input[name="promotion"]', 'textarea[name="promotionMethods"]'
     ]},
     // Comments
     { name: 'Comments', value: details.comments, selectors: [
-      '#comments', '#message', '#notes', 
+      '#comments', '#message', '#notes',
       'textarea[name="comments"]', 'textarea[name="message"]', 'textarea[name="notes"]', 'textarea'
     ]},
     // Business Registration Number (MyAffiliates)
@@ -409,7 +409,7 @@ async function fillCellXpertForm(page, details) {
 
   // Handle MyAffiliates-specific fields
   console.log('  Checking for MyAffiliates-specific fields...');
-  
+
   // Business type radio button - select "corporate"
   try {
     const corporateRadio = await page.$('input[name="business_type"][value="corporate"]');
@@ -420,7 +420,7 @@ async function fillCellXpertForm(page, details) {
   } catch (e) {
     // Not a MyAffiliates form or field not present
   }
-  
+
   // Marketing dropdown - select "website"
   try {
     const marketingSelect = await page.$('#fld_marketing, select[name="marketing"]');
@@ -431,19 +431,19 @@ async function fillCellXpertForm(page, details) {
   } catch (e) {
     // Not present
   }
-  
+
   // Handle country dropdown - find US option and select it robustly
   console.log('  Selecting country...');
   // Include MyAffiliates-specific country selectors
   const countrySelectors = [
     '#fld_country', '#fld_business_country', // MyAffiliates
     '#country', 'select[name="country"]', 'select[name="business_country"]',
-    'select[name="countryCode"]', 'select[name="country_id"]', 
+    'select[name="countryCode"]', 'select[name="country_id"]',
     'select[id*="country"]', 'select[name*="country"]'
   ];
 
   let countrySelectCount = 0;
-  
+
   // Fill ALL country dropdowns (MyAffiliates has both country and business_country)
   for (const selector of countrySelectors) {
     const selectEl = await page.$(selector);
@@ -524,8 +524,8 @@ async function fillCellXpertForm(page, details) {
   console.log('  Checking terms/agreement checkboxes...');
   const checkboxSelectors = [
     'input[name="termsagreement[]"]', // MyAffiliates terms
-    'input[name="terms"]', 
-    'input[name="agree"]', 
+    'input[name="terms"]',
+    'input[name="agree"]',
     'input[name="tos"]',
     'input[name="accept"]',
     'input[name="terms_and_conditions"]',
@@ -534,7 +534,7 @@ async function fillCellXpertForm(page, details) {
     'input[type="checkbox"][name*="term"]',
     'input[type="checkbox"][name*="agree"]',
   ];
-  
+
   let checkboxCount = 0;
   for (const selector of checkboxSelectors) {
     try {
@@ -551,7 +551,7 @@ async function fillCellXpertForm(page, details) {
       // Continue
     }
   }
-  
+
   // Also try to find and check any visible checkboxes that look like terms
   try {
     const allCheckboxes = await page.$$('input[type="checkbox"]');
@@ -578,7 +578,7 @@ async function fillCellXpertForm(page, details) {
   } catch (e) {
     // Continue
   }
-  
+
   if (checkboxCount > 0) {
     console.log(`    Checked ${checkboxCount} checkbox(es)`);
   }
