@@ -58,7 +58,7 @@ export default function StatsDroneProgramsPage() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
   const [editUrlValue, setEditUrlValue] = useState<string>('');
-  
+
   // Template generation modal state
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateForm, setTemplateForm] = useState<TemplateFormData>({
@@ -294,7 +294,7 @@ export default function StatsDroneProgramsPage() {
   const openTemplateModal = (program: StatsDroneProgram) => {
     const joinUrl = program.finalJoinUrl || program.joinUrl;
     const baseUrl = extractBaseUrl(joinUrl);
-    
+
     setTemplateForm({
       name: program.name,
       softwareType: formatSoftwareType(program.software),
@@ -319,7 +319,7 @@ export default function StatsDroneProgramsPage() {
   const saveTemplate = async () => {
     setTemplateSaving(true);
     setTemplateError(null);
-    
+
     try {
       const res = await fetch('/api/admin/templates', {
         method: 'POST',
