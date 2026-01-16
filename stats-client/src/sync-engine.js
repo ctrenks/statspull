@@ -1179,50 +1179,104 @@ class SyncEngine {
       return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
     }
 
-    // Affilka API structure - using traffic_report endpoint
-    // API endpoint: /api/customer/v1/partner/traffic_report
+    // Affilka API - try multiple endpoints as different instances may use different paths
     // Authorization: statistic token in header
-    // Response: { overall_totals: { data: [{name, value, type}, ...] } }
-
+    
     if (!hasToken) {
       throw new Error('Affilka programs require an API Token');
     }
 
-    // Construct the API URL - base URL + API path (ensuring no double slashes)
-    const apiPath = '/api/customer/v1/partner/traffic_report';
-    const trafficReportUrl = `${baseUrl}${apiPath}?from=${startDateISO}&to=${endDateISO}`;
-    this.log(`Calling Affilka API: ${trafficReportUrl.replace(token, 'TOKEN')}`);
+    // List of endpoints to try (in order of preference)
+    const endpoints = [
+      { path: '/api/customer/v1/partner/traffic_report', name: 'traffic_report' },
+      { path: '/api/customer/v1/partner/report', name: 'partner_report' },
+      { path: '/api/v1/partner/stats', name: 'stats_v1' },
+      { path: '/partner/api/stats', name: 'partner_stats' },
+    ];
 
-    const response = await this.httpRequest(trafficReportUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': token
+    let lastError = null;
+    let response = null;
+
+    for (const endpoint of endpoints) {
+      const url = `${baseUrl}${endpoint.path}?from=${startDateISO}&to=${endDateISO}`;
+      this.log(`Trying Affilka endpoint (${endpoint.name}): ${url.replace(token, 'TOKEN')}`);
+
+      try {
+        response = await this.httpRequest(url, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': token
+          }
+        });
+
+        this.log(`Response status: ${response.status}`);
+
+        // Check for HTML response (404/403 error page)
+        if (typeof response.data === 'string' && response.data.includes('<!doctype')) {
+          this.log(`⚠ Got HTML page instead of JSON - endpoint not available`);
+          lastError = `${endpoint.name}: HTML response (likely 404/403)`;
+          continue;
+        }
+
+        // Check for error status
+        if (response.status === 403) {
+          this.log(`⚠ 403 Forbidden - token may not have access to this endpoint`);
+          lastError = `${endpoint.name}: 403 Forbidden`;
+          continue;
+        }
+
+        if (response.status === 404) {
+          this.log(`⚠ 404 Not Found - endpoint doesn't exist`);
+          lastError = `${endpoint.name}: 404 Not Found`;
+          continue;
+        }
+
+        if (response.status === 401) {
+          this.log(`⚠ 401 Unauthorized - invalid token`);
+          lastError = `${endpoint.name}: 401 Unauthorized`;
+          continue;
+        }
+
+        if (response.status === 200) {
+          this.log(`✓ Endpoint ${endpoint.name} returned 200 OK`);
+          
+          // Log raw response for debugging
+          if (response.data) {
+            const preview = JSON.stringify(response.data).substring(0, 500);
+            this.log(`Response preview: ${preview}...`);
+          }
+          
+          break; // Success! Use this response
+        }
+
+        // Other error
+        this.log(`⚠ Unexpected status ${response.status}`);
+        lastError = `${endpoint.name}: HTTP ${response.status}`;
+        
+      } catch (err) {
+        this.log(`⚠ Error calling ${endpoint.name}: ${err.message}`);
+        lastError = `${endpoint.name}: ${err.message}`;
       }
-    });
+    }
 
-    this.log(`API Response status: ${response.status}`);
-
-    // Check if response is HTML (404 page) instead of JSON
-    if (response.status === 404 || (typeof response.data === 'string' && response.data.includes('<!doctype'))) {
-      this.log(`⚠ API endpoint not found at ${baseUrl}${apiPath}`);
-      this.log('This Affilka instance may not support the API or uses a different path.');
-
-      // If we have credentials, try web scraping as fallback
+    // If no endpoint worked, try fallback
+    if (!response || response.status !== 200) {
+      this.log(`All API endpoints failed. Last error: ${lastError}`);
+      
       if (hasCredentials) {
         this.log('Falling back to web scraping...');
         return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
       }
 
-      throw new Error(`Affilka API not found at ${baseUrl}. Check the base URL or try using login credentials instead of API token.`);
+      throw new Error(`Affilka API failed for ${baseUrl}. Last error: ${lastError}. Try adding login credentials.`);
     }
 
-    if (response.status !== 200) {
-      throw new Error(`Affilka API returned status ${response.status} for ${baseUrl}`);
-    }
-
-    // Parse the response - totals are in overall_totals.data as array of {name, value, type}
-    const totalsArray = response.data?.overall_totals?.data || [];
+    // Parse the response - totals can be in different locations depending on endpoint
+    let totalsArray = response.data?.overall_totals?.data || 
+                      response.data?.totals?.data ||
+                      response.data?.data ||
+                      [];
 
     // Convert array to object for easier access
     const totals = {};
