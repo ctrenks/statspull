@@ -769,13 +769,13 @@ async function fetchTemplates() {
 
 // Render templates (configured programs)
 function renderTemplates() {
-  // Merge built-in with fetched templates
-  const allTemplates = [...BUILTIN_PROGRAMS];
+  // Merge templates - prefer server templates over built-ins (server has isSelected, referralUrl)
+  const allTemplates = [...templates];
 
-  // Add server templates that aren't duplicates
-  templates.forEach((t) => {
-    if (!allTemplates.find((b) => b.code === t.code)) {
-      allTemplates.push(t);
+  // Add built-in templates only if not already fetched from server
+  BUILTIN_PROGRAMS.forEach((b) => {
+    if (!allTemplates.find((t) => t.code === b.code || t.name === b.name)) {
+      allTemplates.push(b);
     }
   });
 

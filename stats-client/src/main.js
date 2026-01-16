@@ -507,10 +507,23 @@ async function syncProgramToServer(apiKey, programCode, programName, action = 'a
   });
 }
 
-// Fetch templates from statsfetch.com API
+// Fetch templates from statsfetch.com API (authenticated with API key for user selections)
 async function fetchTemplates() {
+  const apiKey = db.getSecureSetting('api_key');
+  
   return new Promise((resolve, reject) => {
-    const request = net.request(`${API_URL}/api/templates`);
+    // Use authenticated endpoint to get user's web selections
+    const url = apiKey 
+      ? `${API_URL}/api/client/templates`
+      : `${API_URL}/api/templates`;
+    
+    const request = net.request(url);
+    
+    // Add API key header if available
+    if (apiKey) {
+      request.setHeader('X-API-Key', apiKey);
+    }
+    
     let data = '';
 
     request.on('response', (response) => {
@@ -543,7 +556,8 @@ async function fetchTemplates() {
             },
             description: t.description,
             icon: t.icon,
-            referralUrl: t.referralUrl || ''  // Include referral URL for signup button
+            referralUrl: t.referralUrl || '',
+            isSelected: t.isSelected || false  // Include web selection status
           }));
 
           resolve(templates);
