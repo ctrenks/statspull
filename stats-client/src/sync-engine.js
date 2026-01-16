@@ -1179,104 +1179,57 @@ class SyncEngine {
       return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
     }
 
-    // Affilka API - try multiple endpoints as different instances may use different paths
+    // Affilka API - using traffic_report endpoint
     // Authorization: statistic token in header
-
+    
     if (!hasToken) {
       throw new Error('Affilka programs require an API Token');
     }
 
-    // List of endpoints to try (in order of preference)
-    const endpoints = [
-      { path: '/api/customer/v1/partner/traffic_report', name: 'traffic_report' },
-      { path: '/api/customer/v1/partner/report', name: 'partner_report' },
-      { path: '/api/v1/partner/stats', name: 'stats_v1' },
-      { path: '/partner/api/stats', name: 'partner_stats' },
-    ];
+    // Construct the API URL
+    const apiPath = '/api/customer/v1/partner/traffic_report';
+    const url = `${baseUrl}${apiPath}?from=${startDateISO}&to=${endDateISO}`;
+    this.log(`Calling Affilka API: ${url.replace(token, 'TOKEN')}`);
 
-    let lastError = null;
-    let response = null;
-
-    for (const endpoint of endpoints) {
-      const url = `${baseUrl}${endpoint.path}?from=${startDateISO}&to=${endDateISO}`;
-      this.log(`Trying Affilka endpoint (${endpoint.name}): ${url.replace(token, 'TOKEN')}`);
-
-      try {
-        response = await this.httpRequest(url, {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': token
-          }
-        });
-
-        this.log(`Response status: ${response.status}`);
-
-        // Check for HTML response (404/403 error page)
-        if (typeof response.data === 'string' && response.data.includes('<!doctype')) {
-          this.log(`⚠ Got HTML page instead of JSON - endpoint not available`);
-          lastError = `${endpoint.name}: HTML response (likely 404/403)`;
-          continue;
-        }
-
-        // Check for error status
-        if (response.status === 403) {
-          this.log(`⚠ 403 Forbidden - token may not have access to this endpoint`);
-          lastError = `${endpoint.name}: 403 Forbidden`;
-          continue;
-        }
-
-        if (response.status === 404) {
-          this.log(`⚠ 404 Not Found - endpoint doesn't exist`);
-          lastError = `${endpoint.name}: 404 Not Found`;
-          continue;
-        }
-
-        if (response.status === 401) {
-          this.log(`⚠ 401 Unauthorized - invalid token`);
-          lastError = `${endpoint.name}: 401 Unauthorized`;
-          continue;
-        }
-
-        if (response.status === 200) {
-          this.log(`✓ Endpoint ${endpoint.name} returned 200 OK`);
-
-          // Log raw response for debugging
-          if (response.data) {
-            const preview = JSON.stringify(response.data).substring(0, 500);
-            this.log(`Response preview: ${preview}...`);
-          }
-
-          break; // Success! Use this response
-        }
-
-        // Other error
-        this.log(`⚠ Unexpected status ${response.status}`);
-        lastError = `${endpoint.name}: HTTP ${response.status}`;
-
-      } catch (err) {
-        this.log(`⚠ Error calling ${endpoint.name}: ${err.message}`);
-        lastError = `${endpoint.name}: ${err.message}`;
+    const response = await this.httpRequest(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': token
       }
-    }
+    });
 
-    // If no endpoint worked, try fallback
-    if (!response || response.status !== 200) {
-      this.log(`All API endpoints failed. Last error: ${lastError}`);
+    this.log(`Response status: ${response.status}`);
 
+    // Check for error responses
+    if (response.status === 403) {
+      this.log(`⚠ 403 Forbidden - check your API token in the affiliate dashboard`);
       if (hasCredentials) {
         this.log('Falling back to web scraping...');
         return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
       }
-
-      throw new Error(`Affilka API failed for ${baseUrl}. Last error: ${lastError}. Try adding login credentials.`);
+      throw new Error(`Affilka API 403 Forbidden - invalid or expired token. Get a new token from ${baseUrl}/partner/api_docs`);
     }
 
-    // Parse the response - totals can be in different locations depending on endpoint
-    let totalsArray = response.data?.overall_totals?.data ||
-                      response.data?.totals?.data ||
-                      response.data?.data ||
-                      [];
+    if (response.status === 401) {
+      throw new Error('Affilka API 401 Unauthorized - invalid token');
+    }
+
+    if (response.status === 404 || (typeof response.data === 'string' && response.data.includes('<!doctype'))) {
+      this.log(`⚠ API endpoint not found`);
+      if (hasCredentials) {
+        this.log('Falling back to web scraping...');
+        return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
+      }
+      throw new Error(`Affilka API not available at ${baseUrl}`);
+    }
+
+    if (response.status !== 200) {
+      throw new Error(`Affilka API returned status ${response.status}`);
+    }
+
+    // Parse the response - totals are in overall_totals.data
+    const totalsArray = response.data?.overall_totals?.data || [];
 
     // Convert array to object for easier access
     const totals = {};
