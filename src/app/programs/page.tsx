@@ -338,7 +338,7 @@ export default function ProgramsPage() {
         :global(.programs-page) * {
           font-family: 'Satoshi', system-ui, -apple-system, sans-serif !important;
         }
-        
+
         :global(.programs-page) h1,
         :global(.programs-page) h2,
         :global(.programs-page) h3 {
