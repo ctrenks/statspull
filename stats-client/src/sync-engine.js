@@ -1203,8 +1203,22 @@ class SyncEngine {
 
     this.log(`API Response status: ${response.status}`);
 
+    // Check if response is HTML (404 page) instead of JSON
+    if (response.status === 404 || (typeof response.data === 'string' && response.data.includes('<!doctype'))) {
+      this.log(`⚠ API endpoint not found at ${baseUrl}${apiPath}`);
+      this.log('This Affilka instance may not support the API or uses a different path.');
+      
+      // If we have credentials, try web scraping as fallback
+      if (hasCredentials) {
+        this.log('Falling back to web scraping...');
+        return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
+      }
+      
+      throw new Error(`Affilka API not found at ${baseUrl}. Check the base URL or try using login credentials instead of API token.`);
+    }
+
     if (response.status !== 200) {
-      throw new Error(`API returned status ${response.status}`);
+      throw new Error(`Affilka API returned status ${response.status} for ${baseUrl}`);
     }
 
     // Parse the response - totals are in overall_totals.data as array of {name, value, type}
