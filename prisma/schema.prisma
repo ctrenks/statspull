@@ -43,6 +43,7 @@ model User {
   payments      Payment[]
   commissionsEarned Commission[] @relation("AffiliateCommissions")
   commissionsPaid   Commission[] @relation("UserCommissions")
+  programSelections UserProgramSelection[]
 
   @@index([referralCode])
   @@index([referredById])
@@ -428,6 +429,7 @@ model StatsDrone_Program {
   mappedToTemplate  Boolean  @default(false)
   templateId        String?
   template          ProgramTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  userSelections    UserProgramSelection[]
 
   @@index([software])
   @@index([category])
@@ -454,6 +456,22 @@ model StatsDrone_ScrapingLog {
 }
 
 // Universal signup profile for affiliate program registrations
+// User's selected programs for their stats client
+model UserProgramSelection {
+  id          String   @id @default(cuid())
+  userId      String
+  programId   String   // StatsDrone_Program ID
+  selectedAt  DateTime @default(now())
+
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program StatsDrone_Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId])
+  @@index([userId])
+  @@index([programId])
+  @@index([selectedAt])
+}
+
 model SignupProfile {
   id          String   @id @default(cuid())
   name        String   @default("Default") // Profile name (e.g., "Main", "Business", "Personal")
