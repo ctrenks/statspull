@@ -6,7 +6,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'ready' });
     return true;
   }
-  
+
   if (request.action === 'fillForm') {
     try {
       const result = fillFormWithProfile(request.profile);
@@ -24,11 +24,11 @@ function addQuickFillButtons() {
   forms.forEach(form => {
     if (form.dataset.affiliateFiller) return;
     form.dataset.affiliateFiller = 'true';
-    
+
     // Check if this looks like a signup form
     const hasPasswordField = form.querySelector('input[type="password"]');
     const hasEmailField = form.querySelector('input[type="email"], input[name*="email"]');
-    
+
     if (hasPasswordField && hasEmailField) {
       // This might be a signup form - could add a floating button here
       console.log('[Affiliate Form Filler] Signup form detected');

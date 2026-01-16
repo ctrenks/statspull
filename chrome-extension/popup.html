@@ -39,16 +39,14 @@
       padding: 12px;
       background: #16162a;
       border-bottom: 1px solid #2a2a4a;
-      display: flex;
-      gap: 8px;
     }
     
     .btn {
-      flex: 1;
-      padding: 10px 16px;
+      width: 100%;
+      padding: 12px 16px;
       border: none;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s;
@@ -67,10 +65,18 @@
     .btn-secondary {
       background: #2a2a4a;
       color: #e0e0e0;
+      margin-top: 8px;
     }
     
     .btn-secondary:hover {
       background: #3a3a5a;
+    }
+    
+    .note {
+      font-size: 11px;
+      color: #888;
+      text-align: center;
+      margin-top: 8px;
     }
     
     .tabs {
@@ -232,12 +238,12 @@
 <body>
   <div class="header">
     <h1>🎰 Affiliate Form Filler</h1>
-    <p>Fill casino signup forms instantly</p>
+    <p>Fill business fields that 1Password doesn't handle</p>
   </div>
   
   <div class="actions">
-    <button class="btn btn-primary" id="fillBtn">⚡ Fill This Page</button>
-    <button class="btn btn-secondary" id="generatePwdBtn">🔑 New Password</button>
+    <button class="btn btn-primary" id="fillBtn">⚡ Fill Business Fields</button>
+    <p class="note">Use 1Password for passwords & basic identity</p>
   </div>
   
   <div class="tabs">
@@ -250,32 +256,6 @@
     <div id="status" class="status"></div>
     
     <div class="section">
-      <div class="section-title">Personal Info</div>
-      <div class="row">
-        <div class="field">
-          <label>First Name</label>
-          <input type="text" id="firstName" placeholder="John">
-        </div>
-        <div class="field">
-          <label>Last Name</label>
-          <input type="text" id="lastName" placeholder="Doe">
-        </div>
-      </div>
-      <div class="field">
-        <label>Email</label>
-        <input type="email" id="email" placeholder="john@example.com">
-      </div>
-      <div class="field">
-        <label>Phone</label>
-        <input type="tel" id="phone" placeholder="+1 555 123 4567">
-      </div>
-      <div class="field">
-        <label>Username</label>
-        <input type="text" id="username" placeholder="johndoe">
-      </div>
-    </div>
-    
-    <div class="section">
       <div class="section-title">Business Info</div>
       <div class="field">
         <label>Company Name</label>
@@ -286,13 +266,17 @@
         <input type="text" id="businessRegNumber" placeholder="12345678">
       </div>
       <div class="field">
-        <label>Website</label>
+        <label>Website / Primary URL</label>
         <input type="url" id="website" placeholder="https://example.com">
+      </div>
+      <div class="field">
+        <label>Username (for affiliate accounts)</label>
+        <input type="text" id="username" placeholder="myaffiliateuser">
       </div>
     </div>
     
     <div class="section">
-      <div class="section-title">Address</div>
+      <div class="section-title">Business Address</div>
       <div class="field">
         <label>Street Address</label>
         <input type="text" id="address" placeholder="123 Main St">
@@ -331,7 +315,7 @@
     </div>
     
     <div class="section">
-      <div class="section-title">Messaging</div>
+      <div class="section-title">Messaging (Affiliate Managers)</div>
       <div class="row">
         <div class="field">
           <label>Skype</label>
@@ -345,7 +329,7 @@
     </div>
     
     <div class="section">
-      <div class="section-title">Marketing</div>
+      <div class="section-title">Marketing Info</div>
       <div class="field">
         <label>Traffic Sources</label>
         <input type="text" id="trafficSources" placeholder="SEO, PPC, Social Media">
@@ -357,14 +341,6 @@
       <div class="field">
         <label>Promotion Methods</label>
         <textarea id="promotionMethods" placeholder="Content marketing, reviews, comparison sites..."></textarea>
-      </div>
-    </div>
-    
-    <div class="section">
-      <div class="section-title">Current Password</div>
-      <div class="field">
-        <label>Generated Password (click 🔑 to generate new)</label>
-        <input type="text" id="currentPassword" readonly style="background: #0d0d1a; cursor: pointer;" onclick="this.select(); document.execCommand('copy');">
       </div>
     </div>
     
@@ -383,17 +359,6 @@
   
   <div class="content hidden" id="settingsTab">
     <div class="section">
-      <div class="section-title">Password Settings</div>
-      <div class="field">
-        <label>Password Format</label>
-        <select id="passwordFormat">
-          <option value="simple">Simple (AlphaBeta42)</option>
-          <option value="complex">Complex (Xy9#mK2$pL)</option>
-        </select>
-      </div>
-    </div>
-    
-    <div class="section">
       <div class="section-title">Auto-Fill Options</div>
       <div class="field">
         <label>Business Type Default</label>
@@ -410,6 +375,11 @@
           <option value="email">Email</option>
           <option value="other">Other</option>
         </select>
+      </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="autoCheckTerms" checked> Auto-check terms & conditions
+        </label>
       </div>
     </div>
     

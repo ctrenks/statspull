@@ -1,42 +1,12 @@
-// Field IDs that we save/load
+// Field IDs that we save/load - business fields only (1Password handles the rest)
 const FIELD_IDS = [
-  'firstName', 'lastName', 'email', 'phone', 'username',
-  'companyName', 'businessRegNumber', 'website',
+  'companyName', 'businessRegNumber', 'website', 'username',
   'address', 'city', 'state', 'zipCode', 'country',
   'skype', 'telegram',
-  'trafficSources', 'monthlyVisitors', 'promotionMethods',
-  'currentPassword'
+  'trafficSources', 'monthlyVisitors', 'promotionMethods'
 ];
 
-const SETTINGS_IDS = ['passwordFormat', 'businessType', 'marketingDefault'];
-
-// Password generator
-function generatePassword(format = 'simple') {
-  if (format === 'complex') {
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-  }
-  
-  // Simple format: TwoWords + 2 digits (like AlphaBeta42)
-  const words = [
-    'Alpha', 'Beta', 'Gamma', 'Delta', 'Echo', 'Foxtrot',
-    'Golf', 'Hotel', 'India', 'Juliet', 'Kilo', 'Lima',
-    'Mike', 'Nova', 'Oscar', 'Papa', 'Quebec', 'Romeo',
-    'Sierra', 'Tango', 'Ultra', 'Victor', 'Whiskey', 'Xray',
-    'Blue', 'Green', 'Red', 'Gold', 'Silver', 'Iron',
-    'Star', 'Moon', 'Sun', 'Sky', 'Cloud', 'Rain'
-  ];
-  
-  const word1 = words[Math.floor(Math.random() * words.length)];
-  const word2 = words[Math.floor(Math.random() * words.length)];
-  const num = Math.floor(Math.random() * 90) + 10; // 10-99
-  
-  return word1 + word2 + num;
-}
+const SETTINGS_IDS = ['businessType', 'marketingDefault', 'autoCheckTerms'];
 
 // Show status message
 function showStatus(message, isError = false) {
@@ -66,15 +36,13 @@ async function loadProfile(profileId = 'default') {
   SETTINGS_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.value = settings[id] || el.value;
+      if (el.type === 'checkbox') {
+        el.checked = settings[id] !== false; // default true
+      } else {
+        el.value = settings[id] || el.value;
+      }
     }
   });
-  
-  // Generate password if none exists
-  if (!profile.currentPassword) {
-    const format = settings.passwordFormat || 'simple';
-    document.getElementById('currentPassword').value = generatePassword(format);
-  }
   
   return profileId;
 }
@@ -99,7 +67,11 @@ async function saveProfile(profileId = 'default') {
   SETTINGS_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      settings[id] = el.value;
+      if (el.type === 'checkbox') {
+        settings[id] = el.checked;
+      } else {
+        settings[id] = el.value;
+      }
     }
   });
   
@@ -127,6 +99,7 @@ async function fillCurrentPage() {
   const settings = data.settings || {};
   profile.businessType = settings.businessType || 'corporate';
   profile.marketingDefault = settings.marketingDefault || 'website';
+  profile.autoCheckTerms = settings.autoCheckTerms !== false;
   
   // Get current tab and inject content script
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -137,98 +110,99 @@ async function fillCurrentPage() {
       func: fillForm,
       args: [profile]
     });
-    showStatus('Form filled!');
+    showStatus('Business fields filled! Use 1Password for passwords.');
   } catch (err) {
     showStatus('Error: ' + err.message, true);
   }
 }
 
-// This function runs in the page context
+// This function runs in the page context - ONLY fills business fields
 function fillForm(profile) {
-  // Clean phone - digits only
-  const cleanPhone = (profile.phone || '').replace(/\D/g, '');
-  
   // Clean company name - remove spaces for strict validation
   const cleanCompany = (profile.companyName || '').replace(/\s+/g, '');
   
-  // Field mappings: name -> [selectors]
+  // Field mappings: name -> [selectors] - BUSINESS FIELDS ONLY
   const fieldMappings = {
-    firstName: [
-      '#fld_first_name', '#firstName', '#first_name', '#firstname', '#fname',
-      'input[name="first_name"]', 'input[name="firstName"]', 'input[name="firstname"]',
-      'input[placeholder*="First Name" i]', 'input[placeholder*="First name" i]'
-    ],
-    lastName: [
-      '#fld_last_name', '#lastName', '#last_name', '#lastname', '#lname',
-      'input[name="last_name"]', 'input[name="lastName"]', 'input[name="lastname"]',
-      'input[placeholder*="Last Name" i]', 'input[placeholder*="Last name" i]'
-    ],
-    email: [
-      '#fld_email', '#email', 
-      'input[name="email"]', 'input[type="email"]',
-      'input[placeholder*="Email" i]'
-    ],
-    phone: [
-      '#fld_mobile_number', '#phone', '#telephone', '#mobile',
-      'input[name="mobile_number"]', 'input[name="phone"]', 'input[name="telephone"]',
-      'input[type="tel"]'
-    ],
-    username: [
-      '#fld_signup_username', '#username', '#signup_username',
-      'input[name="signup_username"]', 'input[name="username"]',
-      'input[placeholder*="Username" i]'
-    ],
+    // Company/Business Name
     companyName: [
       '#fld_business_name', '#company', '#companyName', '#business_name',
-      'input[name="business_name"]', 'input[name="company"]',
-      'input[placeholder*="Company" i]', 'input[placeholder*="Business" i]'
+      'input[name="business_name"]', 'input[name="company"]', 'input[name="companyName"]',
+      'input[placeholder*="Company" i]', 'input[placeholder*="Business name" i]'
     ],
+    // Business Registration Number
     businessRegNumber: [
-      '#fld_business_reg_number',
-      'input[name="business_reg_number"]'
+      '#fld_business_reg_number', '#businessRegNumber', '#regNumber',
+      'input[name="business_reg_number"]', 'input[name="reg_number"]',
+      'input[placeholder*="Registration" i]', 'input[placeholder*="Reg number" i]'
     ],
+    // Website / Primary URL
     website: [
-      '#fld_business_website', '#fld_primary_url', '#website', '#url',
+      '#fld_business_website', '#fld_primary_url', '#website', '#url', '#primaryUrl',
       'input[name="business_website"]', 'input[name="primary_url"]',
       'input[name="website"]', 'input[name="url"]',
-      'input[placeholder*="Website" i]', 'input[placeholder*="URL" i]'
+      'input[placeholder*="Website" i]', 'input[placeholder*="URL" i]', 'input[placeholder*="http" i]'
     ],
+    // Username (for affiliate portals)
+    username: [
+      '#fld_signup_username', '#username', '#signup_username', '#affiliateUsername',
+      'input[name="signup_username"]', 'input[name="username"]',
+      'input[placeholder*="Username" i]', 'input[placeholder*="Login" i]'
+    ],
+    // Business Address
     address: [
-      '#fld_business_address', '#address', '#business_address',
-      'input[name="business_address"]', 'input[name="address"]',
-      'input[placeholder*="Address" i]'
+      '#fld_business_address', '#address', '#business_address', '#street',
+      'input[name="business_address"]', 'input[name="address"]', 'input[name="street"]',
+      'input[placeholder*="Address" i]', 'input[placeholder*="Street" i]'
     ],
+    // City
     city: [
-      '#fld_business_city', '#city', '#business_city',
-      'input[name="business_city"]', 'input[name="city"]',
-      'input[placeholder*="City" i]'
+      '#fld_business_city', '#city', '#business_city', '#town',
+      'input[name="business_city"]', 'input[name="city"]', 'input[name="town"]',
+      'input[placeholder*="City" i]', 'input[placeholder*="Town" i]'
     ],
+    // State
     state: [
-      '#fld_business_state', '#state', '#business_state',
-      'input[name="business_state"]', 'input[name="state"]',
-      'input[placeholder*="State" i]'
+      '#fld_business_state', '#state', '#business_state', '#province', '#region',
+      'input[name="business_state"]', 'input[name="state"]', 'input[name="province"]',
+      'input[placeholder*="State" i]', 'input[placeholder*="Province" i]'
     ],
+    // Zip/Postal Code
     zipCode: [
       '#fld_business_postcode', '#zip', '#zipCode', '#postalCode', '#postcode',
-      'input[name="business_postcode"]', 'input[name="zip"]', 'input[name="zipCode"]',
-      'input[placeholder*="Zip" i]', 'input[placeholder*="Postal" i]'
+      'input[name="business_postcode"]', 'input[name="zip"]', 'input[name="zipCode"]', 'input[name="postalCode"]',
+      'input[placeholder*="Zip" i]', 'input[placeholder*="Postal" i]', 'input[placeholder*="Post code" i]'
     ],
+    // Skype
     skype: [
-      '#fld_skype', '#skype',
-      'input[name="skype"]', 'input[placeholder*="Skype" i]'
+      '#fld_skype', '#skype', '#skypeId',
+      'input[name="skype"]', 'input[name="skype_id"]',
+      'input[placeholder*="Skype" i]'
     ],
+    // Telegram
     telegram: [
-      '#telegram', 'input[name="telegram"]', 'input[placeholder*="Telegram" i]'
+      '#telegram', '#telegramId',
+      'input[name="telegram"]', 'input[name="telegram_id"]',
+      'input[placeholder*="Telegram" i]'
     ],
+    // Traffic Sources
     trafficSources: [
-      '#trafficSources', 'input[name="trafficSources"]', 'input[name="traffic"]'
+      '#trafficSources', '#traffic', '#trafficSource',
+      'input[name="trafficSources"]', 'input[name="traffic"]', 'input[name="traffic_sources"]',
+      'textarea[name="trafficSources"]', 'textarea[name="traffic"]',
+      'input[placeholder*="traffic" i]'
     ],
+    // Monthly Visitors
     monthlyVisitors: [
-      '#visitors', '#monthlyVisitors', 
-      'input[name="visitors"]', 'input[name="monthlyVisitors"]'
+      '#visitors', '#monthlyVisitors', '#monthly_visitors',
+      'input[name="visitors"]', 'input[name="monthlyVisitors"]', 'input[name="monthly_visitors"]',
+      'input[placeholder*="visitor" i]'
     ],
+    // Promotion Methods
     promotionMethods: [
-      '#promotion', 'textarea[name="promotionMethods"]', 'textarea[name="promotion"]'
+      '#promotion', '#promotionMethods', '#promotion_methods',
+      'input[name="promotion"]', 'input[name="promotionMethods"]',
+      'textarea[name="promotionMethods"]', 'textarea[name="promotion"]',
+      'input[placeholder*="promot" i]', 'textarea[placeholder*="promot" i]'
     ]
   };
   
@@ -238,115 +212,108 @@ function fillForm(profile) {
   for (const [fieldName, selectors] of Object.entries(fieldMappings)) {
     let value = profile[fieldName] || '';
     
-    // Special handling
-    if (fieldName === 'phone') value = cleanPhone;
-    if (fieldName === 'companyName') value = cleanCompany || profile.companyName;
+    // Special handling for company name (some sites don't like spaces)
+    if (fieldName === 'companyName' && cleanCompany) {
+      // Try clean version first, fall back to original
+      value = profile.companyName;
+    }
     
     if (!value) continue;
     
     for (const selector of selectors) {
-      const el = document.querySelector(selector);
-      if (el && !el.value) {
-        el.value = value;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        filledCount++;
-        break;
+      try {
+        const el = document.querySelector(selector);
+        if (el && !el.value) {
+          el.value = value;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          filledCount++;
+          break;
+        }
+      } catch (e) {
+        // Selector might be invalid, continue
       }
     }
   }
-  
-  // Fill confirm email fields
-  const confirmEmailSelectors = [
-    '#confirmEmail', '#confirm_email', '#emailConfirm',
-    'input[name="confirmEmail"]', 'input[name="confirm_email"]',
-    'input[name="email2"]', 'input[placeholder*="Confirm" i]'
-  ];
-  for (const selector of confirmEmailSelectors) {
-    const el = document.querySelector(selector);
-    if (el && !el.value && profile.email) {
-      el.value = profile.email;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      filledCount++;
-      break;
-    }
-  }
-  
-  // Fill password fields
-  const passwordFields = document.querySelectorAll('input[type="password"]');
-  passwordFields.forEach(el => {
-    if (!el.value && profile.currentPassword) {
-      el.value = profile.currentPassword;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      filledCount++;
-    }
-  });
   
   // Fill country dropdowns
   const countrySelectors = [
-    '#fld_country', '#fld_business_country', '#country',
-    'select[name="country"]', 'select[name="business_country"]'
+    '#fld_country', '#fld_business_country', '#country', '#businessCountry',
+    'select[name="country"]', 'select[name="business_country"]', 'select[name="countryCode"]'
   ];
+  
   for (const selector of countrySelectors) {
-    const el = document.querySelector(selector);
-    if (el) {
-      // Try exact match first
-      const options = Array.from(el.options);
-      let found = options.find(opt => opt.value === profile.country);
-      
-      // Try text search for US
-      if (!found && profile.country === 'US') {
-        found = options.find(opt => 
-          opt.text.toLowerCase().includes('united states') ||
-          opt.value.toLowerCase() === 'us' ||
-          opt.value.toLowerCase() === 'usa'
-        );
+    try {
+      const el = document.querySelector(selector);
+      if (el) {
+        const options = Array.from(el.options);
+        let found = options.find(opt => opt.value === profile.country);
+        
+        // Try text search for US
+        if (!found && profile.country === 'US') {
+          found = options.find(opt => 
+            opt.text.toLowerCase().includes('united states') ||
+            opt.value.toLowerCase() === 'us' ||
+            opt.value.toLowerCase() === 'usa'
+          );
+        }
+        
+        if (found && el.value !== found.value) {
+          el.value = found.value;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          filledCount++;
+        }
       }
-      
-      if (found) {
-        el.value = found.value;
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        filledCount++;
-      }
+    } catch (e) {
+      // Continue
     }
   }
   
   // Select business type radio
-  const corporateRadio = document.querySelector('input[name="business_type"][value="' + profile.businessType + '"]');
-  if (corporateRadio && !corporateRadio.checked) {
-    corporateRadio.click();
-    filledCount++;
-  }
+  try {
+    const businessRadio = document.querySelector('input[name="business_type"][value="' + profile.businessType + '"]');
+    if (businessRadio && !businessRadio.checked) {
+      businessRadio.click();
+      filledCount++;
+    }
+  } catch (e) {}
   
   // Select marketing dropdown
-  const marketingSelect = document.querySelector('#fld_marketing, select[name="marketing"]');
-  if (marketingSelect) {
-    marketingSelect.value = profile.marketingDefault;
-    marketingSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    filledCount++;
+  try {
+    const marketingSelect = document.querySelector('#fld_marketing, select[name="marketing"]');
+    if (marketingSelect && marketingSelect.value !== profile.marketingDefault) {
+      marketingSelect.value = profile.marketingDefault;
+      marketingSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      filledCount++;
+    }
+  } catch (e) {}
+  
+  // Check terms checkboxes (if enabled)
+  if (profile.autoCheckTerms) {
+    const termsSelectors = [
+      'input[name="termsagreement[]"]',
+      'input[name="terms"]',
+      'input[name="agree"]',
+      'input[name="tos"]',
+      'input[type="checkbox"][id*="term" i]',
+      'input[type="checkbox"][name*="term" i]',
+      'input[type="checkbox"][name*="agree" i]'
+    ];
+    
+    for (const selector of termsSelectors) {
+      try {
+        const checkboxes = document.querySelectorAll(selector);
+        checkboxes.forEach(cb => {
+          if (!cb.checked) {
+            cb.click();
+            filledCount++;
+          }
+        });
+      } catch (e) {}
+    }
   }
   
-  // Check terms checkboxes
-  const termsSelectors = [
-    'input[name="termsagreement[]"]',
-    'input[name="terms"]',
-    'input[name="agree"]',
-    'input[type="checkbox"][id*="term" i]',
-    'input[type="checkbox"][name*="term" i]'
-  ];
-  for (const selector of termsSelectors) {
-    const checkboxes = document.querySelectorAll(selector);
-    checkboxes.forEach(cb => {
-      if (!cb.checked) {
-        cb.click();
-        filledCount++;
-      }
-    });
-  }
-  
-  // Return result
+  console.log(`[Affiliate Form Filler] Filled ${filledCount} business fields`);
   return { success: true, filledCount };
 }
 
@@ -361,7 +328,7 @@ async function loadProfilesList() {
   
   // Ensure default profile exists
   if (!profiles['default']) {
-    profiles['default'] = { firstName: '', lastName: '', email: '' };
+    profiles['default'] = { companyName: '', website: '' };
   }
   
   for (const [id, profile] of Object.entries(profiles)) {
@@ -369,8 +336,8 @@ async function loadProfilesList() {
     item.className = 'profile-item' + (id === activeProfile ? ' active' : '');
     item.innerHTML = `
       <div>
-        <div class="name">${profile.firstName || 'Unnamed'} ${profile.lastName || ''}</div>
-        <div class="email">${profile.email || 'No email'}</div>
+        <div class="name">${profile.companyName || 'Unnamed Profile'}</div>
+        <div class="email">${profile.website || 'No website'}</div>
       </div>
       ${id !== 'default' ? '<button class="delete-btn" data-id="' + id + '">×</button>' : ''}
     `;
@@ -459,26 +426,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Fill button
   document.getElementById('fillBtn').addEventListener('click', fillCurrentPage);
   
-  // Generate password button
-  document.getElementById('generatePwdBtn').addEventListener('click', async () => {
-    const data = await chrome.storage.local.get(['settings']);
-    const format = data.settings?.passwordFormat || 'simple';
-    const password = generatePassword(format);
-    document.getElementById('currentPassword').value = password;
-    
-    // Auto-save
-    const profileData = await chrome.storage.local.get(['activeProfile']);
-    await saveProfile(profileData.activeProfile || 'default');
-    
-    showStatus('New password generated!');
-  });
-  
   // Add profile button
   document.getElementById('addProfileBtn').addEventListener('click', async () => {
     const id = 'profile_' + Date.now();
     const data = await chrome.storage.local.get(['profiles']);
     const profiles = data.profiles || {};
-    profiles[id] = { firstName: 'New', lastName: 'Profile', email: '' };
+    profiles[id] = { companyName: 'New Business', website: '' };
     await chrome.storage.local.set({ profiles, activeProfile: id });
     
     // Clear form and switch to profile tab
@@ -492,7 +445,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('profileTab').classList.remove('hidden');
     document.getElementById('profilesTab').classList.add('hidden');
     
-    showStatus('New profile created! Fill in details and save.');
+    showStatus('New profile created!');
   });
   
   // Export button
