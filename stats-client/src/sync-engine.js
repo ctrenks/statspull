@@ -1299,15 +1299,30 @@ class SyncEngine {
         // Show raw API response for debugging
         this.log(`RAW API RESPONSE: ${JSON.stringify(response, null, 2)}`);
 
-        // Affilka API response structure: { rows: { data: [...] }, totals: { data: [...] } }
+        // Affilka API response structure: { rows: { data: [...] }, totals/overall_totals: { data: [...] } }
         const rows = response.data?.rows?.data || [];
-        const totals = response.data?.totals?.data || [];
+        // Some Affilka APIs use "totals", others use "overall_totals"
+        const totals = response.data?.totals?.data || response.data?.overall_totals?.data || [];
 
         this.log(`Affilka API returned ${rows.length} row(s), ${totals.length} total(s)`);
 
-        // If we got empty data, try next endpoint (different parameters might work)
+        // If we got absolutely no data structure, try next endpoint
         if (rows.length === 0 && totals.length === 0) {
-          this.log('⚠ No data with this endpoint/parameters, trying next...');
+          // Check if API explicitly returned empty results vs connection/auth issues
+          if (response.status === 200 && response.data) {
+            this.log('✓ API responded successfully but with zero activity - this is valid data');
+            // Return zero stats instead of trying more endpoints
+            return [{
+              date: new Date().toISOString().split('T')[0],
+              clicks: 0,
+              impressions: 0,
+              signups: 0,
+              ftds: 0,
+              deposits: 0,
+              revenue: 0
+            }];
+          }
+          this.log('⚠ No data structure in response, trying next endpoint...');
           await this.delay(1000); // Small delay between attempts
           continue; // Try next endpoint
         }
