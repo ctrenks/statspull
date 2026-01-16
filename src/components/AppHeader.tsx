@@ -34,20 +34,20 @@ export default function AppHeader({ activePage }: AppHeaderProps) {
           </Link>
 
           <div className="flex items-center gap-4">
-            <Link 
-              href="/programs" 
+            <Link
+              href="/programs"
               className={`btn-ghost text-sm ${currentPage === "programs" ? "text-primary-400" : ""}`}
             >
               My Programs
             </Link>
-            <Link 
-              href="/stats" 
+            <Link
+              href="/stats"
               className={`btn-ghost text-sm ${currentPage === "stats" ? "text-primary-400" : ""}`}
             >
               My Stats
             </Link>
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/dashboard"
               className={`btn-ghost text-sm ${currentPage === "dashboard" ? "text-primary-400" : ""}`}
             >
               Dashboard
