@@ -101,6 +101,12 @@ export default function DashboardContent({ user }: { user: User }) {
             </Link>
 
             <div className="flex items-center gap-4">
+              <Link href="/programs" className="btn-ghost text-sm">
+                My Programs
+              </Link>
+              <Link href="/stats" className="btn-ghost text-sm">
+                My Stats
+              </Link>
               {user.role === 9 && (
                 <Link href="/admin" className="btn-ghost text-sm">
                   Admin Panel
