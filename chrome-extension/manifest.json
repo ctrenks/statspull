@@ -8,6 +8,15 @@
     "activeTab",
     "scripting"
   ],
+  "commands": {
+    "fill-form": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Fill business fields on current page"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
