@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       where: { userId: session.user.id },
       select: { programId: true, source: true },
     });
-    
+
     // Build separate sets for web selections vs client installations
     const selectedOnWebIds = new Set(
       selections.filter(s => s.source === "web").map(s => s.programId)

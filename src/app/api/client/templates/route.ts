@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Get user's web-selected program IDs (source: "web")
     // These are templates the user selected on the web interface
     const userSelections = await prisma.userProgramSelection.findMany({
-      where: { 
+      where: {
         userId: user.id,
         source: "web", // Only get web selections, not client installations
       },

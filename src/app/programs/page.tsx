@@ -150,7 +150,7 @@ export default function ProgramsPage() {
 
   const ProgramRow = ({ program }: { program: Program }) => {
     const signUpUrl = getSignUpUrl(program);
-    
+
     return (
       <tr key={program.id} className={`program-row ${program.isInstalled ? "installed" : ""} ${program.isSelected ? "selected" : ""}`}>
         <td className="checkbox-cell">
@@ -182,9 +182,9 @@ export default function ProgramsPage() {
         </td>
         <td className="action-cell">
           {signUpUrl ? (
-            <a 
-              href={signUpUrl} 
-              target="_blank" 
+            <a
+              href={signUpUrl}
+              target="_blank"
               rel="noopener noreferrer"
               className="signup-btn"
             >
