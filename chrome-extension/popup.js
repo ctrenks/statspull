@@ -1,12 +1,13 @@
 // Field IDs that we save/load - business fields only (1Password handles the rest)
 const FIELD_IDS = [
-  'companyName', 'businessRegNumber', 'website', 'username',
+  'username', 'currency',
+  'companyName', 'businessRegNumber', 'website',
   'address', 'city', 'state', 'zipCode', 'country',
   'skype', 'telegram',
   'trafficSources', 'monthlyVisitors', 'promotionMethods'
 ];
 
-const SETTINGS_IDS = ['businessType', 'marketingDefault', 'autoCheckTerms'];
+const SETTINGS_IDS = ['businessType', 'marketingDefault', 'autoCheckTerms', 'skipNewsletters'];
 
 // Show status message
 function showStatus(message, isError = false) {
@@ -100,6 +101,7 @@ async function fillCurrentPage() {
   profile.businessType = settings.businessType || 'corporate';
   profile.marketingDefault = settings.marketingDefault || 'website';
   profile.autoCheckTerms = settings.autoCheckTerms !== false;
+  profile.skipNewsletters = settings.skipNewsletters !== false;
 
   // Get current tab and inject content script
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -241,23 +243,55 @@ function fillForm(profile) {
     '#fld_country', '#fld_business_country', '#country', '#businessCountry',
     'select[name="country"]', 'select[name="business_country"]', 'select[name="countryCode"]'
   ];
-
+  
   for (const selector of countrySelectors) {
     try {
       const el = document.querySelector(selector);
       if (el) {
         const options = Array.from(el.options);
         let found = options.find(opt => opt.value === profile.country);
-
+        
         // Try text search for US
         if (!found && profile.country === 'US') {
-          found = options.find(opt =>
+          found = options.find(opt => 
             opt.text.toLowerCase().includes('united states') ||
             opt.value.toLowerCase() === 'us' ||
             opt.value.toLowerCase() === 'usa'
           );
         }
-
+        
+        if (found && el.value !== found.value) {
+          el.value = found.value;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          filledCount++;
+        }
+      }
+    } catch (e) {
+      // Continue
+    }
+  }
+  
+  // Fill currency dropdown
+  const currencySelectors = [
+    '#fld_currency', '#currency',
+    'select[name="currency"]', 'select[name="currencyCode"]'
+  ];
+  
+  for (const selector of currencySelectors) {
+    try {
+      const el = document.querySelector(selector);
+      if (el && profile.currency) {
+        const options = Array.from(el.options);
+        let found = options.find(opt => opt.value === profile.currency);
+        
+        // Try text search
+        if (!found) {
+          found = options.find(opt => 
+            opt.text.toLowerCase().includes(profile.currency.toLowerCase()) ||
+            opt.value.toLowerCase() === profile.currency.toLowerCase()
+          );
+        }
+        
         if (found && el.value !== found.value) {
           el.value = found.value;
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -299,12 +333,39 @@ function fillForm(profile) {
       'input[type="checkbox"][name*="term" i]',
       'input[type="checkbox"][name*="agree" i]'
     ];
-
+    
     for (const selector of termsSelectors) {
       try {
         const checkboxes = document.querySelectorAll(selector);
         checkboxes.forEach(cb => {
           if (!cb.checked) {
+            cb.click();
+            filledCount++;
+          }
+        });
+      } catch (e) {}
+    }
+  }
+  
+  // Skip newsletter/email subscription checkboxes (if enabled)
+  if (profile.skipNewsletters) {
+    const newsletterSelectors = [
+      'input[name="email_unsubscribed[]"]',
+      'input[name="newsletter"]',
+      'input[name="subscribe"]',
+      'input[name="email_subscription"]',
+      'input[type="checkbox"][name*="newsletter" i]',
+      'input[type="checkbox"][name*="subscribe" i]',
+      'input[type="checkbox"][name*="mailout" i]',
+      'input[type="checkbox"][name*="promo" i]'
+    ];
+    
+    for (const selector of newsletterSelectors) {
+      try {
+        const checkboxes = document.querySelectorAll(selector);
+        checkboxes.forEach(cb => {
+          // Make sure newsletter boxes stay UNCHECKED
+          if (cb.checked) {
             cb.click();
             filledCount++;
           }

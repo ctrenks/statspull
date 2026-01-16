@@ -256,6 +256,24 @@
     <div id="status" class="status"></div>
 
     <div class="section">
+      <div class="section-title">Account Settings</div>
+      <div class="field">
+        <label>Username (for affiliate portals)</label>
+        <input type="text" id="username" placeholder="myaffiliateuser">
+      </div>
+      <div class="field">
+        <label>Preferred Currency</label>
+        <select id="currency">
+          <option value="USD">USD - US Dollar</option>
+          <option value="EUR">EUR - Euro</option>
+          <option value="GBP">GBP - British Pound</option>
+          <option value="CAD">CAD - Canadian Dollar</option>
+          <option value="AUD">AUD - Australian Dollar</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="section">
       <div class="section-title">Business Info</div>
       <div class="field">
         <label>Company Name</label>
@@ -268,10 +286,6 @@
       <div class="field">
         <label>Website / Primary URL</label>
         <input type="url" id="website" placeholder="https://example.com">
-      </div>
-      <div class="field">
-        <label>Username (for affiliate accounts)</label>
-        <input type="text" id="username" placeholder="myaffiliateuser">
       </div>
     </div>
 
@@ -379,6 +393,11 @@
       <div class="field">
         <label>
           <input type="checkbox" id="autoCheckTerms" checked> Auto-check terms & conditions
+        </label>
+      </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="skipNewsletters" checked> Skip newsletter subscriptions
         </label>
       </div>
     </div>
