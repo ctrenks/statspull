@@ -883,6 +883,7 @@ class SyncEngine {
     if (lines.length < 2) return [];
 
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+    this.log(`MyAffiliates CSV headers: ${JSON.stringify(headers)}`);
     const stats = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -890,17 +891,29 @@ class SyncEngine {
       const row = {};
       headers.forEach((h, idx) => row[h] = values[idx] || '');
 
+      // Debug: log first row's raw data
+      if (i === 1) {
+        this.log(`MyAffiliates first row raw: ${JSON.stringify(row)}`);
+      }
+
       // Map CSV columns to our stats format
       // Common MyAffiliates columns: date, clicks, impressions, signups, ftds, deposits, commission/earnings
-      stats.push({
-        date: row.date || row.period || new Date().toISOString().split('T')[0],
-        clicks: parseInt(row.clicks || row.click || 0) || 0,
-        impressions: parseInt(row.impressions || row.views || 0) || 0,
-        signups: parseInt(row.signups || row.registrations || row.regs || 0) || 0,
-        ftds: parseInt(row.ftds || row.ftd || row['first time depositors'] || row.new_depositors || 0) || 0,
-        deposits: parseInt(row.deposits || row.deposit_count || 0) || 0,
-        revenue: Math.round(parseFloat(row.commission || row.earnings || row.revenue || row.total || 0) * 100) || 0
-      });
+      const parsed = {
+        date: row.date || row.period || row.day || new Date().toISOString().split('T')[0],
+        clicks: parseInt(row.clicks || row.click || row.unique_clicks || 0) || 0,
+        impressions: parseInt(row.impressions || row.views || row.raw_clicks || 0) || 0,
+        signups: parseInt(row.signups || row.registrations || row.regs || row.sign_ups || row['sign ups'] || 0) || 0,
+        ftds: parseInt(row.ftds || row.ftd || row['first time depositors'] || row.new_depositors || row.ndc || row['new depositing customers'] || 0) || 0,
+        deposits: parseInt(row.deposits || row.deposit_count || row.depositors || 0) || 0,
+        revenue: Math.round(parseFloat(row.commission || row.earnings || row.revenue || row.total || row.total_commission || row['total commission'] || 0) * 100) || 0
+      };
+      
+      // Debug: log first row's parsed data
+      if (i === 1) {
+        this.log(`MyAffiliates first row parsed: ${JSON.stringify(parsed)}`);
+      }
+      
+      stats.push(parsed);
     }
 
     return stats;
@@ -982,9 +995,17 @@ class SyncEngine {
         }
 
         this.log(`MyAffiliates - received ${csvText.length} bytes of CSV data`);
+        
+        // Debug: show first 500 chars of CSV
+        this.log(`MyAffiliates CSV preview: ${csvText.substring(0, 500).replace(/\n/g, '\\n')}`);
 
         const stats = this.parseMyAffiliatesCsv(csvText);
         this.log(`MyAffiliates - parsed ${stats.length} stat rows`);
+        
+        // Debug: show parsed stats
+        if (stats.length > 0) {
+          this.log(`MyAffiliates - first parsed row: ${JSON.stringify(stats[0])}`);
+        }
 
         return stats;
       } catch (error) {
