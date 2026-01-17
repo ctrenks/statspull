@@ -110,13 +110,15 @@ model ProgramTemplate {
   referralUrl  String?  // Affiliate signup link for this program
 
   // Field labels (customize what users see)
-  apiKeyLabel    String?  // e.g., "Statistic Token", "API Key"
-  usernameLabel  String?  // e.g., "Username", "Email", "Partner ID"
-  passwordLabel  String?  // e.g., "Password", "API Secret"
-  baseUrlLabel   String?  // e.g., "Affiliate URL", "Dashboard URL"
+  apiKeyLabel      String?  // e.g., "Statistic Token", "API Key", "Client ID"
+  apiSecretLabel   String?  // e.g., "Client Secret" (for OAuth2)
+  usernameLabel    String?  // e.g., "Username", "Email", "Partner ID"
+  passwordLabel    String?  // e.g., "Password", "API Secret"
+  baseUrlLabel     String?  // e.g., "Affiliate URL", "Dashboard URL"
 
   // Field requirements
-  requiresBaseUrl Boolean @default(false)
+  requiresBaseUrl  Boolean @default(false)
+  supportsOAuth    Boolean @default(false)  // If true, show Client ID + Secret fields
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

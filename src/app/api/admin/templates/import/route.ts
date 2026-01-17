@@ -34,10 +34,12 @@ interface DefaultTemplate {
   softwareType: string;
   authType: 'API_KEY' | 'CREDENTIALS' | 'BOTH';
   apiKeyLabel?: string;
+  apiSecretLabel?: string;
   baseUrl?: string;
   loginUrl?: string;
   icon?: string;
   requiresBaseUrl?: boolean;
+  supportsOAuth?: boolean;
   baseUrlLabel?: string;
   description?: string;
   displayOrder?: number;
@@ -47,7 +49,7 @@ interface DefaultTemplate {
 const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { name: '7BitPartners', softwareType: '7bitpartners', authType: 'BOTH', apiKeyLabel: 'Statistic Token', baseUrl: 'https://dashboard.7bitpartners.com', icon: '🎰' },
   { name: 'CellXpert', softwareType: 'cellxpert', authType: 'BOTH', icon: '📊' },
-  { name: 'MyAffiliates', softwareType: 'myaffiliates', authType: 'BOTH', icon: '🤝' },
+  { name: 'MyAffiliates', softwareType: 'myaffiliates', authType: 'BOTH', icon: '🤝', supportsOAuth: true, apiKeyLabel: 'Client ID', apiSecretLabel: 'Client Secret' },
   { name: 'Income Access', softwareType: 'income-access', authType: 'CREDENTIALS', icon: '💰' },
   { name: 'NetRefer', softwareType: 'netrefer', authType: 'API_KEY', apiKeyLabel: 'API Token', icon: '🌐' },
   { name: 'Wynta', softwareType: 'wynta', authType: 'BOTH', icon: '🎲' },
@@ -139,8 +141,10 @@ export async function POST(request: NextRequest) {
             icon: template.icon || null,
             description: template.description || null,
             apiKeyLabel: template.apiKeyLabel || null,
+            apiSecretLabel: template.apiSecretLabel || null,
             baseUrlLabel: template.baseUrlLabel || null,
             requiresBaseUrl: template.requiresBaseUrl || false,
+            supportsOAuth: template.supportsOAuth || false,
             displayOrder: template.displayOrder || 0,
           },
           create: {
@@ -152,8 +156,10 @@ export async function POST(request: NextRequest) {
             icon: template.icon || null,
             description: template.description || null,
             apiKeyLabel: template.apiKeyLabel || null,
+            apiSecretLabel: template.apiSecretLabel || null,
             baseUrlLabel: template.baseUrlLabel || null,
             requiresBaseUrl: template.requiresBaseUrl || false,
+            supportsOAuth: template.supportsOAuth || false,
             displayOrder: template.displayOrder || 0,
             isActive: true,
           },

@@ -66,10 +66,12 @@ export async function PATCH(
         ...(body.isActive !== undefined && { isActive: body.isActive }),
         ...(body.referralUrl !== undefined && { referralUrl: body.referralUrl || null }),
         ...(body.apiKeyLabel !== undefined && { apiKeyLabel: body.apiKeyLabel || null }),
+        ...(body.apiSecretLabel !== undefined && { apiSecretLabel: body.apiSecretLabel || null }),
         ...(body.usernameLabel !== undefined && { usernameLabel: body.usernameLabel || null }),
         ...(body.passwordLabel !== undefined && { passwordLabel: body.passwordLabel || null }),
         ...(body.baseUrlLabel !== undefined && { baseUrlLabel: body.baseUrlLabel || null }),
         ...(body.requiresBaseUrl !== undefined && { requiresBaseUrl: body.requiresBaseUrl }),
+        ...(body.supportsOAuth !== undefined && { supportsOAuth: body.supportsOAuth }),
       }
     });
 

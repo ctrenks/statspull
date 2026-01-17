@@ -18,10 +18,12 @@ interface Template {
   isActive: boolean;
   referralUrl: string | null;
   apiKeyLabel: string | null;
+  apiSecretLabel: string | null;
   usernameLabel: string | null;
   passwordLabel: string | null;
   baseUrlLabel: string | null;
   requiresBaseUrl: boolean;
+  supportsOAuth: boolean;
 }
 
 // Known software types for the dropdown
@@ -106,10 +108,12 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
     isActive: true,
     referralUrl: "",
     apiKeyLabel: "",
+    apiSecretLabel: "",
     usernameLabel: "",
     passwordLabel: "",
     baseUrlLabel: "",
     requiresBaseUrl: false,
+    supportsOAuth: false,
   });
 
   const resetForm = () => {
@@ -125,10 +129,12 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
       isActive: true,
       referralUrl: "",
       apiKeyLabel: "",
+      apiSecretLabel: "",
       usernameLabel: "",
       passwordLabel: "",
       baseUrlLabel: "",
       requiresBaseUrl: false,
+      supportsOAuth: false,
     });
     setEditingTemplate(null);
     setError(null);
@@ -153,10 +159,12 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
       isActive: template.isActive,
       referralUrl: template.referralUrl || "",
       apiKeyLabel: template.apiKeyLabel || "",
+      apiSecretLabel: template.apiSecretLabel || "",
       usernameLabel: template.usernameLabel || "",
       passwordLabel: template.passwordLabel || "",
       baseUrlLabel: template.baseUrlLabel || "",
       requiresBaseUrl: template.requiresBaseUrl,
+      supportsOAuth: template.supportsOAuth,
     });
     setError(null);
     setIsModalOpen(true);
@@ -590,6 +598,19 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
                 </label>
               </div>
 
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="supportsOAuth"
+                  checked={formData.supportsOAuth}
+                  onChange={e => setFormData({ ...formData, supportsOAuth: e.target.checked })}
+                  className="rounded bg-gray-700 border-gray-600"
+                />
+                <label htmlFor="supportsOAuth" className="text-sm text-gray-300">
+                  Supports OAuth2 (Client ID + Client Secret) - e.g., MyAffiliates
+                </label>
+              </div>
+
               {/* Custom Field Labels */}
               <div className="border-t border-gray-700 pt-4 mt-4">
                 <h3 className="font-medium text-gray-300 mb-3">Custom Field Labels</h3>
@@ -598,17 +619,32 @@ export default function TemplatesContent({ templates: initialTemplates }: { temp
                 </p>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {(formData.authType === "API_KEY" || formData.authType === "BOTH") && (
+                  {(formData.authType === "API_KEY" || formData.authType === "BOTH" || formData.supportsOAuth) && (
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        API Key Label
+                        {formData.supportsOAuth ? "Client ID Label" : "API Key Label"}
                       </label>
                       <input
                         type="text"
                         value={formData.apiKeyLabel}
                         onChange={e => setFormData({ ...formData, apiKeyLabel: e.target.value })}
                         className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-                        placeholder="API Key"
+                        placeholder={formData.supportsOAuth ? "Client ID" : "API Key"}
+                      />
+                    </div>
+                  )}
+
+                  {formData.supportsOAuth && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
+                        Client Secret Label
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.apiSecretLabel}
+                        onChange={e => setFormData({ ...formData, apiSecretLabel: e.target.value })}
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                        placeholder="Client Secret"
                       />
                     </div>
                   )}

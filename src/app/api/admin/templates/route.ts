@@ -54,10 +54,12 @@ export async function POST(request: NextRequest) {
         isActive: body.isActive !== false,
         referralUrl: body.referralUrl || null,
         apiKeyLabel: body.apiKeyLabel || null,
+        apiSecretLabel: body.apiSecretLabel || null,
         usernameLabel: body.usernameLabel || null,
         passwordLabel: body.passwordLabel || null,
         baseUrlLabel: body.baseUrlLabel || null,
         requiresBaseUrl: body.requiresBaseUrl || false,
+        supportsOAuth: body.supportsOAuth || false,
       }
     });
 
