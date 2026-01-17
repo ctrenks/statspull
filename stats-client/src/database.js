@@ -746,7 +746,7 @@ class Database {
   }
 
   // Consolidate stats: keep only the latest record per month for a program
-  // Uses the LATEST values (not SUM) since monthly stats should overwrite, not accumulate
+  // SUMs all daily values into a single monthly record
   consolidateMonthlyStats(programId) {
     // Get all months with multiple records
     const duplicates = this.query(
@@ -762,24 +762,20 @@ class Database {
 
     let consolidated = 0;
     for (const dup of duplicates) {
-      // Get the LATEST record for this month (by date, then by rowid for same-day)
-      // Monthly stats should use latest values, not sums - multiple syncs overwrite, not accumulate
-      const latest = this.queryOne(
+      // SUM all records for this month (daily stats should be aggregated)
+      const totals = this.queryOne(
         `
         SELECT
-          date as latest_date,
-          clicks,
-          impressions,
-          signups,
-          ftds,
-          deposits,
-          withdrawals,
-          chargebacks,
-          revenue
+          SUM(clicks) as clicks,
+          SUM(impressions) as impressions,
+          SUM(signups) as signups,
+          SUM(ftds) as ftds,
+          SUM(deposits) as deposits,
+          SUM(withdrawals) as withdrawals,
+          SUM(chargebacks) as chargebacks,
+          SUM(revenue) as revenue
         FROM stats
         WHERE program_id = ? AND date LIKE ?
-        ORDER BY date DESC, rowid DESC
-        LIMIT 1
       `,
         [programId, `${dup.month}%`]
       );
@@ -801,14 +797,14 @@ class Database {
           id,
           programId,
           `${dup.month}-01`,
-          latest.clicks || 0,
-          latest.impressions || 0,
-          latest.signups || 0,
-          latest.ftds || 0,
-          latest.deposits || 0,
-          latest.withdrawals || 0,
-          latest.chargebacks || 0,
-          latest.revenue || 0,
+          totals.clicks || 0,
+          totals.impressions || 0,
+          totals.signups || 0,
+          totals.ftds || 0,
+          totals.deposits || 0,
+          totals.withdrawals || 0,
+          totals.chargebacks || 0,
+          totals.revenue || 0,
         ]
       );
 
