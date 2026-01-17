@@ -202,6 +202,7 @@ function updateCredentialFields(provider, isEditMode = false) {
   const usernameGroup = elements.credUsername?.parentElement;
   const passwordGroup = elements.credPassword?.parentElement;
   const apiKeyGroup = elements.credApiKey?.parentElement;
+  const apiSecretGroup = elements.credApiSecret?.parentElement;
   const baseUrlGroup = elements.programApiUrl?.parentElement;
   const loginUrlGroup = elements.programLoginUrl?.parentElement;
   const descriptionEl = document.getElementById('providerDescription');
@@ -212,6 +213,7 @@ function updateCredentialFields(provider, isEditMode = false) {
   const usernameLabel = usernameGroup.querySelector('label');
   const passwordLabel = passwordGroup.querySelector('label');
   const apiKeyLabel = apiKeyGroup.querySelector('label');
+  const apiSecretLabel = apiSecretGroup?.querySelector('label');
   const baseUrlLabel = baseUrlGroup?.querySelector('label');
   const loginUrlLabel = loginUrlGroup?.querySelector('label');
 
@@ -219,9 +221,11 @@ function updateCredentialFields(provider, isEditMode = false) {
   usernameGroup.style.display = 'block';
   passwordGroup.style.display = 'block';
   apiKeyGroup.style.display = 'block';
+  if (apiSecretGroup) apiSecretGroup.style.display = 'none'; // Hidden by default
   if (usernameLabel) usernameLabel.textContent = 'Username';
   if (passwordLabel) passwordLabel.textContent = 'Password';
   if (apiKeyLabel) apiKeyLabel.textContent = 'API Key';
+  if (apiSecretLabel) apiSecretLabel.textContent = 'Client Secret';
   if (baseUrlLabel) baseUrlLabel.textContent = 'API URL';
   if (loginUrlLabel) loginUrlLabel.textContent = 'Login URL';
   if (descriptionEl) {
@@ -231,15 +235,18 @@ function updateCredentialFields(provider, isEditMode = false) {
 
   if (!provider) return;
 
+  // Check if OAuth is supported
+  const supportsOAuth = provider.supportsOAuth || provider.supports_oauth;
+
   // Update field visibility based on authType
-  const authType = provider.authType || 'CREDENTIALS';
+  const authType = provider.authType || provider.auth_type || 'CREDENTIALS';
 
   if (authType === 'API_KEY') {
     // Only show API key field
     usernameGroup.style.display = 'none';
     passwordGroup.style.display = 'none';
     apiKeyGroup.style.display = 'block';
-    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || 'API Key / Token';
+    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || provider.api_key_label || 'API Key / Token';
   } else if (authType === 'CREDENTIALS') {
     // Only show username/password
     usernameGroup.style.display = 'block';
@@ -250,29 +257,41 @@ function updateCredentialFields(provider, isEditMode = false) {
     usernameGroup.style.display = 'block';
     passwordGroup.style.display = 'block';
     apiKeyGroup.style.display = 'block';
-    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || 'API Key (optional if using login)';
+    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || provider.api_key_label || 'API Key (optional if using login)';
+  }
+
+  // Show API Secret field if OAuth is supported
+  if (supportsOAuth && apiSecretGroup) {
+    apiSecretGroup.style.display = 'block';
+    apiKeyGroup.style.display = 'block'; // Always show API key/Client ID for OAuth
+    if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || provider.api_key_label || 'Client ID';
+    if (apiSecretLabel) apiSecretLabel.textContent = provider.apiSecretLabel || provider.api_secret_label || 'Client Secret';
   }
 
   // Update custom labels if provided
-  if (provider.usernameLabel && usernameLabel) {
-    usernameLabel.textContent = provider.usernameLabel;
+  if ((provider.usernameLabel || provider.username_label) && usernameLabel) {
+    usernameLabel.textContent = provider.usernameLabel || provider.username_label;
   }
-  if (provider.passwordLabel && passwordLabel) {
-    passwordLabel.textContent = provider.passwordLabel;
+  if ((provider.passwordLabel || provider.password_label) && passwordLabel) {
+    passwordLabel.textContent = provider.passwordLabel || provider.password_label;
   }
-  if (provider.apiKeyLabel && apiKeyLabel) {
-    apiKeyLabel.textContent = provider.apiKeyLabel;
+  if ((provider.apiKeyLabel || provider.api_key_label) && apiKeyLabel) {
+    apiKeyLabel.textContent = provider.apiKeyLabel || provider.api_key_label;
   }
-  if (provider.baseUrlLabel && baseUrlLabel) {
-    baseUrlLabel.textContent = provider.baseUrlLabel;
+  if ((provider.apiSecretLabel || provider.api_secret_label) && apiSecretLabel) {
+    apiSecretLabel.textContent = provider.apiSecretLabel || provider.api_secret_label;
+  }
+  if ((provider.baseUrlLabel || provider.base_url_label) && baseUrlLabel) {
+    baseUrlLabel.textContent = provider.baseUrlLabel || provider.base_url_label;
   }
 
   // Show/hide base URL field based on requiresBaseUrl
   if (baseUrlGroup) {
     // Show if required, or if provider has a default baseUrl, or always show for flexibility
     baseUrlGroup.style.display = 'block';
-    if (provider.requiresBaseUrl && baseUrlLabel) {
-      baseUrlLabel.textContent = (provider.baseUrlLabel || 'Affiliate Dashboard URL') + ' *';
+    const requiresBaseUrl = provider.requiresBaseUrl || provider.requires_base_url;
+    if (requiresBaseUrl && baseUrlLabel) {
+      baseUrlLabel.textContent = ((provider.baseUrlLabel || provider.base_url_label) || 'Affiliate Dashboard URL') + ' *';
     }
   }
 
