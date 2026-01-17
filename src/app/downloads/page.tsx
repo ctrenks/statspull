@@ -8,7 +8,7 @@ export const metadata = {
 
 async function getLatestRelease() {
   try {
-    const res = await fetch('https://api.github.com/repos/ctrenks/statspull/releases/latest', {
+    const res = await fetch('https://api.github.com/repos/ctrenks/stats-client/releases/latest', {
       next: { revalidate: 300 } // Cache for 5 minutes
     });
 
@@ -108,7 +108,7 @@ export default async function DownloadsPage() {
               <h2 className="text-2xl font-bold font-display mb-2">Windows</h2>
               <p className="text-dark-400 mb-6">Windows 10 or later (64-bit)</p>
               <a
-                href={release?.windowsUrl || "https://github.com/ctrenks/statspull/releases/latest"}
+                href={release?.windowsUrl || "https://github.com/ctrenks/stats-client/releases/latest"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
@@ -133,7 +133,7 @@ export default async function DownloadsPage() {
               <h2 className="text-2xl font-bold font-display mb-2">macOS</h2>
               <p className="text-dark-400 mb-6">macOS 10.15 or later (Intel & Apple Silicon)</p>
               <a
-                href={release?.macDmgUrl || release?.macZipUrl || "https://github.com/ctrenks/statspull/releases/latest"}
+                href={release?.macDmgUrl || release?.macZipUrl || "https://github.com/ctrenks/stats-client/releases/latest"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary w-full text-lg py-4 inline-flex items-center justify-center gap-2"
@@ -212,7 +212,7 @@ export default async function DownloadsPage() {
           {/* All Releases Link */}
           <div className="text-center">
             <a
-              href="https://github.com/ctrenks/statspull/releases"
+              href="https://github.com/ctrenks/stats-client/releases"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 font-medium"
