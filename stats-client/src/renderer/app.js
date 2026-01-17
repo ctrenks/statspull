@@ -237,6 +237,10 @@ function updateCredentialFields(provider, isEditMode = false) {
 
   // Check if OAuth is supported
   const supportsOAuth = provider.supportsOAuth || provider.supports_oauth;
+  
+  console.log('[DEBUG updateCredentialFields] provider:', provider);
+  console.log('[DEBUG updateCredentialFields] supportsOAuth:', supportsOAuth);
+  console.log('[DEBUG updateCredentialFields] apiSecretGroup exists:', !!apiSecretGroup);
 
   // Update field visibility based on authType
   const authType = provider.authType || provider.auth_type || 'CREDENTIALS';
@@ -1120,7 +1124,11 @@ async function editProgram(id) {
   // Update credential field visibility based on program's own auth_type
   // Create a provider object with the program's stored authType and config settings
   const providerInfo = providers.find(p => p.code === program.provider) || {};
-
+  
+  console.log('[DEBUG] Program provider code:', program.provider);
+  console.log('[DEBUG] Available providers:', providers.map(p => p.code));
+  console.log('[DEBUG] Found providerInfo:', providerInfo);
+  
   // Parse config if it's a string
   let programConfig = {};
   if (program.config) {
@@ -1130,7 +1138,11 @@ async function editProgram(id) {
       console.warn('Could not parse program config:', e);
     }
   }
-
+  
+  console.log('[DEBUG] Parsed programConfig:', programConfig);
+  console.log('[DEBUG] programConfig.supportsOAuth:', programConfig.supportsOAuth);
+  console.log('[DEBUG] providerInfo.supportsOAuth:', providerInfo.supportsOAuth);
+  
   const programWithAuthType = {
     ...providerInfo,
     authType: program.auth_type || providerInfo.authType || 'CREDENTIALS',
@@ -1143,6 +1155,10 @@ async function editProgram(id) {
     baseUrlLabel: programConfig.baseUrlLabel || providerInfo.baseUrlLabel,
     requiresBaseUrl: programConfig.requiresBaseUrl || providerInfo.requiresBaseUrl,
   };
+  
+  console.log('[DEBUG] Final programWithAuthType:', programWithAuthType);
+  console.log('[DEBUG] supportsOAuth being passed:', programWithAuthType.supportsOAuth);
+  
   updateCredentialFields(programWithAuthType, true);
 
   // Load credentials
