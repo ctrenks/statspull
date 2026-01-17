@@ -237,7 +237,7 @@ function updateCredentialFields(provider, isEditMode = false) {
 
   // Check if OAuth is supported
   const supportsOAuth = provider.supportsOAuth || provider.supports_oauth;
-  
+
   console.log('[DEBUG updateCredentialFields] provider:', provider);
   console.log('[DEBUG updateCredentialFields] supportsOAuth:', supportsOAuth);
   console.log('[DEBUG updateCredentialFields] apiSecretGroup exists:', !!apiSecretGroup);
@@ -515,9 +515,18 @@ function createFreshModal() {
           <label for="credPassword">Password</label>
           <input type="password" class="input" id="credPassword" placeholder="Login password">
         </div>
+        <div class="form-divider">
+          <span>API Credentials (optional - for OAuth2/API access)</span>
+        </div>
         <div class="form-group">
-          <label for="credApiKey">API Key</label>
-          <input type="text" class="input" id="credApiKey" placeholder="API key if required">
+          <label for="credApiKey">Client ID / API Key</label>
+          <input type="text" class="input" id="credApiKey" placeholder="Client ID or API key">
+          <p class="form-hint">For MyAffiliates: Account → Authorisation → Client Identifier</p>
+        </div>
+        <div class="form-group">
+          <label for="credApiSecret">Client Secret</label>
+          <input type="password" class="input" id="credApiSecret" placeholder="Client secret (if required)">
+          <p class="form-hint">For MyAffiliates: The Client Secret from Authorisation</p>
         </div>
       </form>
     </div>
@@ -543,6 +552,7 @@ function createFreshModal() {
   elements.credUsername = document.getElementById("credUsername");
   elements.credPassword = document.getElementById("credPassword");
   elements.credApiKey = document.getElementById("credApiKey");
+  elements.credApiSecret = document.getElementById("credApiSecret");
 
   // Populate provider dropdown
   if (providers.length > 0) {
@@ -1124,11 +1134,11 @@ async function editProgram(id) {
   // Update credential field visibility based on program's own auth_type
   // Create a provider object with the program's stored authType and config settings
   const providerInfo = providers.find(p => p.code === program.provider) || {};
-  
+
   console.log('[DEBUG] Program provider code:', program.provider);
   console.log('[DEBUG] Available providers:', providers.map(p => p.code));
   console.log('[DEBUG] Found providerInfo:', providerInfo);
-  
+
   // Parse config if it's a string
   let programConfig = {};
   if (program.config) {
@@ -1138,11 +1148,11 @@ async function editProgram(id) {
       console.warn('Could not parse program config:', e);
     }
   }
-  
+
   console.log('[DEBUG] Parsed programConfig:', programConfig);
   console.log('[DEBUG] programConfig.supportsOAuth:', programConfig.supportsOAuth);
   console.log('[DEBUG] providerInfo.supportsOAuth:', providerInfo.supportsOAuth);
-  
+
   const programWithAuthType = {
     ...providerInfo,
     authType: program.auth_type || providerInfo.authType || 'CREDENTIALS',
@@ -1155,10 +1165,10 @@ async function editProgram(id) {
     baseUrlLabel: programConfig.baseUrlLabel || providerInfo.baseUrlLabel,
     requiresBaseUrl: programConfig.requiresBaseUrl || providerInfo.requiresBaseUrl,
   };
-  
+
   console.log('[DEBUG] Final programWithAuthType:', programWithAuthType);
   console.log('[DEBUG] supportsOAuth being passed:', programWithAuthType.supportsOAuth);
-  
+
   updateCredentialFields(programWithAuthType, true);
 
   // Load credentials
