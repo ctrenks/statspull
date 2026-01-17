@@ -70,6 +70,30 @@ export default function StatsPage() {
     }
   };
 
+  const clearStats = async (all: boolean = false) => {
+    const message = all 
+      ? "Are you sure you want to delete ALL uploaded stats? This cannot be undone."
+      : `Are you sure you want to delete stats for ${formatMonth(selectedMonth)}? This cannot be undone.`;
+    
+    if (!confirm(message)) return;
+
+    try {
+      const url = all 
+        ? "/api/stats/uploaded"
+        : `/api/stats/uploaded?month=${selectedMonth}`;
+      
+      const response = await fetch(url, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete");
+      
+      const data = await response.json();
+      alert(`Deleted ${data.deleted} stat records. Re-sync your client to upload fresh data.`);
+      fetchStats();
+    } catch (error) {
+      console.error("Error deleting stats:", error);
+      alert("Failed to delete stats");
+    }
+  };
+
   const formatCurrency = (cents: number, currency: string) => {
     const symbol = CURRENCY_SYMBOLS[currency] || "$";
     const amount = cents / 100;
@@ -149,19 +173,35 @@ export default function StatsPage() {
           </p>
         </header>
 
-        <div className="mb-8">
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          className="month-select"
-        >
-          {months.map((month) => (
-            <option key={month} value={month}>
-              {formatMonth(month)}
-            </option>
-          ))}
-        </select>
-      </div>
+        <div className="mb-8 flex flex-wrap items-center gap-4">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="month-select"
+          >
+            {months.map((month) => (
+              <option key={month} value={month}>
+                {formatMonth(month)}
+              </option>
+            ))}
+          </select>
+          <div className="flex gap-2 ml-auto">
+            <button 
+              onClick={() => clearStats(false)}
+              className="px-3 py-2 text-sm bg-dark-800 hover:bg-dark-700 text-dark-300 rounded-lg transition-colors"
+              title="Clear this month's stats"
+            >
+              Clear Month
+            </button>
+            <button 
+              onClick={() => clearStats(true)}
+              className="px-3 py-2 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+              title="Clear all uploaded stats"
+            >
+              Clear All Stats
+            </button>
+          </div>
+        </div>
 
       {/* Summary Cards */}
       <div className="summary-grid">

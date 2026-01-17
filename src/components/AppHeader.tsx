@@ -111,8 +111,8 @@ export default function AppHeader({ activePage }: AppHeaderProps) {
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    link.active 
-                      ? "bg-primary-500/10 text-primary-400" 
+                    link.active
+                      ? "bg-primary-500/10 text-primary-400"
                       : "text-dark-200 hover:bg-dark-800"
                   }`}
                 >
@@ -120,8 +120,8 @@ export default function AppHeader({ activePage }: AppHeaderProps) {
                 </Link>
               ))}
               {user?.role === 9 && (
-                <Link 
-                  href="/admin" 
+                <Link
+                  href="/admin"
                   onClick={() => setMobileMenuOpen(false)}
                   className="px-4 py-3 rounded-lg text-sm font-medium text-dark-200 hover:bg-dark-800 transition-colors"
                 >

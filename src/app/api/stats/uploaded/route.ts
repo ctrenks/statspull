@@ -32,3 +32,37 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// DELETE - Clear user's uploaded stats (all or specific program/month)
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get("month");
+    const programCode = searchParams.get("programCode");
+
+    const where: Record<string, unknown> = { userId: session.user.id };
+    if (month) where.month = month;
+    if (programCode) where.programCode = programCode;
+
+    const result = await prisma.userUploadedStats.deleteMany({
+      where,
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      deleted: result.count,
+      message: `Deleted ${result.count} stat records`
+    });
+  } catch (error) {
+    console.error("Error deleting uploaded stats:", error);
+    return NextResponse.json(
+      { error: "Failed to delete stats" },
+      { status: 500 }
+    );
+  }
+}
