@@ -897,22 +897,23 @@ class SyncEngine {
       }
 
       // Map CSV columns to our stats format
-      // Common MyAffiliates columns: date, clicks, impressions, signups, ftds, deposits, commission/earnings
+      // MyAffiliates columns: date, clicks, impressions, registrations, first deposit count, deposits, income
       const parsed = {
         date: row.date || row.period || row.day || new Date().toISOString().split('T')[0],
         clicks: parseInt(row.clicks || row.click || row.unique_clicks || 0) || 0,
         impressions: parseInt(row.impressions || row.views || row.raw_clicks || 0) || 0,
         signups: parseInt(row.signups || row.registrations || row.regs || row.sign_ups || row['sign ups'] || 0) || 0,
-        ftds: parseInt(row.ftds || row.ftd || row['first time depositors'] || row.new_depositors || row.ndc || row['new depositing customers'] || 0) || 0,
+        ftds: parseInt(row.ftds || row.ftd || row['first deposit count'] || row['first time depositors'] || row.new_depositors || row.ndc || 0) || 0,
         deposits: parseInt(row.deposits || row.deposit_count || row.depositors || 0) || 0,
-        revenue: Math.round(parseFloat(row.commission || row.earnings || row.revenue || row.total || row.total_commission || row['total commission'] || 0) * 100) || 0
+        // Revenue: income is the commission earned, convert to cents
+        revenue: Math.round(parseFloat(row.income || row.commission || row.earnings || row.revenue || row.total || row['net gaming'] || 0) * 100) || 0
       };
-      
+
       // Debug: log first row's parsed data
       if (i === 1) {
         this.log(`MyAffiliates first row parsed: ${JSON.stringify(parsed)}`);
       }
-      
+
       stats.push(parsed);
     }
 
@@ -960,7 +961,10 @@ class SyncEngine {
         const accessToken = await this.getMyAffiliatesToken(domain, clientId, clientSecret);
 
         // Fetch stats - using the Detailed Activity Report endpoint
-        const { startDate, endDate } = this.getDateRange(7);
+        // Get current month's data (1st of month to today)
+        const now = new Date();
+        const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const endDate = now.toISOString().split('T')[0];
         const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&sd=1&mode=csv&sbm=1&dnl=1`;
 
         this.log(`MyAffiliates - fetching stats: ${statsUrl}`);
@@ -995,13 +999,13 @@ class SyncEngine {
         }
 
         this.log(`MyAffiliates - received ${csvText.length} bytes of CSV data`);
-        
+
         // Debug: show first 500 chars of CSV
         this.log(`MyAffiliates CSV preview: ${csvText.substring(0, 500).replace(/\n/g, '\\n')}`);
 
         const stats = this.parseMyAffiliatesCsv(csvText);
         this.log(`MyAffiliates - parsed ${stats.length} stat rows`);
-        
+
         // Debug: show parsed stats
         if (stats.length > 0) {
           this.log(`MyAffiliates - first parsed row: ${JSON.stringify(stats[0])}`);
