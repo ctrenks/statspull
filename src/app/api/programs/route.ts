@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const software = searchParams.get("software") || "";
     const showInstalled = searchParams.get("showInstalled") === "true"; // Default to false - hide installed by default
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : null;
+    const sort = searchParams.get("sort") || "name"; // "name" or "newest"
 
     // Build where clause for templates
     const where: Record<string, unknown> = {
@@ -57,10 +59,10 @@ export async function GET(request: NextRequest) {
         loginUrl: true,
         createdAt: true,
       },
-      orderBy: [
-        { displayOrder: "asc" },
-        { name: "asc" },
-      ],
+      orderBy: sort === "newest" 
+        ? [{ createdAt: "desc" }]
+        : [{ displayOrder: "asc" }, { name: "asc" }],
+      ...(limit && { take: limit }),
     });
 
     // Filter based on showInstalled preference (hides templates installed on Electron client)

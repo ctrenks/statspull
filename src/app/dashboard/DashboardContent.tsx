@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { maskApiKey } from "@/lib/api-key";
 import AppHeader from "@/components/AppHeader";
@@ -8,6 +8,7 @@ import AppHeader from "@/components/AppHeader";
 interface User {
   id: string;
   name: string | null;
+  username: string | null;
   email: string;
   role: number;
   apiKey: string | null;
@@ -15,12 +16,111 @@ interface User {
   createdAt: Date;
 }
 
+interface News {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  createdAt: string;
+}
+
+interface Program {
+  id: string;
+  name: string;
+  softwareType: string | null;
+  icon: string | null;
+  createdAt: string;
+}
+
+interface Stats {
+  revenue: number;
+  signups: number;
+  ftds: number;
+  hasStats: boolean;
+}
+
+const NEWS_TYPE_STYLES: Record<string, string> = {
+  info: "border-blue-500/30 bg-blue-500/5",
+  update: "border-green-500/30 bg-green-500/5",
+  alert: "border-yellow-500/30 bg-yellow-500/5",
+  promo: "border-purple-500/30 bg-purple-500/5",
+};
+
+const NEWS_TYPE_ICONS: Record<string, string> = {
+  info: "📢",
+  update: "🚀",
+  alert: "⚠️",
+  promo: "🎉",
+};
+
 export default function DashboardContent({ user }: { user: User }) {
   const [apiKey, setApiKey] = useState(user.apiKey);
   const [showFullKey, setShowFullKey] = useState(false);
   const [newKeyRevealed, setNewKeyRevealed] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [news, setNews] = useState<News[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch stats, news, and latest programs in parallel
+      const [statsRes, newsRes, programsRes] = await Promise.all([
+        fetch("/api/stats/uploaded"),
+        fetch("/api/news"),
+        fetch("/api/programs?limit=15&sort=newest"),
+      ]);
+
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        const allStats = data.stats || [];
+        const totals = allStats.reduce(
+          (acc: Stats, s: { revenue: number; signups: number; ftds: number }) => ({
+            revenue: acc.revenue + s.revenue,
+            signups: acc.signups + s.signups,
+            ftds: acc.ftds + s.ftds,
+            hasStats: true,
+          }),
+          { revenue: 0, signups: 0, ftds: 0, hasStats: allStats.length > 0 }
+        );
+        setStats(totals);
+      }
+
+      if (newsRes.ok) {
+        const data = await newsRes.json();
+        setNews(data.news || []);
+      }
+
+      if (programsRes.ok) {
+        const data = await programsRes.json();
+        setPrograms((data.programs || []).slice(0, 15));
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const dismissNews = async (newsId: string) => {
+    try {
+      await fetch("/api/news/dismiss", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newsId }),
+      });
+      setNews(news.filter(n => n.id !== newsId));
+    } catch (error) {
+      console.error("Error dismissing news:", error);
+    }
+  };
 
   const generateApiKey = async () => {
     if (apiKey && !confirm("This will invalidate your existing API key. Continue?")) {
@@ -58,128 +158,242 @@ export default function DashboardContent({ user }: { user: User }) {
     }
   };
 
-  const revokeApiKey = async () => {
-    if (!confirm("Are you sure you want to revoke your API key? This cannot be undone.")) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch("/api/keys/revoke", {
-        method: "POST",
-      });
-
-      if (response.ok) {
-        setApiKey(null);
-        setNewKeyRevealed(null);
-        setShowFullKey(false);
-      } else {
-        const data = await response.json();
-        alert(data.error || "Failed to revoke API key");
-      }
-    } catch (error) {
-      console.error("Error revoking API key:", error);
-      alert("Failed to revoke API key");
-    } finally {
-      setLoading(false);
-    }
+  const formatCurrency = (cents: number) => {
+    return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (
     <div className="min-h-screen bg-dark-950">
       <AppHeader activePage="dashboard" />
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold font-display mb-2">Dashboard</h1>
-          <p className="text-dark-400">Manage your API key and monitor your usage.</p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold font-display mb-2">
+            Welcome back{user.username ? `, ${user.username}` : ""}!
+          </h1>
+          <p className="text-dark-400">Here&apos;s what&apos;s happening with your affiliate programs.</p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* API Key Section */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="card">
-              <div className="flex items-center justify-between mb-6">
+        {/* Stats Summary */}
+        {loadingData ? (
+          <div className="grid sm:grid-cols-3 gap-6 mb-8">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="card animate-pulse">
+                <div className="h-16 bg-dark-800 rounded"></div>
+              </div>
+            ))}
+          </div>
+        ) : stats?.hasStats ? (
+          <div className="grid sm:grid-cols-3 gap-6 mb-8">
+            <div className="card bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold font-display">API Key</h2>
-                  <p className="text-dark-400 text-sm mt-1">
-                    Use this key to authenticate your Stats Fetch API requests
+                  <p className="text-dark-400 text-sm">Total Revenue</p>
+                  <p className="text-3xl font-bold font-display mt-1 text-green-400">
+                    {formatCurrency(stats.revenue)}
                   </p>
                 </div>
-                {apiKey && (
-                  <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/10 text-primary-400 text-sm">
-                    <span className="w-2 h-2 rounded-full bg-primary-500 pulse-dot"></span>
-                    Active
-                  </span>
-                )}
+                <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                  <span className="text-2xl">💰</span>
+                </div>
               </div>
+            </div>
 
-              {apiKey ? (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <div className="flex items-center gap-3 p-4 bg-dark-800 rounded-lg border border-dark-700">
-                      <code className="flex-1 font-mono text-sm text-dark-200 break-all">
-                        {showFullKey && newKeyRevealed ? newKeyRevealed : maskApiKey(apiKey)}
-                      </code>
-                      <button
-                        onClick={copyToClipboard}
-                        className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        {copied ? (
-                          <svg className="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5 text-dark-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        )}
-                      </button>
+            <div className="card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-dark-400 text-sm">Sign Ups</p>
+                  <p className="text-3xl font-bold font-display mt-1">{stats.signups.toLocaleString()}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <span className="text-2xl">👤</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-dark-400 text-sm">FTDs</p>
+                  <p className="text-3xl font-bold font-display mt-1 text-purple-400">{stats.ftds.toLocaleString()}</p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <span className="text-2xl">⭐</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="card mb-8 border-dashed border-dark-700 bg-dark-900/50">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center">
+                <span className="text-2xl">📊</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Enable Stats Upload</p>
+                <p className="text-sm text-dark-400">
+                  Turn on &quot;Upload Stats to Web Dashboard&quot; in your desktop client settings to see your stats here.
+                </p>
+              </div>
+              <Link href="/downloads" className="btn-primary text-sm">
+                Get Desktop App
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* News Section */}
+        {news.length > 0 && (
+          <div className="mb-8 space-y-3">
+            <h2 className="text-lg font-semibold text-dark-300 mb-3">📰 Latest News</h2>
+            {news.map((item) => (
+              <div
+                key={item.id}
+                className={`card border ${NEWS_TYPE_STYLES[item.type] || NEWS_TYPE_STYLES.info}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{NEWS_TYPE_ICONS[item.type] || "📢"}</span>
+                      <h3 className="font-semibold">{item.title}</h3>
+                      <span className="text-xs text-dark-500">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
-                    {newKeyRevealed && (
-                      <p className="mt-3 text-sm text-amber-400 flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Save this key now! You won&apos;t be able to see it again.
-                      </p>
-                    )}
+                    <p className="text-dark-400 text-sm whitespace-pre-wrap">{item.content}</p>
                   </div>
+                  <button
+                    onClick={() => dismissNews(item.id)}
+                    className="p-1 hover:bg-dark-700 rounded text-dark-500 hover:text-dark-300"
+                    title="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={generateApiKey}
-                      disabled={loading}
-                      className="btn-secondary text-sm"
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Latest Programs */}
+          <div className="lg:col-span-2">
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold font-display">Latest Programs</h2>
+                <Link href="/programs" className="text-sm text-primary-400 hover:text-primary-300">
+                  View all →
+                </Link>
+              </div>
+              
+              {loadingData ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="h-12 bg-dark-800 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : programs.length === 0 ? (
+                <p className="text-dark-400 text-center py-8">No programs available yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {programs.map((program) => (
+                    <div
+                      key={program.id}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800/50 transition-colors"
                     >
-                      {loading ? "Regenerating..." : "Regenerate Key"}
-                    </button>
+                      <div className="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center text-lg">
+                        {program.icon || "🎰"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{program.name}</p>
+                        <p className="text-xs text-dark-500">{program.softwareType || "Unknown"}</p>
+                      </div>
+                      <span className="text-xs text-dark-500">
+                        {new Date(program.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="card">
+              <h3 className="text-lg font-bold font-display mb-4">Quick Actions</h3>
+              <div className="space-y-2">
+                <Link
+                  href="/programs"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800 transition-colors"
+                >
+                  <span className="text-lg">📋</span>
+                  <span>Browse Programs</span>
+                </Link>
+                <Link
+                  href="/stats"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800 transition-colors"
+                >
+                  <span className="text-lg">📊</span>
+                  <span>View Stats</span>
+                </Link>
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800 transition-colors"
+                >
+                  <span className="text-lg">👤</span>
+                  <span>Profile Settings</span>
+                </Link>
+                <Link
+                  href="/downloads"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800 transition-colors"
+                >
+                  <span className="text-lg">💾</span>
+                  <span>Download Client</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* API Key */}
+            <div className="card">
+              <h3 className="text-lg font-bold font-display mb-4">API Key</h3>
+              {apiKey ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-3 bg-dark-800 rounded-lg">
+                    <code className="flex-1 font-mono text-xs text-dark-300 truncate">
+                      {showFullKey && newKeyRevealed ? newKeyRevealed : maskApiKey(apiKey)}
+                    </code>
                     <button
-                      onClick={revokeApiKey}
-                      disabled={loading}
-                      className="px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                      onClick={copyToClipboard}
+                      className="p-1.5 hover:bg-dark-700 rounded"
+                      title="Copy"
                     >
-                      Revoke Key
+                      {copied ? "✓" : "📋"}
                     </button>
                   </div>
+                  {newKeyRevealed && (
+                    <p className="text-xs text-amber-400">
+                      ⚠️ Save this key now! You won&apos;t see it again.
+                    </p>
+                  )}
+                  <button
+                    onClick={generateApiKey}
+                    disabled={loading}
+                    className="w-full btn-secondary text-sm"
+                  >
+                    {loading ? "Regenerating..." : "Regenerate Key"}
+                  </button>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-dark-800 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-dark-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">No API Key Generated</h3>
-                  <p className="text-dark-400 text-sm mb-6">
-                    Generate your API key to start using the Stats Fetch API.
+                <div className="text-center">
+                  <p className="text-dark-400 text-sm mb-3">
+                    Generate an API key to use the desktop client.
                   </p>
                   <button
                     onClick={generateApiKey}
                     disabled={loading}
-                    className="btn-primary"
+                    className="btn-primary text-sm"
                   >
                     {loading ? "Generating..." : "Generate API Key"}
                   </button>
@@ -187,55 +401,17 @@ export default function DashboardContent({ user }: { user: User }) {
               )}
             </div>
 
-            {/* Quick Start Guide */}
-            <div className="card">
-              <h2 className="text-xl font-bold font-display mb-4">Quick Start</h2>
-              <p className="text-dark-400 text-sm mb-6">
-                Use your API key to authenticate requests to the Stats Fetch API.
-              </p>
-
-              <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 bg-dark-800/50 border-b border-dark-700">
-                  <span className="text-sm text-dark-400 font-mono">cURL Example</span>
-                </div>
-                <pre className="p-4 overflow-x-auto text-sm font-mono">
-                  <code className="text-dark-200">
-{`curl -X GET "https://api.statsfetch.com/v1/stats" \\
-  -H "Authorization: Bearer ${apiKey ? maskApiKey(apiKey) : "YOUR_API_KEY"}"`}
-                  </code>
-                </pre>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
             {/* Account Info */}
             <div className="card">
               <h3 className="text-lg font-bold font-display mb-4">Account</h3>
-              <div className="space-y-4">
+              <div className="space-y-3 text-sm">
                 <div>
-                  <label className="text-xs text-dark-500 uppercase tracking-wider">Name</label>
-                  <p className="text-dark-200">{user.name || "Not set"}</p>
+                  <label className="text-xs text-dark-500 uppercase tracking-wider">Username</label>
+                  <p className="text-dark-200">{user.username || "Not set"}</p>
                 </div>
                 <div>
                   <label className="text-xs text-dark-500 uppercase tracking-wider">Email</label>
                   <p className="text-dark-200">{user.email}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-dark-500 uppercase tracking-wider">Role</label>
-                  <p className="text-dark-200">
-                    {user.role === 9 ? (
-                      <span className="inline-flex items-center gap-1 text-amber-400">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.736 6.979C9.208 6.193 9.696 6 10 6c.304 0 .792.193 1.264.979a1 1 0 001.715-1.029C12.279 4.784 11.232 4 10 4s-2.279.784-2.979 1.95c-.285.475-.507 1-.67 1.55H6a1 1 0 000 2h.013a9.358 9.358 0 000 1H6a1 1 0 100 2h.351c.163.55.385 1.075.67 1.55C7.721 15.216 8.768 16 10 16s2.279-.784 2.979-1.95a1 1 0 10-1.715-1.029c-.472.786-.96.979-1.264.979-.304 0-.792-.193-1.264-.979a4.265 4.265 0 01-.264-.521H10a1 1 0 100-2H8.017a7.36 7.36 0 010-1H10a1 1 0 100-2H8.472a4.265 4.265 0 01.264-.521z" clipRule="evenodd" />
-                        </svg>
-                        Administrator
-                      </span>
-                    ) : (
-                      "User"
-                    )}
-                  </p>
                 </div>
                 <div>
                   <label className="text-xs text-dark-500 uppercase tracking-wider">Member Since</label>
@@ -248,23 +424,6 @@ export default function DashboardContent({ user }: { user: User }) {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Help */}
-            <div className="card">
-              <h3 className="text-lg font-bold font-display mb-4">Need Help?</h3>
-              <p className="text-dark-400 text-sm mb-4">
-                Check out our documentation for detailed API reference and examples.
-              </p>
-              <a
-                href="#"
-                className="inline-flex items-center gap-2 text-primary-400 hover:text-primary-300 text-sm font-medium"
-              >
-                View Documentation
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </a>
             </div>
           </div>
         </div>

@@ -45,6 +45,7 @@ model User {
   commissionsPaid   Commission[] @relation("UserCommissions")
   programSelections UserProgramSelection[]
   uploadedStats     UserUploadedStats[]
+  newsRead          UserNewsRead[]
 
   @@index([referralCode])
   @@index([referredById])
@@ -504,6 +505,36 @@ model UserUploadedStats {
   @@index([userId])
   @@index([month])
   @@index([uploadedAt])
+}
+
+// News/Announcements system
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  type        String   @default("info") // info, update, alert, promo
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  readBy      UserNewsRead[]
+  
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model UserNewsRead {
+  id        String   @id @default(cuid())
+  userId    String
+  newsId    String
+  readAt    DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, newsId])
+  @@index([userId])
+  @@index([newsId])
 }
 
 model SignupProfile {
