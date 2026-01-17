@@ -1029,12 +1029,18 @@ class SyncEngine {
       } catch (error) {
         this.log(`MyAffiliates API failed: ${error.message}`, 'warn');
         // Log more details for debugging
+        if (error.message.includes('404')) {
+          this.log(`HTTP 404: OAuth endpoint not found at ${domain}. Check if the Base URL is correct - it should be the affiliate portal subdomain (e.g., affiliates.domain.com or secure.domain.com)`, 'warn');
+        }
         if (error.message.includes('400')) {
           this.log('HTTP 400 may indicate wrong URL format or missing parameters', 'warn');
-          this.log('Expected URL format: https://domain/statistics.php?d1=YYYY-MM-DD&d2=YYYY-MM-DD&sd=1&mode=csv&sbm=1&dnl=1', 'info');
+        }
+        if (error.message.includes('401') || error.message.includes('403')) {
+          this.log('Authentication failed - check Client ID and Client Secret', 'warn');
         }
         // Fall through to scraping if API fails and we have credentials
         if (!hasWebCredentials) {
+          this.log('No username/password configured for fallback scraping', 'info');
           throw error;
         }
         this.log('Falling back to web scraping...');
