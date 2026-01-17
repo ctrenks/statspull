@@ -884,7 +884,7 @@ class SyncEngine {
 
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
     this.log(`MyAffiliates CSV headers: ${JSON.stringify(headers)}`);
-    
+
     // Aggregate by month (multiple channels/casinos may have separate rows)
     const monthlyTotals = {};
 
@@ -900,34 +900,35 @@ class SyncEngine {
 
       // Get date/month
       let dateVal = row.date || row['pay period'] || row.period || row.day || new Date().toISOString().split('T')[0];
-      
+
       // Skip header rows that got included (where date column contains non-date text)
       if (dateVal && (dateVal.toLowerCase() === 'pay period' || dateVal.toLowerCase() === 'date')) {
         continue; // Skip this row
       }
-      
+
       // Ensure date is in YYYY-MM-DD format (use first of month if only YYYY-MM)
       if (dateVal && dateVal.match(/^\d{4}-\d{2}$/)) {
         dateVal = `${dateVal}-01`;
       }
-      
+
       // Extract month key (YYYY-MM) for aggregation
       const monthKey = dateVal ? dateVal.substring(0, 7) : new Date().toISOString().substring(0, 7);
       const monthDate = `${monthKey}-01`;
-      
+
       // Parse values for this row
       const clicks = parseInt(row.clicks || row.click || row.hits || row.unique_clicks || 0) || 0;
       const impressions = parseInt(row.impressions || row.views || row.raw_clicks || 0) || 0;
       const signups = parseInt(row.signups || row.registrations || row.regs || row.sign_ups || row['sign ups'] || 0) || 0;
       const ftds = parseInt(row.ftds || row.ftd || row['first deposit count'] || row['first time depositors'] || row.new_depositors || row.ndc || 0) || 0;
-      const deposits = parseInt(row.deposits || row['net deposits'] || row.deposit_count || row.depositors || 0) || 0;
+      // Deposits: "net deposits" is a currency value - convert to cents
+      const deposits = Math.round(parseFloat(row.deposits || row['net deposits'] || row['deposit total'] || row.deposit_count || 0) * 100) || 0;
       const revenue = Math.round(parseFloat(row.income || row.commission || row.earnings || row.revenue || row['net revenue'] || row.total || row['net gaming'] || 0) * 100) || 0;
-      
+
       // Debug: log first row's parsed data
       if (i === 1) {
         this.log(`MyAffiliates first row parsed: clicks=${clicks}, signups=${signups}, ftds=${ftds}, deposits=${deposits}, revenue=${revenue}`);
       }
-      
+
       // Aggregate into monthly totals
       if (!monthlyTotals[monthKey]) {
         monthlyTotals[monthKey] = {
@@ -940,7 +941,7 @@ class SyncEngine {
           revenue: 0
         };
       }
-      
+
       monthlyTotals[monthKey].clicks += clicks;
       monthlyTotals[monthKey].impressions += impressions;
       monthlyTotals[monthKey].signups += signups;
@@ -953,7 +954,7 @@ class SyncEngine {
     const stats = Object.values(monthlyTotals);
     this.log(`MyAffiliates aggregated ${lines.length - 1} rows into ${stats.length} monthly totals`);
     stats.forEach(s => this.log(`  ${s.date}: clicks=${s.clicks}, signups=${s.signups}, ftds=${s.ftds}, deposits=${s.deposits}, revenue=${s.revenue/100}`));
-    
+
     return stats;
   }
 
