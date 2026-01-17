@@ -1118,11 +1118,30 @@ async function editProgram(id) {
   elements.programApiUrl.value = program.api_url || "";
 
   // Update credential field visibility based on program's own auth_type
-  // Create a provider object with the program's stored authType
+  // Create a provider object with the program's stored authType and config settings
   const providerInfo = providers.find(p => p.code === program.provider) || {};
+  
+  // Parse config if it's a string
+  let programConfig = {};
+  if (program.config) {
+    try {
+      programConfig = typeof program.config === 'string' ? JSON.parse(program.config) : program.config;
+    } catch (e) {
+      console.warn('Could not parse program config:', e);
+    }
+  }
+  
   const programWithAuthType = {
     ...providerInfo,
-    authType: program.auth_type || providerInfo.authType || 'CREDENTIALS'
+    authType: program.auth_type || providerInfo.authType || 'CREDENTIALS',
+    // Include OAuth and label settings from stored config
+    supportsOAuth: programConfig.supportsOAuth || providerInfo.supportsOAuth,
+    apiKeyLabel: programConfig.apiKeyLabel || providerInfo.apiKeyLabel,
+    apiSecretLabel: programConfig.apiSecretLabel || providerInfo.apiSecretLabel,
+    usernameLabel: programConfig.usernameLabel || providerInfo.usernameLabel,
+    passwordLabel: programConfig.passwordLabel || providerInfo.passwordLabel,
+    baseUrlLabel: programConfig.baseUrlLabel || providerInfo.baseUrlLabel,
+    requiresBaseUrl: programConfig.requiresBaseUrl || providerInfo.requiresBaseUrl,
   };
   updateCredentialFields(programWithAuthType, true);
 

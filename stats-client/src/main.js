@@ -557,7 +557,15 @@ async function fetchTemplates() {
             description: t.description,
             icon: t.icon,
             referralUrl: t.referralUrl || '',
-            isSelected: t.isSelected || false  // Include web selection status
+            isSelected: t.isSelected || false,
+            // OAuth and label settings
+            supportsOAuth: t.supportsOAuth || false,
+            apiKeyLabel: t.apiKeyLabel,
+            apiSecretLabel: t.apiSecretLabel,
+            usernameLabel: t.usernameLabel,
+            passwordLabel: t.passwordLabel,
+            baseUrlLabel: t.baseUrlLabel,
+            requiresBaseUrl: t.requiresBaseUrl || false
           }));
 
           resolve(templates);

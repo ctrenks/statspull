@@ -586,6 +586,18 @@ class Database {
     const apiUrl =
       template.apiUrl || template.config?.apiUrl || template.config?.baseUrl;
 
+    // Build config with OAuth and label settings
+    const config = {
+      ...(template.config || {}),
+      supportsOAuth: template.supportsOAuth || false,
+      apiKeyLabel: template.apiKeyLabel,
+      apiSecretLabel: template.apiSecretLabel,
+      usernameLabel: template.usernameLabel,
+      passwordLabel: template.passwordLabel,
+      baseUrlLabel: template.baseUrlLabel,
+      requiresBaseUrl: template.requiresBaseUrl,
+    };
+
     return this.createProgram({
       name: template.name,
       code: template.code,
@@ -594,7 +606,7 @@ class Database {
       loginUrl: loginUrl,
       statsUrl: statsUrl,
       apiUrl: apiUrl,
-      config: template.config,
+      config: config,
     });
   }
 
