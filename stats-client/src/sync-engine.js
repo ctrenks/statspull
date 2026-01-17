@@ -967,14 +967,21 @@ class SyncEngine {
         const accessToken = await this.getMyAffiliatesToken(domain, clientId, clientSecret);
 
         // Fetch stats - using the Detailed Activity Report endpoint
-        // Get current month's data (1st of month to today)
-        // Try without sd parameter to get monthly aggregates
+        // Get current month AND last month's data
         const now = new Date();
-        const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-        const endDate = now.toISOString().split('T')[0];
-        const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&mode=csv&sbm=1&dnl=1`;
+        const currentMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const currentMonthEnd = now.toISOString().split('T')[0];
+        
+        // Calculate last month
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthStart = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of previous month
+        const lastMonthEndStr = `${lastMonthEnd.getFullYear()}-${String(lastMonthEnd.getMonth() + 1).padStart(2, '0')}-${String(lastMonthEnd.getDate()).padStart(2, '0')}`;
 
-        this.log(`MyAffiliates - fetching stats: ${statsUrl}`);
+        // Fetch both months in one request (from last month start to today)
+        const statsUrl = `https://${domain}/statistics.php?d1=${lastMonthStart}&d2=${currentMonthEnd}&mode=csv&sbm=1&dnl=1`;
+
+        this.log(`MyAffiliates - fetching stats (last month + current): ${statsUrl}`);
 
         // Try GET first (some MyAffiliates implementations use GET)
         let response;
