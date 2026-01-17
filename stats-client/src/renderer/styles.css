@@ -1388,6 +1388,13 @@ body {
   color: var(--text-secondary);
 }
 
+.form-hint {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
 .form-divider {
   display: flex;
   align-items: center;

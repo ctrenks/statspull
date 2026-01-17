@@ -573,11 +573,8 @@
           </div>
           <div class="form-group">
             <label for="programLoginUrl">Login URL</label>
-            <input type="url" class="input" id="programLoginUrl" placeholder="https://...">
-          </div>
-          <div class="form-group">
-            <label for="programApiUrl">API URL (if applicable)</label>
-            <input type="url" class="input" id="programApiUrl" placeholder="https://...">
+            <input type="url" class="input" id="programLoginUrl" placeholder="https://affiliates.example.com">
+            <p class="form-hint">The main affiliate dashboard URL</p>
           </div>
 
           <div class="form-divider">
@@ -592,9 +589,20 @@
             <label for="credPassword">Password</label>
             <input type="password" class="input" id="credPassword" placeholder="Your password">
           </div>
+
+          <div class="form-divider">
+            <span>API Credentials (optional - for OAuth2/API access)</span>
+          </div>
+
           <div class="form-group">
-            <label for="credApiKey">API Key (if applicable)</label>
-            <input type="text" class="input" id="credApiKey" placeholder="API key">
+            <label for="credApiKey">Client ID / API Key</label>
+            <input type="text" class="input" id="credApiKey" placeholder="Client ID or API key">
+            <p class="form-hint">For MyAffiliates: Account → Authorisation → Client Identifier</p>
+          </div>
+          <div class="form-group">
+            <label for="credApiSecret">Client Secret</label>
+            <input type="password" class="input" id="credApiSecret" placeholder="Client secret (if required)">
+            <p class="form-hint">For MyAffiliates: The Client Secret from Authorisation</p>
           </div>
         </form>
       </div>

@@ -831,7 +831,7 @@ class SyncEngine {
   async getMyAffiliatesToken(domain, clientId, clientSecret) {
     const cacheKey = `${domain}_${clientId}`;
     const cached = this.myAffiliatesTokenCache[cacheKey];
-    
+
     // Check if we have a valid cached token (with 5 min buffer)
     if (cached && cached.expiresAt > Date.now() + 300000) {
       this.log('MyAffiliates - using cached access token');
@@ -839,9 +839,9 @@ class SyncEngine {
     }
 
     this.log('MyAffiliates - requesting new access token');
-    
+
     const tokenUrl = `https://${domain}/oauth/access_token`;
-    
+
     try {
       const response = await this.httpRequest(tokenUrl, {
         method: 'POST',
@@ -857,7 +857,7 @@ class SyncEngine {
       });
 
       const data = response.data || response;
-      
+
       if (!data.access_token) {
         throw new Error(`OAuth failed: ${JSON.stringify(data)}`);
       }
@@ -915,7 +915,7 @@ class SyncEngine {
     // OAuth2 credentials (Client ID and Client Secret)
     const clientId = credentials.apiKey || credentials.clientId || credentials.token;
     const clientSecret = credentials.apiSecret || credentials.clientSecret;
-    
+
     // Web scraping credentials
     const username = credentials.username;
     const password = credentials.password;
@@ -962,16 +962,16 @@ class SyncEngine {
 
         // Parse CSV response
         const csvText = typeof response === 'string' ? response : (response.data || '');
-        
+
         if (!csvText || csvText.includes('<!DOCTYPE') || csvText.includes('<html')) {
           throw new Error('Received HTML instead of CSV - token may be invalid');
         }
 
         this.log(`MyAffiliates - received ${csvText.length} bytes of CSV data`);
-        
+
         const stats = this.parseMyAffiliatesCsv(csvText);
         this.log(`MyAffiliates - parsed ${stats.length} stat rows`);
-        
+
         return stats;
       } catch (error) {
         this.log(`MyAffiliates API failed: ${error.message}`, 'warn');

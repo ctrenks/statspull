@@ -70,6 +70,7 @@ const elements = {
   credUsername: document.getElementById("credUsername"),
   credPassword: document.getElementById("credPassword"),
   credApiKey: document.getElementById("credApiKey"),
+  credApiSecret: document.getElementById("credApiSecret"),
 
   // Stats view
   statsProgramSelect: document.getElementById("statsProgramSelect"),
@@ -1113,6 +1114,9 @@ async function editProgram(id) {
       elements.credUsername.value = creds.username || "";
       elements.credPassword.value = creds.password || "";
       elements.credApiKey.value = creds.apiKey || "";
+      if (elements.credApiSecret) {
+        elements.credApiSecret.value = creds.apiSecret || "";
+      }
     }
   } catch (e) {
     log(`Could not load credentials: ${e.message}`, "warn");
@@ -1238,9 +1242,10 @@ async function saveProgram() {
       username: elements.credUsername.value.trim(),
       password: elements.credPassword.value.trim(),
       apiKey: elements.credApiKey.value.trim(),
+      apiSecret: elements.credApiSecret?.value?.trim() || "",
     };
 
-    if (credentials.username || credentials.password || credentials.apiKey) {
+    if (credentials.username || credentials.password || credentials.apiKey || credentials.apiSecret) {
       await window.api.saveCredentials(savedProgram.id, credentials);
     }
 
