@@ -897,22 +897,36 @@ class SyncEngine {
       }
 
       // Map CSV columns to our stats format
-      // MyAffiliates columns: date/pay period, clicks, impressions, registrations, first deposit count, deposits, income
-      // When aggregated (sd=0), might use "pay period" as the date column
+      // MyAffiliates columns vary by platform:
+      // - date: "date", "pay period", "period", "day"
+      // - clicks: "clicks", "hits", "unique_clicks"
+      // - deposits: "deposits", "net deposits", "deposit_count"
+      // - ftds: "ftd", "ftds", "first deposit count"
+      // - revenue: "income", "commission", "earnings", "net revenue"
+      
       let dateVal = row.date || row['pay period'] || row.period || row.day || new Date().toISOString().split('T')[0];
+      
+      // Skip header rows that got included (where date column contains non-date text)
+      if (dateVal && (dateVal.toLowerCase() === 'pay period' || dateVal.toLowerCase() === 'date')) {
+        continue; // Skip this row
+      }
+      
       // Ensure date is in YYYY-MM-DD format (use first of month if only YYYY-MM)
       if (dateVal && dateVal.match(/^\d{4}-\d{2}$/)) {
         dateVal = `${dateVal}-01`;
       }
+      
       const parsed = {
         date: dateVal,
-        clicks: parseInt(row.clicks || row.click || row.unique_clicks || 0) || 0,
+        // Clicks: "hits" is used by some MyAffiliates platforms
+        clicks: parseInt(row.clicks || row.click || row.hits || row.unique_clicks || 0) || 0,
         impressions: parseInt(row.impressions || row.views || row.raw_clicks || 0) || 0,
         signups: parseInt(row.signups || row.registrations || row.regs || row.sign_ups || row['sign ups'] || 0) || 0,
         ftds: parseInt(row.ftds || row.ftd || row['first deposit count'] || row['first time depositors'] || row.new_depositors || row.ndc || 0) || 0,
-        deposits: parseInt(row.deposits || row.deposit_count || row.depositors || 0) || 0,
+        // Deposits: "net deposits" is used by some platforms
+        deposits: parseInt(row.deposits || row['net deposits'] || row.deposit_count || row.depositors || 0) || 0,
         // Revenue: income is the commission earned, convert to cents
-        revenue: Math.round(parseFloat(row.income || row.commission || row.earnings || row.revenue || row.total || row['net gaming'] || 0) * 100) || 0
+        revenue: Math.round(parseFloat(row.income || row.commission || row.earnings || row.revenue || row['net revenue'] || row.total || row['net gaming'] || 0) * 100) || 0
       };
 
       // Debug: log first row's parsed data
