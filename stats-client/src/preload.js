@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteStat: (statId) => ipcRenderer.invoke('delete-stat', statId),
   deleteStatsMonth: (programId, yearMonth) => ipcRenderer.invoke('delete-stats-month', programId, yearMonth),
   getMonthlyStats: (programId, startDate, endDate) => ipcRenderer.invoke('get-monthly-stats', programId, startDate, endDate),
+  getChannelStats: (programId, startDate, endDate) => ipcRenderer.invoke('get-channel-stats', programId, startDate, endDate),
+  getChannelsForProgram: (programId) => ipcRenderer.invoke('get-channels-for-program', programId),
   consolidateStats: (programId) => ipcRenderer.invoke('consolidate-stats', programId),
 
   // Providers

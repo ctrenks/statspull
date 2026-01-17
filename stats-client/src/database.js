@@ -153,6 +153,20 @@ class Database {
     } catch (e) {
       // Column may already exist
     }
+    
+    // Add channel column to stats table for per-channel/casino breakdowns
+    try {
+      this.db.run("ALTER TABLE stats ADD COLUMN channel TEXT DEFAULT NULL");
+    } catch (e) {
+      // Column may already exist
+    }
+    
+    // Create index for channel lookups
+    try {
+      this.db.run("CREATE INDEX IF NOT EXISTS idx_stats_channel ON stats(program_id, channel)");
+    } catch (e) {
+      // Index may already exist
+    }
 
     // Payment tracking table
     this.db.run(`
@@ -660,10 +674,40 @@ class Database {
 
   saveStats(programId, stats) {
     const id = this.generateId();
+    const channel = stats.channel || null;
 
-    // Use proper UPSERT with ON CONFLICT to avoid race conditions
-    // If a record with the same program_id + date exists, update it
-    // Otherwise, insert a new record
+    // If channel is provided, delete existing record for this program+date+channel first
+    // then insert fresh (to handle channel-specific records)
+    if (channel) {
+      this.run(
+        `DELETE FROM stats WHERE program_id = ? AND date = ? AND channel = ?`,
+        [programId, stats.date, channel]
+      );
+      
+      this.run(
+        `
+        INSERT INTO stats (id, program_id, date, channel, clicks, impressions, signups, ftds, deposits, withdrawals, chargebacks, revenue)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+        [
+          id,
+          programId,
+          stats.date,
+          channel,
+          stats.clicks || 0,
+          stats.impressions || 0,
+          stats.signups || 0,
+          stats.ftds || 0,
+          stats.deposits || 0,
+          stats.withdrawals || 0,
+          stats.chargebacks || 0,
+          stats.revenue || 0,
+        ]
+      );
+      return;
+    }
+
+    // No channel - use regular UPSERT on program_id + date (for non-channel platforms)
     this.run(
       `
       INSERT INTO stats (id, program_id, date, clicks, impressions, signups, ftds, deposits, withdrawals, chargebacks, revenue)
@@ -745,15 +789,58 @@ class Database {
     return this.query(sql, params);
   }
 
+  // Get per-channel breakdown for a program
+  getChannelStats(programId, startDate = null, endDate = null) {
+    let sql = `
+      SELECT
+        channel,
+        strftime('%Y-%m', date) as month,
+        SUM(clicks) as clicks,
+        SUM(impressions) as impressions,
+        SUM(signups) as signups,
+        SUM(ftds) as ftds,
+        SUM(deposits) as deposits,
+        SUM(withdrawals) as withdrawals,
+        SUM(chargebacks) as chargebacks,
+        SUM(revenue) as revenue
+      FROM stats
+      WHERE program_id = ? AND channel IS NOT NULL
+    `;
+    const params = [programId];
+
+    if (startDate) {
+      sql += " AND date >= ?";
+      params.push(startDate);
+    }
+    if (endDate) {
+      sql += " AND date <= ?";
+      params.push(endDate);
+    }
+
+    sql += " GROUP BY channel, strftime('%Y-%m', date) ORDER BY month DESC, channel";
+
+    return this.query(sql, params);
+  }
+
+  // Get list of unique channels for a program
+  getChannelsForProgram(programId) {
+    return this.query(
+      `SELECT DISTINCT channel FROM stats WHERE program_id = ? AND channel IS NOT NULL ORDER BY channel`,
+      [programId]
+    );
+  }
+
   // Consolidate stats: keep only the latest record per month for a program
   // SUMs all daily values into a single monthly record
+  // NOTE: Only consolidates records WITHOUT a channel (channel IS NULL)
+  // Per-channel records are kept separate for drill-down
   consolidateMonthlyStats(programId) {
-    // Get all months with multiple records
+    // Get all months with multiple records (only for non-channel records)
     const duplicates = this.query(
       `
       SELECT strftime('%Y-%m', date) as month, COUNT(*) as count
       FROM stats
-      WHERE program_id = ?
+      WHERE program_id = ? AND channel IS NULL
       GROUP BY strftime('%Y-%m', date)
       HAVING count > 1
     `,
@@ -775,13 +862,13 @@ class Database {
           SUM(chargebacks) as chargebacks,
           SUM(revenue) as revenue
         FROM stats
-        WHERE program_id = ? AND date LIKE ?
+        WHERE program_id = ? AND date LIKE ? AND channel IS NULL
       `,
         [programId, `${dup.month}%`]
       );
 
-      // Delete all records for this month
-      this.run("DELETE FROM stats WHERE program_id = ? AND date LIKE ?", [
+      // Delete all records for this month (only non-channel records)
+      this.run("DELETE FROM stats WHERE program_id = ? AND date LIKE ? AND channel IS NULL", [
         programId,
         `${dup.month}%`,
       ]);

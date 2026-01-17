@@ -819,6 +819,16 @@ function setupIpcHandlers() {
     return db.getMonthlyStats(programId, startDate, endDate);
   });
 
+  // Get per-channel stats breakdown
+  ipcMain.handle('get-channel-stats', async (event, programId, startDate, endDate) => {
+    return db.getChannelStats(programId, startDate, endDate);
+  });
+
+  // Get list of channels for a program
+  ipcMain.handle('get-channels-for-program', async (event, programId) => {
+    return db.getChannelsForProgram(programId);
+  });
+
   // Consolidate duplicate monthly stats
   ipcMain.handle('consolidate-stats', async (event, programId) => {
     return db.consolidateMonthlyStats(programId);
