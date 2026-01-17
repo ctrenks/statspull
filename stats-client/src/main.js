@@ -839,6 +839,58 @@ function setupIpcHandlers() {
     return db.getStatsSummary();
   });
 
+  // Export backup (database + encryption key)
+  ipcMain.handle('export-backup', async () => {
+    try {
+      const backupData = db.exportBackup();
+      // Show save dialog
+      const { dialog } = require('electron');
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Database Backup',
+        defaultPath: `stats-fetch-backup-${new Date().toISOString().split('T')[0]}.json`,
+        filters: [{ name: 'Backup Files', extensions: ['json'] }]
+      });
+      
+      if (!result.canceled && result.filePath) {
+        const fs = require('fs');
+        fs.writeFileSync(result.filePath, backupData);
+        return { success: true, path: result.filePath };
+      }
+      return { success: false, cancelled: true };
+    } catch (error) {
+      console.error('Export backup error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Import backup (database + encryption key)
+  ipcMain.handle('import-backup', async () => {
+    try {
+      const { dialog } = require('electron');
+      const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Import Database Backup',
+        filters: [{ name: 'Backup Files', extensions: ['json'] }],
+        properties: ['openFile']
+      });
+      
+      if (!result.canceled && result.filePaths.length > 0) {
+        const fs = require('fs');
+        const backupData = fs.readFileSync(result.filePaths[0], 'utf8');
+        const importResult = db.importBackup(backupData);
+        return { success: true, ...importResult };
+      }
+      return { success: false, cancelled: true };
+    } catch (error) {
+      console.error('Import backup error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get data paths for info display
+  ipcMain.handle('get-data-paths', async () => {
+    return db.getDataPaths();
+  });
+
   // Get available provider/software types for the dropdown
   // These are the SOFTWARE TYPES (RTG, CellXpert, etc.), not individual program templates
   ipcMain.handle('get-providers', async () => {

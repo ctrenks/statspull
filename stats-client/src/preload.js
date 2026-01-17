@@ -33,6 +33,11 @@ contextBridge.exposeInMainWorld('api', {
   getChannelStats: (programId, startDate, endDate) => ipcRenderer.invoke('get-channel-stats', programId, startDate, endDate),
   getChannelsForProgram: (programId) => ipcRenderer.invoke('get-channels-for-program', programId),
   consolidateStats: (programId) => ipcRenderer.invoke('consolidate-stats', programId),
+  
+  // Backup/restore
+  exportBackup: () => ipcRenderer.invoke('export-backup'),
+  importBackup: () => ipcRenderer.invoke('import-backup'),
+  getDataPaths: () => ipcRenderer.invoke('get-data-paths'),
 
   // Providers
   getProviders: () => ipcRenderer.invoke('get-providers'),

@@ -466,6 +466,23 @@
             </button>
             <p class="settings-note" style="margin-top: 12px;">Consolidate combines multiple daily records into single monthly totals.</p>
           </div>
+
+          <div class="settings-section">
+            <h2 class="section-title">Backup & Restore</h2>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <button class="btn btn-primary" id="exportBackupBtn">
+                📦 Export Backup
+              </button>
+              <button class="btn btn-secondary" id="importBackupBtn">
+                📥 Import Backup
+              </button>
+            </div>
+            <p class="settings-note" style="margin-top: 12px;">
+              Export creates a complete backup including your database and encryption keys.<br>
+              All credentials remain encrypted and will work on import.
+            </p>
+            <p id="dataPathsInfo" class="settings-note" style="margin-top: 8px; font-family: monospace; font-size: 11px; color: var(--text-muted);"></p>
+          </div>
         </div>
 
         <!-- Stats View -->

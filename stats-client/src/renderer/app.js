@@ -1729,6 +1729,16 @@ function setupEventListeners() {
     .getElementById("clearAllStatsBtn")
     .addEventListener("click", clearAllStats);
   document
+    .getElementById("exportBackupBtn")
+    .addEventListener("click", exportBackup);
+  document
+    .getElementById("importBackupBtn")
+    .addEventListener("click", importBackup);
+  
+  // Show data paths on settings load
+  loadDataPaths();
+  
+  document
     .getElementById("defaultCurrency")
     .addEventListener("change", async (e) => {
       defaultCurrency = e.target.value;
@@ -2144,6 +2154,80 @@ async function clearAllStats() {
   } catch (error) {
     log("Failed to clear stats: " + error.message, "error");
     showToast("Failed to clear stats", "error");
+  }
+}
+
+// Export backup (database + encryption key)
+async function exportBackup() {
+  try {
+    log("Exporting backup...", "info");
+    const result = await window.api.exportBackup();
+    
+    if (result.cancelled) {
+      log("Backup export cancelled", "info");
+      return;
+    }
+    
+    if (result.success) {
+      log(`Backup exported to: ${result.path}`, "success");
+      showToast("Backup exported successfully!", "success");
+    } else {
+      log(`Backup export failed: ${result.error}`, "error");
+      showToast("Failed to export backup: " + result.error, "error");
+    }
+  } catch (error) {
+    log("Failed to export backup: " + error.message, "error");
+    showToast("Failed to export backup", "error");
+  }
+}
+
+// Import backup (database + encryption key)
+async function importBackup() {
+  if (
+    !confirm(
+      "Importing a backup will REPLACE all your current data.\n\nThis includes:\n• All programs\n• All credentials\n• All stats\n\nAre you sure you want to continue?"
+    )
+  ) {
+    return;
+  }
+
+  try {
+    log("Importing backup...", "info");
+    const result = await window.api.importBackup();
+    
+    if (result.cancelled) {
+      log("Backup import cancelled", "info");
+      return;
+    }
+    
+    if (result.success) {
+      log(`Backup imported successfully (from ${result.createdAt})`, "success");
+      showToast("Backup imported! Refreshing data...", "success");
+      
+      // Reload all data
+      await loadDashboardData();
+      await loadPrograms();
+      await renderTemplates();
+    } else {
+      log(`Backup import failed: ${result.error}`, "error");
+      showToast("Failed to import backup: " + result.error, "error");
+    }
+  } catch (error) {
+    log("Failed to import backup: " + error.message, "error");
+    showToast("Failed to import backup", "error");
+  }
+}
+
+// Load and display data paths
+async function loadDataPaths() {
+  try {
+    const paths = await window.api.getDataPaths();
+    const infoEl = document.getElementById("dataPathsInfo");
+    if (infoEl && paths) {
+      infoEl.innerHTML = `Data location: ${paths.userDataPath}`;
+    }
+  } catch (error) {
+    console.error("Failed to load data paths:", error);
   }
 }
 
