@@ -1343,7 +1343,7 @@ class Scraper {
     const stats = [];
 
     // Check if we have valid summary data first - if so, use only summary (more reliable)
-    const hasSummary = rawStats.summary && 
+    const hasSummary = rawStats.summary &&
       (rawStats.summary.clicks > 0 || rawStats.summary.signups > 0 || rawStats.summary.revenue > 0);
 
     // Only process table rows if we don't have a valid summary
@@ -1379,7 +1379,7 @@ class Scraper {
     if (rawStats.summary && Object.keys(rawStats.summary).length > 0) {
       // Clear any table row entries - summary is more reliable
       stats.length = 0;
-      
+
       const today = new Date().toISOString().split('T')[0];
       const summary = rawStats.summary;
 

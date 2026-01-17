@@ -35,10 +35,12 @@ interface TemplateFormData {
   icon: string;
   referralUrl: string;
   apiKeyLabel: string;
+  apiSecretLabel: string;
   usernameLabel: string;
   passwordLabel: string;
   baseUrlLabel: string;
   requiresBaseUrl: boolean;
+  supportsOAuth: boolean;
 }
 
 type SortField = 'name' | 'software' | 'scrapedAt';
@@ -71,10 +73,12 @@ export default function StatsDroneProgramsPage() {
     icon: '',
     referralUrl: '',
     apiKeyLabel: '',
+    apiSecretLabel: '',
     usernameLabel: '',
     passwordLabel: '',
     baseUrlLabel: '',
     requiresBaseUrl: false,
+    supportsOAuth: false,
   });
   const [templateSaving, setTemplateSaving] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
@@ -305,10 +309,12 @@ export default function StatsDroneProgramsPage() {
       icon: '',
       referralUrl: joinUrl || '',
       apiKeyLabel: program.apiSupport ? 'API Key' : '',
+      apiSecretLabel: '',
       usernameLabel: 'Username',
       passwordLabel: 'Password',
       baseUrlLabel: '',
       requiresBaseUrl: false,
+      supportsOAuth: false,
     });
     setSourceProgramId(program.id);
     setTemplateError(null);
@@ -333,11 +339,13 @@ export default function StatsDroneProgramsPage() {
           description: templateForm.description || null,
           icon: templateForm.icon || null,
           referralUrl: templateForm.referralUrl || null,
-          apiKeyLabel: templateForm.apiKeyLabel || null,
+          apiKeyLabel: templateForm.supportsOAuth ? (templateForm.apiKeyLabel || 'Client ID') : (templateForm.apiKeyLabel || null),
+          apiSecretLabel: templateForm.supportsOAuth ? (templateForm.apiSecretLabel || 'Client Secret') : null,
           usernameLabel: templateForm.usernameLabel || null,
           passwordLabel: templateForm.passwordLabel || null,
           baseUrlLabel: templateForm.baseUrlLabel || null,
           requiresBaseUrl: templateForm.requiresBaseUrl,
+          supportsOAuth: templateForm.supportsOAuth,
         }),
       });
 
@@ -862,6 +870,47 @@ export default function StatsDroneProgramsPage() {
                 />
               </div>
 
+              {/* OAuth Settings */}
+              <div className="border-t border-dark-700 pt-4 mt-4">
+                <h3 className="font-medium mb-3">Authentication Settings</h3>
+                <div className="mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={templateForm.supportsOAuth}
+                      onChange={(e) => setTemplateForm({ ...templateForm, supportsOAuth: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Supports OAuth2 (requires Client ID + Client Secret)</span>
+                  </label>
+                </div>
+                
+                {templateForm.supportsOAuth && (
+                  <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-dark-800/50 rounded border border-dark-600">
+                    <div>
+                      <label className="block text-sm text-dark-400 mb-1">Client ID Label</label>
+                      <input
+                        type="text"
+                        value={templateForm.apiKeyLabel}
+                        onChange={(e) => setTemplateForm({ ...templateForm, apiKeyLabel: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded text-sm"
+                        placeholder="Client ID"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-dark-400 mb-1">Client Secret Label</label>
+                      <input
+                        type="text"
+                        value={templateForm.apiSecretLabel}
+                        onChange={(e) => setTemplateForm({ ...templateForm, apiSecretLabel: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded text-sm"
+                        placeholder="Client Secret"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Field Labels */}
               <div className="border-t border-dark-700 pt-4 mt-4">
                 <h3 className="font-medium mb-3">Field Labels (optional)</h3>
@@ -886,7 +935,7 @@ export default function StatsDroneProgramsPage() {
                       placeholder="Password"
                     />
                   </div>
-                  {templateForm.authType === 'API_KEY' && (
+                  {(templateForm.authType === 'API_KEY' && !templateForm.supportsOAuth) && (
                     <div>
                       <label className="block text-sm text-dark-400 mb-1">API Key Label</label>
                       <input
