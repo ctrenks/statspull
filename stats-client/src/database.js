@@ -1266,17 +1266,17 @@ class Database {
   exportBackup() {
     // Save current state first
     this.save();
-    
+
     // Read the database file
-    const dbData = fs.existsSync(this.dbPath) 
+    const dbData = fs.existsSync(this.dbPath)
       ? fs.readFileSync(this.dbPath).toString('base64')
       : null;
-    
+
     // Read the encryption key
     const keyData = fs.existsSync(this.keyPath)
       ? fs.readFileSync(this.keyPath, 'utf8')
       : null;
-    
+
     // Create backup package
     const backup = {
       version: 1,
@@ -1284,42 +1284,42 @@ class Database {
       database: dbData,
       encryptionKey: keyData,
     };
-    
+
     return JSON.stringify(backup, null, 2);
   }
-  
+
   // Import database and encryption key from a backup package
   importBackup(backupJson) {
     const backup = JSON.parse(backupJson);
-    
+
     if (!backup.database || !backup.encryptionKey) {
       throw new Error('Invalid backup file: missing database or encryption key');
     }
-    
+
     // Close current database
     if (this.db) {
       this.db.close();
       this.db = null;
     }
-    
+
     // Restore encryption key first
     fs.writeFileSync(this.keyPath, backup.encryptionKey, { mode: 0o600 });
     this.encryptionKey = backup.encryptionKey;
-    
+
     // Restore database file
     const dbBuffer = Buffer.from(backup.database, 'base64');
     fs.writeFileSync(this.dbPath, dbBuffer);
-    
+
     // Reload the database
     this.db = new this.SQL.Database(dbBuffer);
-    
+
     return {
       success: true,
       createdAt: backup.createdAt,
       version: backup.version
     };
   }
-  
+
   // Get paths for manual backup info
   getDataPaths() {
     return {

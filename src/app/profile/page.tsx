@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import ProfileForm from "./ProfileForm";
 import ApiKeyManager from "./ApiKeyManager";
 import ReferralTracker from "./ReferralTracker";
+import Link from "next/link";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -28,6 +29,12 @@ export default async function ProfilePage() {
     redirect("/auth/signin");
   }
 
+  // If user already has a username, redirect to dashboard
+  // They can edit their profile from dashboard if needed
+  if (user.username) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen animated-bg grid-pattern flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
@@ -38,10 +45,10 @@ export default async function ProfilePage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold font-display mb-2">
-            {user.username ? "Your Profile" : "Complete your profile"}
+            Complete your profile
           </h1>
           <p className="text-dark-400">
-            {user.username ? "Manage your account settings" : "Choose a unique username to continue"}
+            Choose a unique username to continue
           </p>
         </div>
 
@@ -49,8 +56,6 @@ export default async function ProfilePage() {
           currentUsername={user.username}
           email={user.email || ""}
         />
-
-        <ApiKeyManager initialApiKey={user.apiKey} />
 
         {/* Track referral on first login */}
         <ReferralTracker userEmail={user.email || ""} />

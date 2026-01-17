@@ -1734,10 +1734,10 @@ function setupEventListeners() {
   document
     .getElementById("importBackupBtn")
     .addEventListener("click", importBackup);
-  
+
   // Show data paths on settings load
   loadDataPaths();
-  
+
   document
     .getElementById("defaultCurrency")
     .addEventListener("change", async (e) => {
@@ -2162,12 +2162,12 @@ async function exportBackup() {
   try {
     log("Exporting backup...", "info");
     const result = await window.api.exportBackup();
-    
+
     if (result.cancelled) {
       log("Backup export cancelled", "info");
       return;
     }
-    
+
     if (result.success) {
       log(`Backup exported to: ${result.path}`, "success");
       showToast("Backup exported successfully!", "success");
@@ -2194,16 +2194,16 @@ async function importBackup() {
   try {
     log("Importing backup...", "info");
     const result = await window.api.importBackup();
-    
+
     if (result.cancelled) {
       log("Backup import cancelled", "info");
       return;
     }
-    
+
     if (result.success) {
       log(`Backup imported successfully (from ${result.createdAt})`, "success");
       showToast("Backup imported! Refreshing data...", "success");
-      
+
       // Reload all data
       await loadDashboardData();
       await loadPrograms();

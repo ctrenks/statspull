@@ -28,7 +28,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async redirect({ url, baseUrl }) {
       if (url.startsWith(baseUrl)) return url;
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      return `${baseUrl}/profile`;
+      // Default redirect will be handled by dashboard page
+      return `${baseUrl}/dashboard`;
     },
     async jwt({ token, user, trigger, session }) {
       if (user) {

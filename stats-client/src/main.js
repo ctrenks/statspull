@@ -850,7 +850,7 @@ function setupIpcHandlers() {
         defaultPath: `stats-fetch-backup-${new Date().toISOString().split('T')[0]}.json`,
         filters: [{ name: 'Backup Files', extensions: ['json'] }]
       });
-      
+
       if (!result.canceled && result.filePath) {
         const fs = require('fs');
         fs.writeFileSync(result.filePath, backupData);
@@ -872,7 +872,7 @@ function setupIpcHandlers() {
         filters: [{ name: 'Backup Files', extensions: ['json'] }],
         properties: ['openFile']
       });
-      
+
       if (!result.canceled && result.filePaths.length > 0) {
         const fs = require('fs');
         const backupData = fs.readFileSync(result.filePaths[0], 'utf8');

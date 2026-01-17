@@ -31,5 +31,10 @@ export default async function Dashboard() {
     redirect("/auth/signin");
   }
 
+  // If user hasn't set a username yet, redirect to profile to set one
+  if (!user.username) {
+    redirect("/profile");
+  }
+
   return <DashboardContent user={user} />;
 }
