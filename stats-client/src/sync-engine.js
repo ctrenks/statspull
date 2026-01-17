@@ -1014,8 +1014,12 @@ class SyncEngine {
 
         this.log(`MyAffiliates - received ${csvText.length} bytes of CSV data`);
 
-        // Debug: show first 500 chars of CSV
-        this.log(`MyAffiliates CSV preview: ${csvText.substring(0, 500).replace(/\n/g, '\\n')}`);
+        // Debug: show full first line (headers) and second line (first data row)
+        const csvLines = csvText.split('\n');
+        this.log(`MyAffiliates CSV HEADERS: ${csvLines[0]}`);
+        if (csvLines.length > 1) {
+          this.log(`MyAffiliates CSV FIRST ROW: ${csvLines[1]}`);
+        }
 
         const stats = this.parseMyAffiliatesCsv(csvText);
         this.log(`MyAffiliates - parsed ${stats.length} stat rows`);
