@@ -884,7 +884,7 @@ export default function StatsDroneProgramsPage() {
                     <span className="text-sm">Supports OAuth2 (requires Client ID + Client Secret)</span>
                   </label>
                 </div>
-                
+
                 {templateForm.supportsOAuth && (
                   <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-dark-800/50 rounded border border-dark-600">
                     <div>
