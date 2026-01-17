@@ -27,6 +27,9 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   GBP: "£",
 };
 
+type SortField = "programName" | "clicks" | "signups" | "ftds" | "deposits" | "revenue";
+type SortDirection = "asc" | "desc";
+
 export default function StatsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -35,6 +38,8 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [months, setMonths] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<SortField>("revenue");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -106,9 +111,34 @@ export default function StatsPage() {
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection(field === "programName" ? "asc" : "desc");
+    }
+  };
+
   const filteredStats = selectedMonth
     ? stats.filter((s) => s.month === selectedMonth)
     : stats;
+
+  // Sort the filtered stats
+  const sortedStats = [...filteredStats].sort((a, b) => {
+    const aVal = a[sortField];
+    const bVal = b[sortField];
+    
+    if (typeof aVal === "string" && typeof bVal === "string") {
+      return sortDirection === "asc" 
+        ? aVal.localeCompare(bVal) 
+        : bVal.localeCompare(aVal);
+    }
+    
+    return sortDirection === "asc" 
+      ? (aVal as number) - (bVal as number) 
+      : (bVal as number) - (aVal as number);
+  });
 
   // Calculate totals
   const totals = filteredStats.reduce(
@@ -232,16 +262,28 @@ export default function StatsPage() {
         <table className="stats-table">
           <thead>
             <tr>
-              <th>Program</th>
-              <th className="num">Clicks</th>
-              <th className="num">Signups</th>
-              <th className="num">FTDs</th>
-              <th className="num">Deposits</th>
-              <th className="num">Revenue</th>
+              <th className="sortable" onClick={() => handleSort("programName")}>
+                Program {sortField === "programName" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th className="num sortable" onClick={() => handleSort("clicks")}>
+                Clicks {sortField === "clicks" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th className="num sortable" onClick={() => handleSort("signups")}>
+                Signups {sortField === "signups" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th className="num sortable" onClick={() => handleSort("ftds")}>
+                FTDs {sortField === "ftds" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th className="num sortable" onClick={() => handleSort("deposits")}>
+                Deposits {sortField === "deposits" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th className="num sortable" onClick={() => handleSort("revenue")}>
+                Revenue {sortField === "revenue" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filteredStats.map((stat) => (
+            {sortedStats.map((stat) => (
               <tr key={stat.id}>
                 <td className="program-name">{stat.programName}</td>
                 <td className="num">{stat.clicks.toLocaleString()}</td>
@@ -397,6 +439,17 @@ const pageStyles = `
     text-transform: uppercase;
     letter-spacing: 0.05em;
     background: rgba(0, 0, 0, 0.2);
+  }
+
+  .stats-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .stats-table th.sortable:hover {
+    color: #fff;
+    background: rgba(99, 102, 241, 0.2);
   }
 
   .stats-table th.num,
