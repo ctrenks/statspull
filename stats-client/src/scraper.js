@@ -1342,37 +1342,48 @@ class Scraper {
   parseCellxpertStats(rawStats, startDate, endDate) {
     const stats = [];
 
-    // Process table rows
-    for (const row of rawStats.rows) {
-      try {
-        const dateStr = this.parseDate(row.date);
-        if (!dateStr) continue;
+    // Check if we have valid summary data first - if so, use only summary (more reliable)
+    const hasSummary = rawStats.summary && 
+      (rawStats.summary.clicks > 0 || rawStats.summary.signups > 0 || rawStats.summary.revenue > 0);
 
-        // Try to extract numbers from the row
-        const numbers = row.raw
-          .map(v => parseFloat(v.replace(/[^0-9.-]/g, '')))
-          .filter(n => !isNaN(n));
+    // Only process table rows if we don't have a valid summary
+    // Table row parsing is unreliable and often picks up garbage data
+    if (!hasSummary && rawStats.rows && rawStats.rows.length > 0) {
+      this.log(`No summary data, trying to parse ${rawStats.rows.length} table rows`);
+      for (const row of rawStats.rows) {
+        try {
+          const dateStr = this.parseDate(row.date);
+          if (!dateStr) continue;
 
-        stats.push({
-          date: dateStr,
-          clicks: numbers[0] || 0,
-          impressions: numbers[1] || 0,
-          signups: numbers[2] || 0,
-          ftds: numbers[3] || 0,
-          deposits: 0,
-          revenue: Math.round((numbers[numbers.length - 1] || 0) * 100)
-        });
-      } catch (e) {
-        // Skip unparseable rows
+          // Try to extract numbers from the row
+          const numbers = row.raw
+            .map(v => parseFloat(v.replace(/[^0-9.-]/g, '')))
+            .filter(n => !isNaN(n));
+
+          stats.push({
+            date: dateStr,
+            clicks: numbers[0] || 0,
+            impressions: numbers[1] || 0,
+            signups: numbers[2] || 0,
+            ftds: numbers[3] || 0,
+            deposits: 0,
+            revenue: Math.round((numbers[numbers.length - 1] || 0) * 100)
+          });
+        } catch (e) {
+          // Skip unparseable rows
+        }
       }
     }
 
-    // If no table data but we have summary, create a single entry for today
-    if (Object.keys(rawStats.summary).length > 0) {
+    // If we have summary data, use only summary entry (more reliable than table rows)
+    if (rawStats.summary && Object.keys(rawStats.summary).length > 0) {
+      // Clear any table row entries - summary is more reliable
+      stats.length = 0;
+      
       const today = new Date().toISOString().split('T')[0];
       const summary = rawStats.summary;
 
-      this.log(`Creating stats entry for ${today}`);
+      this.log(`Creating stats entry for ${today} from summary data`);
       this.log(`Raw summary: ${JSON.stringify(summary)}`);
 
       // Calculate FTDs from percentage if available
