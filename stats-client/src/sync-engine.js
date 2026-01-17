@@ -968,11 +968,11 @@ class SyncEngine {
 
         // Fetch stats - using the Detailed Activity Report endpoint
         // Get current month's data (1st of month to today)
-        // sd=0 means aggregate totals (not daily breakdown), sbm=1 = show by month
+        // Try without sd parameter to get monthly aggregates
         const now = new Date();
         const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
         const endDate = now.toISOString().split('T')[0];
-        const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&sd=0&mode=csv&sbm=1&dnl=1`;
+        const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&mode=csv&sbm=1&dnl=1`;
 
         this.log(`MyAffiliates - fetching stats: ${statsUrl}`);
 
