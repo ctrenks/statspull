@@ -897,9 +897,15 @@ class SyncEngine {
       }
 
       // Map CSV columns to our stats format
-      // MyAffiliates columns: date, clicks, impressions, registrations, first deposit count, deposits, income
+      // MyAffiliates columns: date/pay period, clicks, impressions, registrations, first deposit count, deposits, income
+      // When aggregated (sd=0), might use "pay period" as the date column
+      let dateVal = row.date || row['pay period'] || row.period || row.day || new Date().toISOString().split('T')[0];
+      // Ensure date is in YYYY-MM-DD format (use first of month if only YYYY-MM)
+      if (dateVal && dateVal.match(/^\d{4}-\d{2}$/)) {
+        dateVal = `${dateVal}-01`;
+      }
       const parsed = {
-        date: row.date || row.period || row.day || new Date().toISOString().split('T')[0],
+        date: dateVal,
         clicks: parseInt(row.clicks || row.click || row.unique_clicks || 0) || 0,
         impressions: parseInt(row.impressions || row.views || row.raw_clicks || 0) || 0,
         signups: parseInt(row.signups || row.registrations || row.regs || row.sign_ups || row['sign ups'] || 0) || 0,
@@ -962,10 +968,11 @@ class SyncEngine {
 
         // Fetch stats - using the Detailed Activity Report endpoint
         // Get current month's data (1st of month to today)
+        // sd=0 means aggregate totals (not daily breakdown), sbm=1 = show by month
         const now = new Date();
         const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
         const endDate = now.toISOString().split('T')[0];
-        const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&sd=1&mode=csv&sbm=1&dnl=1`;
+        const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&sd=0&mode=csv&sbm=1&dnl=1`;
 
         this.log(`MyAffiliates - fetching stats: ${statsUrl}`);
 
