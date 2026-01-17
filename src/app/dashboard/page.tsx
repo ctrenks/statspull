@@ -12,7 +12,7 @@ export default async function Dashboard() {
     redirect("/auth/signin");
   }
 
-  // Get fresh user data with API key
+  // Get fresh user data
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -21,8 +21,6 @@ export default async function Dashboard() {
       username: true,
       email: true,
       role: true,
-      apiKey: true,
-      apiKeyCreatedAt: true,
       createdAt: true,
     },
   });

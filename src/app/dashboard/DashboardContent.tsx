@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { maskApiKey } from "@/lib/api-key";
 import AppHeader from "@/components/AppHeader";
 
 interface User {
@@ -11,8 +10,6 @@ interface User {
   username: string | null;
   email: string;
   role: number;
-  apiKey: string | null;
-  apiKeyCreatedAt: Date | null;
   createdAt: Date;
 }
 
@@ -54,12 +51,6 @@ const NEWS_TYPE_ICONS: Record<string, string> = {
 };
 
 export default function DashboardContent({ user }: { user: User }) {
-  const [apiKey, setApiKey] = useState(user.apiKey);
-  const [showFullKey, setShowFullKey] = useState(false);
-  const [newKeyRevealed, setNewKeyRevealed] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
   const [stats, setStats] = useState<Stats | null>(null);
   const [news, setNews] = useState<News[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -119,42 +110,6 @@ export default function DashboardContent({ user }: { user: User }) {
       setNews(news.filter(n => n.id !== newsId));
     } catch (error) {
       console.error("Error dismissing news:", error);
-    }
-  };
-
-  const generateApiKey = async () => {
-    if (apiKey && !confirm("This will invalidate your existing API key. Continue?")) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch("/api/keys/generate", {
-        method: "POST",
-      });
-      const data = await response.json();
-
-      if (response.ok) {
-        setApiKey(data.apiKey);
-        setNewKeyRevealed(data.apiKey);
-        setShowFullKey(true);
-      } else {
-        alert(data.error || "Failed to generate API key");
-      }
-    } catch (error) {
-      console.error("Error generating API key:", error);
-      alert("Failed to generate API key");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyToClipboard = async () => {
-    const keyToCopy = newKeyRevealed || apiKey;
-    if (keyToCopy) {
-      await navigator.clipboard.writeText(keyToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -353,52 +308,6 @@ export default function DashboardContent({ user }: { user: User }) {
                   <span>Download Client</span>
                 </Link>
               </div>
-            </div>
-
-            {/* API Key */}
-            <div className="card">
-              <h3 className="text-lg font-bold font-display mb-4">API Key</h3>
-              {apiKey ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-3 bg-dark-800 rounded-lg">
-                    <code className="flex-1 font-mono text-xs text-dark-300 truncate">
-                      {showFullKey && newKeyRevealed ? newKeyRevealed : maskApiKey(apiKey)}
-                    </code>
-                    <button
-                      onClick={copyToClipboard}
-                      className="p-1.5 hover:bg-dark-700 rounded"
-                      title="Copy"
-                    >
-                      {copied ? "✓" : "📋"}
-                    </button>
-                  </div>
-                  {newKeyRevealed && (
-                    <p className="text-xs text-amber-400">
-                      ⚠️ Save this key now! You won&apos;t see it again.
-                    </p>
-                  )}
-                  <button
-                    onClick={generateApiKey}
-                    disabled={loading}
-                    className="w-full btn-secondary text-sm"
-                  >
-                    {loading ? "Regenerating..." : "Regenerate Key"}
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-dark-400 text-sm mb-3">
-                    Generate an API key to use the desktop client.
-                  </p>
-                  <button
-                    onClick={generateApiKey}
-                    disabled={loading}
-                    className="btn-primary text-sm"
-                  >
-                    {loading ? "Generating..." : "Generate API Key"}
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Account Info */}
