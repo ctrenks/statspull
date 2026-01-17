@@ -379,6 +379,8 @@ class SyncEngine {
       });
 
       // Save stats to database
+      // Channel records go to channel_stats table (with UPSERT)
+      // Aggregated records go to stats table (with UPSERT)
       let recordsSaved = 0;
       for (const stat of stats) {
         this.log(`Saving stat: ${JSON.stringify(stat)}`);
@@ -904,21 +906,21 @@ class SyncEngine {
 
       // Get date/month
       let dateVal = row.date || row['pay period'] || row.period || row.day || new Date().toISOString().split('T')[0];
-      
+
       // Skip header rows that got included (where date column contains non-date text)
       if (dateVal && (dateVal.toLowerCase() === 'pay period' || dateVal.toLowerCase() === 'date')) {
         continue; // Skip this row
       }
-      
+
       // Ensure date is in YYYY-MM-DD format (use first of month if only YYYY-MM)
       if (dateVal && dateVal.match(/^\d{4}-\d{2}$/)) {
         dateVal = `${dateVal}-01`;
       }
-      
+
       // Extract month key (YYYY-MM) for aggregation
       const monthKey = dateVal ? dateVal.substring(0, 7) : new Date().toISOString().substring(0, 7);
       const monthDate = `${monthKey}-01`;
-      
+
       // Parse values for this row
       const clicks = parseInt(row.clicks || row.click || row.hits || row.unique_clicks || 0) || 0;
       const impressions = parseInt(row.impressions || row.views || row.raw_clicks || 0) || 0;
@@ -927,12 +929,12 @@ class SyncEngine {
       // Deposits: "net deposits" is a currency value - convert to cents
       const deposits = Math.round(parseFloat(row.deposits || row['net deposits'] || row['deposit total'] || row.deposit_count || 0) * 100) || 0;
       const revenue = Math.round(parseFloat(row.income || row.commission || row.earnings || row.revenue || row['net revenue'] || row.total || row['net gaming'] || 0) * 100) || 0;
-      
+
       // Debug: log first row's parsed data
       if (i === 1) {
         this.log(`MyAffiliates first row parsed: channel=${channel}, clicks=${clicks}, signups=${signups}, ftds=${ftds}, deposits=${deposits}, revenue=${revenue}`);
       }
-      
+
       // Save per-channel record (if channel exists)
       if (channel) {
         stats.push({
@@ -946,7 +948,7 @@ class SyncEngine {
           revenue
         });
       }
-      
+
       // Also aggregate into monthly totals (for main display)
       if (!monthlyTotals[monthKey]) {
         monthlyTotals[monthKey] = {
@@ -960,7 +962,7 @@ class SyncEngine {
           revenue: 0
         };
       }
-      
+
       monthlyTotals[monthKey].clicks += clicks;
       monthlyTotals[monthKey].impressions += impressions;
       monthlyTotals[monthKey].signups += signups;
@@ -971,17 +973,17 @@ class SyncEngine {
 
     // Add aggregated totals to stats array
     Object.values(monthlyTotals).forEach(total => stats.push(total));
-    
+
     // Log summary
     const channelCount = stats.filter(s => s.channel).length;
     const totalCount = stats.filter(s => !s.channel).length;
     this.log(`MyAffiliates: ${channelCount} per-channel records + ${totalCount} monthly totals`);
-    
+
     // Log aggregated totals
-    Object.values(monthlyTotals).forEach(s => 
+    Object.values(monthlyTotals).forEach(s =>
       this.log(`  Total ${s.date}: clicks=${s.clicks}, signups=${s.signups}, ftds=${s.ftds}, deposits=${s.deposits/100}, revenue=${s.revenue/100}`)
     );
-    
+
     return stats;
   }
 

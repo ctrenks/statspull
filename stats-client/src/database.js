@@ -153,17 +153,31 @@ class Database {
     } catch (e) {
       // Column may already exist
     }
-    
-    // Add channel column to stats table for per-channel/casino breakdowns
-    try {
-      this.db.run("ALTER TABLE stats ADD COLUMN channel TEXT DEFAULT NULL");
-    } catch (e) {
-      // Column may already exist
-    }
+
+    // Create separate table for per-channel stats (avoids UNIQUE constraint issues)
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS channel_stats (
+        id TEXT PRIMARY KEY,
+        program_id TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        date TEXT NOT NULL,
+        clicks INTEGER DEFAULT 0,
+        impressions INTEGER DEFAULT 0,
+        signups INTEGER DEFAULT 0,
+        ftds INTEGER DEFAULT 0,
+        deposits INTEGER DEFAULT 0,
+        withdrawals INTEGER DEFAULT 0,
+        chargebacks INTEGER DEFAULT 0,
+        revenue INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
+        UNIQUE(program_id, channel, date)
+      )
+    `);
     
     // Create index for channel lookups
     try {
-      this.db.run("CREATE INDEX IF NOT EXISTS idx_stats_channel ON stats(program_id, channel)");
+      this.db.run("CREATE INDEX IF NOT EXISTS idx_channel_stats_program ON channel_stats(program_id)");
     } catch (e) {
       // Index may already exist
     }
@@ -676,24 +690,27 @@ class Database {
     const id = this.generateId();
     const channel = stats.channel || null;
 
-    // If channel is provided, delete existing record for this program+date+channel first
-    // then insert fresh (to handle channel-specific records)
+    // If channel is provided, save to channel_stats table (separate table for per-channel breakdown)
     if (channel) {
       this.run(
-        `DELETE FROM stats WHERE program_id = ? AND date = ? AND channel = ?`,
-        [programId, stats.date, channel]
-      );
-      
-      this.run(
         `
-        INSERT INTO stats (id, program_id, date, channel, clicks, impressions, signups, ftds, deposits, withdrawals, chargebacks, revenue)
+        INSERT INTO channel_stats (id, program_id, channel, date, clicks, impressions, signups, ftds, deposits, withdrawals, chargebacks, revenue)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(program_id, channel, date) DO UPDATE SET
+          clicks = excluded.clicks,
+          impressions = excluded.impressions,
+          signups = excluded.signups,
+          ftds = excluded.ftds,
+          deposits = excluded.deposits,
+          withdrawals = excluded.withdrawals,
+          chargebacks = excluded.chargebacks,
+          revenue = excluded.revenue
       `,
         [
           id,
           programId,
-          stats.date,
           channel,
+          stats.date,
           stats.clicks || 0,
           stats.impressions || 0,
           stats.signups || 0,
@@ -707,7 +724,7 @@ class Database {
       return;
     }
 
-    // No channel - use regular UPSERT on program_id + date (for non-channel platforms)
+    // No channel - use regular UPSERT on program_id + date (for aggregated totals)
     this.run(
       `
       INSERT INTO stats (id, program_id, date, clicks, impressions, signups, ftds, deposits, withdrawals, chargebacks, revenue)
@@ -789,7 +806,7 @@ class Database {
     return this.query(sql, params);
   }
 
-  // Get per-channel breakdown for a program
+  // Get per-channel breakdown for a program (from channel_stats table)
   getChannelStats(programId, startDate = null, endDate = null) {
     let sql = `
       SELECT
@@ -803,8 +820,8 @@ class Database {
         SUM(withdrawals) as withdrawals,
         SUM(chargebacks) as chargebacks,
         SUM(revenue) as revenue
-      FROM stats
-      WHERE program_id = ? AND channel IS NOT NULL
+      FROM channel_stats
+      WHERE program_id = ?
     `;
     const params = [programId];
 
@@ -825,7 +842,15 @@ class Database {
   // Get list of unique channels for a program
   getChannelsForProgram(programId) {
     return this.query(
-      `SELECT DISTINCT channel FROM stats WHERE program_id = ? AND channel IS NOT NULL ORDER BY channel`,
+      `SELECT DISTINCT channel FROM channel_stats WHERE program_id = ? ORDER BY channel`,
+      [programId]
+    );
+  }
+
+  // Clear all channel-specific records for a program (before re-syncing)
+  clearChannelStats(programId) {
+    this.run(
+      `DELETE FROM channel_stats WHERE program_id = ?`,
       [programId]
     );
   }
