@@ -59,7 +59,7 @@ export default function DashboardContent({ user }: { user: User }) {
   const [newKeyRevealed, setNewKeyRevealed] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [news, setNews] = useState<News[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -285,7 +285,7 @@ export default function DashboardContent({ user }: { user: User }) {
                   View all →
                 </Link>
               </div>
-              
+
               {loadingData ? (
                 <div className="space-y-3">
                   {[1, 2, 3, 4, 5].map(i => (

@@ -516,9 +516,9 @@ model News {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   readBy      UserNewsRead[]
-  
+
   @@index([isActive])
   @@index([createdAt])
 }
@@ -528,10 +528,10 @@ model UserNewsRead {
   userId    String
   newsId    String
   readAt    DateTime @default(now())
-  
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, newsId])
   @@index([userId])
   @@index([newsId])

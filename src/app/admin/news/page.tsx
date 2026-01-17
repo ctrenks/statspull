@@ -61,11 +61,11 @@ export default function AdminNewsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const url = editingId ? `/api/admin/news/${editingId}` : "/api/admin/news";
       const method = editingId ? "PATCH" : "POST";
-      
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -98,7 +98,7 @@ export default function AdminNewsPage() {
 
   const deleteNews = async (id: string) => {
     if (!confirm("Are you sure you want to delete this news item?")) return;
-    
+
     try {
       await fetch(`/api/admin/news/${id}`, { method: "DELETE" });
       fetchNews();

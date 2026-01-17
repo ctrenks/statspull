@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         loginUrl: true,
         createdAt: true,
       },
-      orderBy: sort === "newest" 
+      orderBy: sort === "newest"
         ? [{ createdAt: "desc" }]
         : [{ displayOrder: "asc" }, { name: "asc" }],
       ...(limit && { take: limit }),

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const session = await auth();
-    
+
     // Get all active news
     const allNews = await prisma.news.findMany({
       where: { isActive: true },
@@ -19,10 +19,10 @@ export async function GET() {
         where: { userId: session.user.id },
         select: { newsId: true },
       });
-      
+
       const readIds = new Set(readNewsIds.map(r => r.newsId));
       const unreadNews = allNews.filter(n => !readIds.has(n.id));
-      
+
       return NextResponse.json({ news: unreadNews });
     }
 
