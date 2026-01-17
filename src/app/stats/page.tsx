@@ -71,20 +71,20 @@ export default function StatsPage() {
   };
 
   const clearStats = async (all: boolean = false) => {
-    const message = all 
+    const message = all
       ? "Are you sure you want to delete ALL uploaded stats? This cannot be undone."
       : `Are you sure you want to delete stats for ${formatMonth(selectedMonth)}? This cannot be undone.`;
-    
+
     if (!confirm(message)) return;
 
     try {
-      const url = all 
+      const url = all
         ? "/api/stats/uploaded"
         : `/api/stats/uploaded?month=${selectedMonth}`;
-      
+
       const response = await fetch(url, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
-      
+
       const data = await response.json();
       alert(`Deleted ${data.deleted} stat records. Re-sync your client to upload fresh data.`);
       fetchStats();
@@ -186,14 +186,14 @@ export default function StatsPage() {
             ))}
           </select>
           <div className="flex gap-2 ml-auto">
-            <button 
+            <button
               onClick={() => clearStats(false)}
               className="px-3 py-2 text-sm bg-dark-800 hover:bg-dark-700 text-dark-300 rounded-lg transition-colors"
               title="Clear this month's stats"
             >
               Clear Month
             </button>
-            <button 
+            <button
               onClick={() => clearStats(true)}
               className="px-3 py-2 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
               title="Clear all uploaded stats"

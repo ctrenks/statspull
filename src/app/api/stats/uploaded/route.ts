@@ -53,8 +53,8 @@ export async function DELETE(request: NextRequest) {
       where,
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       deleted: result.count,
       message: `Deleted ${result.count} stat records`
     });
