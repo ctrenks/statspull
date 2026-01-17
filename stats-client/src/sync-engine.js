@@ -952,13 +952,27 @@ class SyncEngine {
 
         this.log(`MyAffiliates - fetching stats: ${statsUrl}`);
 
-        const response = await this.httpRequest(statsUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          },
-          responseType: 'text'
-        });
+        // Try GET first (some MyAffiliates implementations use GET)
+        let response;
+        try {
+          response = await this.httpRequest(statsUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'text/csv, text/plain, */*'
+            }
+          });
+        } catch (getError) {
+          // If GET fails, try POST
+          this.log('GET failed, trying POST...', 'info');
+          response = await this.httpRequest(statsUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Accept': 'text/csv, text/plain, */*'
+            }
+          });
+        }
 
         // Parse CSV response
         const csvText = typeof response === 'string' ? response : (response.data || '');
@@ -975,6 +989,11 @@ class SyncEngine {
         return stats;
       } catch (error) {
         this.log(`MyAffiliates API failed: ${error.message}`, 'warn');
+        // Log more details for debugging
+        if (error.message.includes('400')) {
+          this.log('HTTP 400 may indicate wrong URL format or missing parameters', 'warn');
+          this.log('Expected URL format: https://domain/statistics.php?d1=YYYY-MM-DD&d2=YYYY-MM-DD&sd=1&mode=csv&sbm=1&dnl=1', 'info');
+        }
         // Fall through to scraping if API fails and we have credentials
         if (!hasWebCredentials) {
           throw error;
