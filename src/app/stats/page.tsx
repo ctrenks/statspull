@@ -128,15 +128,15 @@ export default function StatsPage() {
   const sortedStats = [...filteredStats].sort((a, b) => {
     const aVal = a[sortField];
     const bVal = b[sortField];
-    
+
     if (typeof aVal === "string" && typeof bVal === "string") {
-      return sortDirection === "asc" 
-        ? aVal.localeCompare(bVal) 
+      return sortDirection === "asc"
+        ? aVal.localeCompare(bVal)
         : bVal.localeCompare(aVal);
     }
-    
-    return sortDirection === "asc" 
-      ? (aVal as number) - (bVal as number) 
+
+    return sortDirection === "asc"
+      ? (aVal as number) - (bVal as number)
       : (bVal as number) - (aVal as number);
   });
 
