@@ -824,69 +824,168 @@ class SyncEngine {
     }
   }
 
+  // MyAffiliates OAuth2 token cache (in-memory)
+  myAffiliatesTokenCache = {};
+
+  // Get MyAffiliates OAuth2 access token
+  async getMyAffiliatesToken(domain, clientId, clientSecret) {
+    const cacheKey = `${domain}_${clientId}`;
+    const cached = this.myAffiliatesTokenCache[cacheKey];
+    
+    // Check if we have a valid cached token (with 5 min buffer)
+    if (cached && cached.expiresAt > Date.now() + 300000) {
+      this.log('MyAffiliates - using cached access token');
+      return cached.accessToken;
+    }
+
+    this.log('MyAffiliates - requesting new access token');
+    
+    const tokenUrl = `https://${domain}/oauth/access_token`;
+    
+    try {
+      const response = await this.httpRequest(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: clientId,
+          client_secret: clientSecret,
+          scope: 'r_user_stats'
+        }).toString()
+      });
+
+      const data = response.data || response;
+      
+      if (!data.access_token) {
+        throw new Error(`OAuth failed: ${JSON.stringify(data)}`);
+      }
+
+      // Cache the token
+      const expiresIn = data.expires_in || 3600;
+      this.myAffiliatesTokenCache[cacheKey] = {
+        accessToken: data.access_token,
+        expiresAt: Date.now() + (expiresIn * 1000)
+      };
+
+      this.log(`MyAffiliates - got access token, expires in ${expiresIn}s`);
+      return data.access_token;
+    } catch (error) {
+      this.log(`MyAffiliates OAuth error: ${error.message}`, 'error');
+      throw error;
+    }
+  }
+
+  // Parse MyAffiliates CSV response
+  parseMyAffiliatesCsv(csvText) {
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+    const stats = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/['"]/g, ''));
+      const row = {};
+      headers.forEach((h, idx) => row[h] = values[idx] || '');
+
+      // Map CSV columns to our stats format
+      // Common MyAffiliates columns: date, clicks, impressions, signups, ftds, deposits, commission/earnings
+      stats.push({
+        date: row.date || row.period || new Date().toISOString().split('T')[0],
+        clicks: parseInt(row.clicks || row.click || 0) || 0,
+        impressions: parseInt(row.impressions || row.views || 0) || 0,
+        signups: parseInt(row.signups || row.registrations || row.regs || 0) || 0,
+        ftds: parseInt(row.ftds || row.ftd || row['first time depositors'] || row.new_depositors || 0) || 0,
+        deposits: parseInt(row.deposits || row.deposit_count || 0) || 0,
+        revenue: Math.round(parseFloat(row.commission || row.earnings || row.revenue || row.total || 0) * 100) || 0
+      });
+    }
+
+    return stats;
+  }
+
   // MyAffiliates - Auto-detect API vs Scraping
   async syncMyAffiliates({ program, credentials, config, apiUrl, loginUrl, statsUrl, scraper }) {
     const baseUrl = apiUrl || config?.apiUrl || config?.custom?.apiUrl || config?.baseUrl;
     const loginPath = loginUrl || config?.loginUrl;
     const statsPath = statsUrl || config?.statsUrl;
 
-    const apiKey = credentials.apiKey || credentials.token;
+    // OAuth2 credentials (Client ID and Client Secret)
+    const clientId = credentials.apiKey || credentials.clientId || credentials.token;
+    const clientSecret = credentials.apiSecret || credentials.clientSecret;
+    
+    // Web scraping credentials
     const username = credentials.username;
     const password = credentials.password;
 
-    // Determine which method to use based on what credentials are provided
-    const hasApiKey = apiKey && apiKey.length > 0;
-    const hasCredentials = username && password;
+    // Determine which method to use
+    const hasOAuthCredentials = clientId && clientSecret;
+    const hasWebCredentials = username && password;
 
-    // If API key is provided, try API approach
-    if (hasApiKey && baseUrl) {
-      this.log('MyAffiliates - using API with key');
+    // Extract domain from baseUrl or loginUrl for OAuth
+    let domain = null;
+    if (baseUrl) {
+      try {
+        domain = new URL(baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`).hostname;
+      } catch (e) {
+        domain = baseUrl.replace(/^https?:\/\//, '').split('/')[0];
+      }
+    } else if (loginPath) {
+      try {
+        domain = new URL(loginPath).hostname;
+      } catch (e) {}
+    }
 
-      const { startDate, endDate } = this.getDateRange(7);
-
-      // MyAffiliates API might use Bearer token or API key in header
-      const url = `${baseUrl}/api/reports/daily.json?startDate=${startDate}&endDate=${endDate}`;
+    // Try OAuth2 API first
+    if (hasOAuthCredentials && domain) {
+      this.log(`MyAffiliates - using OAuth2 API for ${domain}`);
 
       try {
-        const response = await this.httpRequest(url, {
+        // Get access token
+        const accessToken = await this.getMyAffiliatesToken(domain, clientId, clientSecret);
+
+        // Fetch stats - using the Detailed Activity Report endpoint
+        const { startDate, endDate } = this.getDateRange(7);
+        const statsUrl = `https://${domain}/statistics.php?d1=${startDate}&d2=${endDate}&sd=1&mode=csv&sbm=1&dnl=1`;
+
+        this.log(`MyAffiliates - fetching stats: ${statsUrl}`);
+
+        const response = await this.httpRequest(statsUrl, {
+          method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'X-API-Key': apiKey,
-            'Content-Type': 'application/json'
-          }
+            'Authorization': `Bearer ${accessToken}`
+          },
+          responseType: 'text'
         });
 
-        // Map MyAffiliates response to our stats format
-        const stats = [];
-        const data = response.data?.data || response.data?.reports || response.data;
-
-        if (Array.isArray(data)) {
-          for (const row of data) {
-            stats.push({
-              date: row.date || row.Date,
-              clicks: parseInt(row.clicks || row.Clicks || 0),
-              impressions: parseInt(row.impressions || row.Impressions || 0),
-              signups: parseInt(row.signups || row.Signups || row.registrations || 0),
-              ftds: parseInt(row.ftd || row.FTD || row.first_time_depositors || 0),
-              deposits: parseInt(row.deposits || row.Deposits || 0),
-              revenue: Math.round(parseFloat(row.commission || row.Commission || row.earnings || 0) * 100)
-            });
-          }
+        // Parse CSV response
+        const csvText = typeof response === 'string' ? response : (response.data || '');
+        
+        if (!csvText || csvText.includes('<!DOCTYPE') || csvText.includes('<html')) {
+          throw new Error('Received HTML instead of CSV - token may be invalid');
         }
 
+        this.log(`MyAffiliates - received ${csvText.length} bytes of CSV data`);
+        
+        const stats = this.parseMyAffiliatesCsv(csvText);
+        this.log(`MyAffiliates - parsed ${stats.length} stat rows`);
+        
         return stats;
       } catch (error) {
-        this.log(`API failed: ${error.message}, will try scraping if credentials available`, 'warn');
+        this.log(`MyAffiliates API failed: ${error.message}`, 'warn');
         // Fall through to scraping if API fails and we have credentials
-        if (!hasCredentials) {
+        if (!hasWebCredentials) {
           throw error;
         }
+        this.log('Falling back to web scraping...');
       }
     }
 
     // Use web scraping with username/password
-    if (!hasCredentials) {
-      throw new Error('MyAffiliates requires either API key OR username/password');
+    if (!hasWebCredentials) {
+      throw new Error('MyAffiliates requires either OAuth2 credentials (Client ID + Secret) OR username/password');
     }
 
     if (!loginPath) {
@@ -894,7 +993,7 @@ class SyncEngine {
     }
 
     this.log('MyAffiliates - using web scraping');
-    const scr = scraper || this.scraper; // Use dedicated scraper for parallel safety
+    const scr = scraper || this.scraper;
 
     try {
       const { startDate, endDate } = this.getDateRange(7);
@@ -907,7 +1006,6 @@ class SyncEngine {
         endDate
       });
 
-      // Only close pages if not in batch mode
       if (!this.inBatchMode) {
         await scr.closePages();
       }

@@ -89,5 +89,3 @@ export default async function SubscribePage() {
     </div>
   );
 }
-
-
