@@ -1120,7 +1120,7 @@ async function editProgram(id) {
   // Update credential field visibility based on program's own auth_type
   // Create a provider object with the program's stored authType and config settings
   const providerInfo = providers.find(p => p.code === program.provider) || {};
-  
+
   // Parse config if it's a string
   let programConfig = {};
   if (program.config) {
@@ -1130,7 +1130,7 @@ async function editProgram(id) {
       console.warn('Could not parse program config:', e);
     }
   }
-  
+
   const programWithAuthType = {
     ...providerInfo,
     authType: program.auth_type || providerInfo.authType || 'CREDENTIALS',

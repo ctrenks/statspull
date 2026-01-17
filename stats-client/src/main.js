@@ -835,7 +835,7 @@ function setupIpcHandlers() {
     // Software types - these are the scraper/sync engine types
     const providers = [
       { code: 'CELLXPERT', name: 'CellXpert', authType: 'CREDENTIALS', icon: '📊' },
-      { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'CREDENTIALS', icon: '🤝' },
+      { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'BOTH', icon: '🤝', supportsOAuth: true, apiKeyLabel: 'Client ID', apiSecretLabel: 'Client Secret' },
       { code: 'INCOME_ACCESS', name: 'Income Access', authType: 'CREDENTIALS', icon: '💰' },
       { code: 'NETREFER', name: 'NetRefer', authType: 'API_KEY', icon: '🌐', apiKeyLabel: 'API Key' },
       { code: 'WYNTA', name: 'Wynta', authType: 'CREDENTIALS', icon: '🎲' },
