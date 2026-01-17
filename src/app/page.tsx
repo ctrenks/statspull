@@ -288,7 +288,29 @@ export default async function Home() {
                       <span className="text-yellow-500 text-sm font-medium">Some</span>
                     </td>
                   </tr>
-                  {/* US only */}
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">Backup / import database</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="text-yellow-500 text-sm font-medium">Some</span>
+                    </td>
+                  </tr>
+                  <tr className="border-b border-dark-800">
+                    <td className="py-4 px-6 text-dark-200">View stats online without sharing credentials</td>
+                    <td className="py-4 px-6 text-center">
+                      <svg className="w-6 h-6 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <span className="text-yellow-500 text-sm font-medium">Some</span>
+                    </td>
+                  </tr>
+                  {/* Stats Fetch only */}
                   <tr className="border-b border-dark-800 bg-primary-500/5">
                     <td className="py-4 px-6 text-dark-200 font-medium">Low monthly price ($25/mo or $275/yr)</td>
                     <td className="py-4 px-6 text-center">

@@ -308,7 +308,7 @@ export default function StatsDroneProgramsPage() {
 
     // If API is supported, default to BOTH (most flexible) or API_KEY
     const authType = program.apiSupport ? 'BOTH' : 'CREDENTIALS';
-    
+
     setTemplateForm({
       name: program.name,
       softwareType: formatSoftwareType(program.software),
