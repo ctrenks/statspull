@@ -174,7 +174,7 @@ class Database {
         UNIQUE(program_id, channel, date)
       )
     `);
-    
+
     // Create index for channel lookups
     try {
       this.db.run("CREATE INDEX IF NOT EXISTS idx_channel_stats_program ON channel_stats(program_id)");

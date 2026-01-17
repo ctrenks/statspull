@@ -46,9 +46,9 @@ const SOFTWARE_TYPES = [
 ];
 
 const AUTH_TYPES: { value: AuthType; label: string; description: string }[] = [
-  { value: "API_KEY", label: "API Key Only", description: "User only needs to enter an API key/token" },
-  { value: "CREDENTIALS", label: "Username & Password", description: "User needs username and password" },
-  { value: "BOTH", label: "Either Works", description: "API key OR username/password" },
+  { value: "API_KEY", label: "API Key Only", description: "⚡ Recommended - Fast & accurate. User enters API key/token." },
+  { value: "CREDENTIALS", label: "Username & Password", description: "Use if API access not available. Scrapes login." },
+  { value: "BOTH", label: "Either Works", description: "API key OR username/password supported." },
 ];
 
 export default function TemplatesContent({ templates: initialTemplates }: { templates: Template[] }) {

@@ -28,7 +28,7 @@ interface StatsDroneProgram {
 interface TemplateFormData {
   name: string;
   softwareType: string;
-  authType: 'CREDENTIALS' | 'API_KEY' | 'OAUTH';
+  authType: 'CREDENTIALS' | 'API_KEY' | 'BOTH';
   baseUrl: string;
   loginUrl: string;
   description: string;
@@ -42,6 +42,13 @@ interface TemplateFormData {
   requiresBaseUrl: boolean;
   supportsOAuth: boolean;
 }
+
+// Auth type options matching the main template form
+const AUTH_TYPES = [
+  { value: 'API_KEY', label: 'API Key Only', description: '⚡ Recommended - Fast & accurate. User enters API key/token.' },
+  { value: 'CREDENTIALS', label: 'Username & Password', description: 'Use if API access not available. Scrapes login.' },
+  { value: 'BOTH', label: 'Either Works', description: 'API key OR username/password supported.' },
+] as const;
 
 type SortField = 'name' | 'software' | 'scrapedAt';
 type SortDirection = 'asc' | 'desc';
@@ -299,10 +306,13 @@ export default function StatsDroneProgramsPage() {
     const joinUrl = program.finalJoinUrl || program.joinUrl;
     const baseUrl = extractBaseUrl(joinUrl);
 
+    // If API is supported, default to BOTH (most flexible) or API_KEY
+    const authType = program.apiSupport ? 'BOTH' : 'CREDENTIALS';
+    
     setTemplateForm({
       name: program.name,
       softwareType: formatSoftwareType(program.software),
-      authType: program.apiSupport ? 'API_KEY' : 'CREDENTIALS',
+      authType: authType,
       baseUrl: baseUrl,
       loginUrl: joinUrl || '',
       description: program.commission || '',
@@ -797,16 +807,34 @@ export default function StatsDroneProgramsPage() {
 
               {/* Auth Type */}
               <div>
-                <label className="block text-sm font-medium mb-1">Auth Type</label>
-                <select
-                  value={templateForm.authType}
-                  onChange={(e) => setTemplateForm({ ...templateForm, authType: e.target.value as 'CREDENTIALS' | 'API_KEY' | 'OAUTH' })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
-                >
-                  <option value="CREDENTIALS">Credentials (Username/Password)</option>
-                  <option value="API_KEY">API Key</option>
-                  <option value="OAUTH">OAuth</option>
-                </select>
+                <label className="block text-sm font-medium mb-1">Authentication Method</label>
+                <div className="space-y-2">
+                  {AUTH_TYPES.map((type) => (
+                    <label
+                      key={type.value}
+                      className={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-colors ${
+                        templateForm.authType === type.value
+                          ? 'border-primary-500 bg-primary-500/10'
+                          : 'border-dark-600 hover:border-dark-500'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="authType"
+                        value={type.value}
+                        checked={templateForm.authType === type.value}
+                        onChange={(e) => setTemplateForm({ ...templateForm, authType: e.target.value as 'CREDENTIALS' | 'API_KEY' | 'BOTH' })}
+                        className="mt-1"
+                      />
+                      <div>
+                        <div className={`font-medium ${type.value === 'API_KEY' ? 'text-green-400' : ''}`}>
+                          {type.label}
+                        </div>
+                        <div className="text-sm text-dark-400">{type.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
