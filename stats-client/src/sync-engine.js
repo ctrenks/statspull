@@ -448,6 +448,7 @@ class SyncEngine {
       'AFFILKA': this.syncAffilka, // Generic Affilka handler
       'AFFILKA_API': this.syncAffilkaAPI,
       'AFFILKA_SCRAPE': this.syncAffilkaScrape,
+      'ALANBASE': this.syncAlanbase,
       'WYNTA_SCRAPE': this.syncWyntaScrape,
       'DECKMEDIA': this.syncDeckMedia,
       'RTG': this.syncRTGNew,
@@ -2197,6 +2198,129 @@ class SyncEngine {
     }
 
     this.log(`✓ Affilka sync complete: ${stats.length} month(s) fetched`);
+    return stats;
+  }
+
+  // Alanbase API sync
+  async syncAlanbase({ program, credentials, config, apiUrl }) {
+    const baseUrl = apiUrl || config?.apiUrl;
+    const apiKey = credentials.apiKey;
+
+    if (!baseUrl) {
+      throw new Error('Alanbase requires an API URL (e.g., https://api.alanbase.com/v1)');
+    }
+
+    if (!apiKey) {
+      throw new Error('Alanbase requires an API Key');
+    }
+
+    // Clean up base URL
+    const cleanBaseUrl = baseUrl.replace(/\/+$/, '').replace(/\/v1\/?$/, '');
+
+    // Get date ranges for current month and last month
+    const now = new Date();
+    
+    // Current month
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = now;
+    
+    // Last month
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // Helper function to fetch stats for a date range
+    const fetchAlanbaseStats = async (startDate, endDate, label) => {
+      // Format dates as YYYY-MM-DD HH:mm
+      const formatDateTime = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day} 00:00`;
+      };
+      
+      const formatDateTimeEnd = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day} 23:59`;
+      };
+
+      const dateFrom = formatDateTime(startDate);
+      const dateTo = formatDateTimeEnd(endDate);
+
+      // Build API URL for common stats
+      const url = `${cleanBaseUrl}/v1/partner/statistic/common?group_by=day&timezone=UTC&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}&currency_code=USD`;
+
+      this.log(`Fetching Alanbase ${label}: ${dateFrom} to ${dateTo}`);
+
+      const response = await this.httpRequest(url, {
+        headers: {
+          'API-KEY': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        throw new Error('Invalid API key');
+      }
+
+      if (response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      // Parse response - aggregate all days into monthly totals
+      const data = response.data?.data || [];
+      
+      let totals = {
+        clicks: 0,
+        registrations: 0,
+        ftds: 0,
+        deposits: 0,
+        revenue: 0
+      };
+
+      for (const row of data) {
+        // Alanbase fields: clicks, registrations, ftd_count, deposits_sum, income/payout
+        totals.clicks += parseInt(row.clicks || row.click_count || 0);
+        totals.registrations += parseInt(row.registrations || row.registration_count || 0);
+        totals.ftds += parseInt(row.ftd_count || row.ftds || row.first_deposits || 0);
+        totals.deposits += parseFloat(row.deposits_sum || row.deposits || 0);
+        totals.revenue += parseFloat(row.income || row.payout || row.revenue || row.commission || 0);
+      }
+
+      return {
+        date: this.formatDate(startDate),
+        clicks: totals.clicks,
+        impressions: 0,
+        signups: totals.registrations,
+        ftds: totals.ftds,
+        deposits: Math.round(totals.deposits * 100), // Convert to cents
+        revenue: Math.round(totals.revenue * 100) // Convert to cents
+      };
+    };
+
+    // Fetch both months
+    const stats = [];
+
+    try {
+      const currentStats = await fetchAlanbaseStats(currentMonthStart, currentMonthEnd, 'current month');
+      this.log(`Current month: clicks=${currentStats.clicks}, signups=${currentStats.signups}, ftds=${currentStats.ftds}, revenue=$${currentStats.revenue/100}`);
+      stats.push(currentStats);
+    } catch (e) {
+      this.log(`Failed to fetch current month: ${e.message}`);
+      throw e;
+    }
+
+    try {
+      const lastStats = await fetchAlanbaseStats(lastMonthStart, lastMonthEnd, 'last month');
+      this.log(`Last month: clicks=${lastStats.clicks}, signups=${lastStats.signups}, ftds=${lastStats.ftds}, revenue=$${lastStats.revenue/100}`);
+      stats.push(lastStats);
+    } catch (e) {
+      this.log(`Failed to fetch last month: ${e.message}`);
+    }
+
+    this.log(`✓ Alanbase sync complete: ${stats.length} month(s) fetched`);
     return stats;
   }
 

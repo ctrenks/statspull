@@ -903,6 +903,7 @@ function setupIpcHandlers() {
       { code: 'MEXOS', name: 'Mexos', authType: 'CREDENTIALS', icon: '📊', description: 'Angular SPA - Login and scrape Traffic Stats' },
       { code: 'WYNTA', name: 'Wynta', authType: 'CREDENTIALS', icon: '🎲' },
       { code: 'AFFILKA', name: 'Affilka', authType: 'BOTH', icon: '🔗', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', apiKeyLabel: 'Statistic Token' },
+      { code: 'ALANBASE', name: 'Alanbase', authType: 'API_KEY', icon: '📊', requiresBaseUrl: true, baseUrlLabel: 'API Domain (e.g., https://api.domain.com)', apiKeyLabel: 'API Key' },
       { code: 'DECKMEDIA', name: 'DeckMedia', authType: 'CREDENTIALS', icon: '🃏' },
       { code: 'RTG', name: 'RTG (New)', authType: 'CREDENTIALS', icon: '🎮', description: 'RTG new dashboard - scrapes stats panels' },
       { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS', icon: '🕹️', description: 'Supports D-W-C revenue calculation' },
