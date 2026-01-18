@@ -12,17 +12,7 @@ const EXCHANGE_RATES = {
 let defaultCurrency = "USD";
 
 // Built-in configured programs (always available)
-const BUILTIN_PROGRAMS = [
-  {
-    name: "7BitPartners",
-    code: "7bitpartners",
-    provider: "7BITPARTNERS",
-    authType: "API_KEY",
-    apiUrl: "https://dashboard.7bitpartners.com",
-    config: { apiUrl: "https://dashboard.7bitpartners.com" },
-    builtin: true,
-  },
-];
+const BUILTIN_PROGRAMS = [];
 
 // State
 let currentView = "dashboard";

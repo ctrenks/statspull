@@ -446,8 +446,8 @@ class SyncEngine {
       'MEXOS': this.syncMexos,
       'WYNTA': this.syncWynta,
       'AFFILKA': this.syncAffilka, // Generic Affilka handler
-      '7BITPARTNERS': this.sync7BitPartners,
-      '7BITPARTNERS_SCRAPE': this.sync7BitPartnersScrape,
+      'AFFILKA_API': this.syncAffilkaAPI,
+      'AFFILKA_SCRAPE': this.syncAffilkaScrape,
       'WYNTA_SCRAPE': this.syncWyntaScrape,
       'DECKMEDIA': this.syncDeckMedia,
       'RTG': this.syncRTGNew,
@@ -2003,7 +2003,7 @@ class SyncEngine {
 
   // Affilka Platform API
   // Generic Affilka platform sync (works for any Affilka-based affiliate program)
-  // Examples: 7BitPartners, GoPartners, 50Partners, etc.
+  // Affilka-based platforms (7BitPartners, GoPartners, 50Partners, etc.)
   // API docs: {baseUrl}/partner/api_docs/customer/partner/traffic_reports/
   async syncAffilka({ program, credentials, config, apiUrl }) {
     let baseUrl = apiUrl || config?.apiUrl;
@@ -2027,10 +2027,10 @@ class SyncEngine {
         .replace(/\/+$/, '');                // Remove trailing slashes
     }
 
-    return this.sync7BitPartners({ program, credentials, config, apiUrl: baseUrl, customApiPath: hasCustomApiPath });
+    return this.syncAffilkaAPI({ program, credentials, config, apiUrl: baseUrl, customApiPath: hasCustomApiPath });
   }
 
-  async sync7BitPartners({ program, credentials, config, apiUrl, customApiPath }) {
+  async syncAffilkaAPI({ program, credentials, config, apiUrl, customApiPath }) {
     let baseUrl = apiUrl || config?.apiUrl || 'https://dashboard.7bitpartners.com';
 
     // Clean up the base URL - remove trailing slashes
@@ -2067,7 +2067,7 @@ class SyncEngine {
       this.log(`Using credentials: username=${username ? 'SET' : 'EMPTY'}, password=${password ? 'SET' : 'EMPTY'}`);
       const loginUrl = `${baseUrl}/partner/login`;
       this.log(`Login URL: ${loginUrl}`);
-      return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl });
+      return this.syncAffilkaScrape({ program, credentials, config, loginUrl });
     }
 
     // Affilka API
@@ -2182,7 +2182,7 @@ class SyncEngine {
       this.log(`Failed to fetch current month: ${e.message}`);
       if (hasCredentials) {
         this.log('Falling back to web scraping...');
-        return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
+        return this.syncAffilkaScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
       }
       throw e;
     }
@@ -2200,26 +2200,26 @@ class SyncEngine {
     return stats;
   }
 
-  // 7BitPartners Scrape - web login
-  async sync7BitPartnersScrape({ program, credentials, config, loginUrl, scraper }) {
+  // Affilka Scrape - web login fallback when no API token
+  async syncAffilkaScrape({ program, credentials, config, loginUrl, scraper }) {
     const scr = scraper || this.scraper; // Use dedicated scraper for parallel safety
-    const login = loginUrl || 'https://dashboard.7bitpartners.com/partner/login';
+    const login = loginUrl;
     const username = credentials.username;
     const password = credentials.password;
 
-    this.log(`sync7BitPartnersScrape called with loginUrl: ${login}`);
+    this.log(`syncAffilkaScrape called with loginUrl: ${login}`);
     this.log(`Scraper instance: ${scr ? 'EXISTS' : 'NULL'}`);
 
     if (!username || !password) {
-      throw new Error('Username and password required for 7BitPartners scraping');
+      throw new Error('Username and password required for Affilka scraping');
     }
 
     const { startDate, endDate } = this.getDateRange(7);
 
-    this.log(`Starting 7BitPartners web scrape for ${login}...`);
+    this.log(`Starting Affilka web scrape for ${login}...`);
 
     try {
-      const stats = await scr.scrape7BitPartners({
+      const stats = await scr.scrapeAffilka({
         loginUrl: login,
         username,
         password,

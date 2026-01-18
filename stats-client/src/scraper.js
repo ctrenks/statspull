@@ -1899,13 +1899,13 @@ class Scraper {
     return stats;
   }
 
-  // 7BitPartners scraping
-  async scrape7BitPartners({ loginUrl, username, password, startDate, endDate }) {
+  // Affilka scraping (web login fallback)
+  async scrapeAffilka({ loginUrl, username, password, startDate, endDate }) {
     await this.launch();
     const page = await this.browser.newPage();
 
     try {
-      this.log('Navigating to 7BitPartners login...');
+      this.log('Navigating to Affilka login...');
       await page.goto(loginUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
       await this.delay(2000);
