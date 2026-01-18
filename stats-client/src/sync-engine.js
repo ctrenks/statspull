@@ -2070,15 +2070,41 @@ class SyncEngine {
       throw new Error('Affilka programs require an API Token');
     }
 
-    // Use /report endpoint with columns and group_by=month for aggregated data
-    // This is more universally available than traffic_report
-    const columns = 'visits_count,registrations_count,first_deposits_count,deposits_sum,partner_income,ngr,chargebacks_sum';
+    // First, check what columns are available for this account
+    let attributesUrl;
+    if (customApiPath) {
+      attributesUrl = `${baseUrl}/report/attributes`;
+    } else {
+      attributesUrl = `${baseUrl}/api/customer/v1/partner/report/attributes`;
+    }
+    
+    this.log(`Checking available columns: ${attributesUrl.replace(token, 'TOKEN')}`);
+    
+    try {
+      const attrResponse = await this.httpRequest(attributesUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': token
+        }
+      });
+      
+      if (attrResponse.data?.available_columns) {
+        this.log(`Available columns: ${JSON.stringify(attrResponse.data.available_columns.slice(0, 10))}...`);
+        this.log(`Available groupers: ${JSON.stringify(attrResponse.data.available_groupers || [])}`);
+      }
+    } catch (e) {
+      this.log(`Could not fetch attributes: ${e.message}`);
+    }
+    
+    // Use /report endpoint - try WITHOUT group_by first to see raw data
+    const columns = 'visits_count,registrations_count,first_deposits_count,deposits_sum,partner_income,ngr';
     
     let url;
     if (customApiPath) {
-      url = `${baseUrl}/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}&group_by=month`;
+      url = `${baseUrl}/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}`;
     } else {
-      url = `${baseUrl}/api/customer/v1/partner/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}&group_by=month`;
+      url = `${baseUrl}/api/customer/v1/partner/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}`;
     }
     
     this.log(`Calling Affilka /report API: ${url.replace(token, 'TOKEN')}`);
@@ -2091,16 +2117,17 @@ class SyncEngine {
       }
     });
     
-    // Debug: log the raw response structure
-    this.log(`DEBUG /report response keys: ${JSON.stringify(Object.keys(response.data || {}))}`);
-    if (response.data?.rows?.data) {
-      this.log(`DEBUG /report rows.data length: ${response.data.rows.data.length}`);
-      if (response.data.rows.data.length > 0) {
-        this.log(`DEBUG /report first row: ${JSON.stringify(response.data.rows.data[0])}`);
-      }
+    // Debug: dump the FULL raw response
+    this.log(`DEBUG FULL /report response: ${JSON.stringify(response.data).substring(0, 1000)}`);
+    
+    // Check rows structure
+    if (response.data?.rows) {
+      this.log(`DEBUG rows keys: ${JSON.stringify(Object.keys(response.data.rows))}`);
+      this.log(`DEBUG rows.data length: ${response.data.rows.data?.length || 0}`);
     }
-    if (response.data?.totals?.data) {
-      this.log(`DEBUG /report totals.data: ${JSON.stringify(response.data.totals.data)}`);
+    if (response.data?.totals) {
+      this.log(`DEBUG totals keys: ${JSON.stringify(Object.keys(response.data.totals))}`);
+      this.log(`DEBUG totals.data: ${JSON.stringify(response.data.totals.data)}`);
     }
 
     this.log(`Response status: ${response.status}`);
@@ -2135,7 +2162,7 @@ class SyncEngine {
     // Parse the response from /report endpoint
     // Structure: rows.data = array of row objects, totals.data = array of {name, value}
     let totals = {};
-    
+
     // First try totals.data (aggregated totals)
     const totalsArray = response.data?.totals?.data || [];
     if (totalsArray.length > 0) {
@@ -2149,7 +2176,7 @@ class SyncEngine {
       // Sum up rows.data if no totals
       const rowsData = response.data?.rows?.data || [];
       this.log(`No totals.data, summing ${rowsData.length} rows`);
-      
+
       for (const row of rowsData) {
         // Each row is an object with column values
         totals.visits_count = (totals.visits_count || 0) + (parseFloat(row.visits_count) || 0);
