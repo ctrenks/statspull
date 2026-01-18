@@ -378,14 +378,20 @@ body {
 }
 
 .stat-value {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .stat-value-small {
   font-size: 1rem;
+}
+
+/* For large money values that might overflow */
+.stat-value.money {
+  font-size: 1.5rem;
 }
 
 .stat-label {
