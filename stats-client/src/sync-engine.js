@@ -1244,95 +1244,102 @@ class SyncEngine {
 
     this.log('NetRefer - logging in...');
     
-    // Initialize browser if needed
-    await scr.init();
+    // Launch browser and create page (following the same pattern as other scrapers)
+    await scr.launch();
+    const page = await scr.browser.newPage();
     
-    // Navigate to login page
-    await scr.goto(baseUrl);
-    await scr.sleep(2000);
-    
-    // Fill login form
-    const usernameSelectors = ['input[name="username"]', 'input[name="email"]', '#username', '#email', 'input[type="text"]'];
-    const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
-    
-    for (const sel of usernameSelectors) {
-      try {
-        const exists = await scr.page.$(sel);
-        if (exists) {
-          await scr.type(sel, username);
-          break;
-        }
-      } catch (e) { /* try next */ }
-    }
-    
-    for (const sel of passwordSelectors) {
-      try {
-        const exists = await scr.page.$(sel);
-        if (exists) {
-          await scr.type(sel, password);
-          break;
-        }
-      } catch (e) { /* try next */ }
-    }
-    
-    // Submit login
     try {
-      const submitBtn = await scr.page.$('button[type="submit"], input[type="submit"], .login-button, #loginButton, .btn-primary');
-      if (submitBtn) {
-        await Promise.all([
-          submitBtn.click(),
-          scr.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
-        ]);
+      // Set user agent
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      
+      // Navigate to login page
+      this.log(`NetRefer - navigating to ${baseUrl}`);
+      await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await scr.delay(2000);
+      
+      // Fill login form
+      const usernameSelectors = ['input[name="username"]', 'input[name="email"]', '#username', '#email', 'input[type="text"]'];
+      const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
+      
+      for (const sel of usernameSelectors) {
+        try {
+          const exists = await page.$(sel);
+          if (exists) {
+            await page.type(sel, username);
+            this.log(`NetRefer - filled username using selector: ${sel}`);
+            break;
+          }
+        } catch (e) { /* try next */ }
       }
-    } catch (e) {
-      this.log(`NetRefer - login submit: ${e.message}`);
+      
+      for (const sel of passwordSelectors) {
+        try {
+          const exists = await page.$(sel);
+          if (exists) {
+            await page.type(sel, password);
+            this.log(`NetRefer - filled password`);
+            break;
+          }
+        } catch (e) { /* try next */ }
+      }
+      
+      // Submit login
+      try {
+        const submitBtn = await page.$('button[type="submit"], input[type="submit"], .login-button, #loginButton, .btn-primary');
+        if (submitBtn) {
+          await Promise.all([
+            submitBtn.click(),
+            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
+          ]);
+        }
+      } catch (e) {
+        this.log(`NetRefer - login submit: ${e.message}`);
+      }
+      
+      await scr.delay(3000);
+      
+      // Navigate to Monthly Figures report
+      const reportsUrl = new URL('/Reports/MonthlyFigures', baseUrl).href;
+      this.log(`NetRefer - navigating to ${reportsUrl}`);
+      await page.goto(reportsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await scr.delay(3000);
+      
+      // Parse the MonthlyFigures table - it shows all months by default
+      const stats = await this.parseNetReferTable(page);
+      
+      // Filter to just this month and last month
+      const now = new Date();
+      const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      const filteredStats = stats.filter(s => 
+        s.date.startsWith(thisMonth) || s.date.startsWith(lastMonth)
+      );
+      
+      this.log(`NetRefer - returning ${filteredStats.length} months (this month: ${thisMonth}, last month: ${lastMonth})`);
+      
+      return filteredStats;
+    } finally {
+      // Close the page
+      try {
+        await page.close();
+      } catch (e) { /* ignore */ }
     }
-    
-    await scr.sleep(3000);
-    
-    // Navigate to Monthly Figures report
-    const reportsUrl = new URL('/Reports/MonthlyFigures', baseUrl).href;
-    this.log(`NetRefer - navigating to ${reportsUrl}`);
-    await scr.goto(reportsUrl);
-    await scr.sleep(3000);
-    
-    // Parse the MonthlyFigures table - it shows all months by default
-    const stats = await this.parseNetReferTable(scr);
-    
-    // Filter to just this month and last month
-    const now = new Date();
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-    
-    const filteredStats = stats.filter(s => 
-      s.date.startsWith(thisMonth) || s.date.startsWith(lastMonth)
-    );
-    
-    this.log(`NetRefer - returning ${filteredStats.length} months (this month: ${thisMonth}, last month: ${lastMonth})`);
-    
-    // Close pages
-    if (!this.inBatchMode) {
-      await scr.closePages();
-    }
-    
-    return filteredStats;
   }
 
   // Parse NetRefer MonthlyFigures table - scrapes all rows from #monthlyFiguresDataTable
-  async parseNetReferTable(scr) {
-    const scraper = scr || this.scraper;
+  async parseNetReferTable(page) {
     this.log('NetRefer - waiting for table to load...');
-    await scraper.sleep(2000);
     
     // Wait for the table
     try {
-      await scraper.page.waitForSelector('#monthlyFiguresDataTable tbody tr', { timeout: 10000 });
+      await page.waitForSelector('#monthlyFiguresDataTable tbody tr', { timeout: 10000 });
     } catch (e) {
       this.log('NetRefer - table not found, trying to proceed anyway');
     }
     
-    const stats = await scraper.page.evaluate(() => {
+    const stats = await page.evaluate(() => {
       const table = document.querySelector('#monthlyFiguresDataTable');
       if (!table) return [];
 
