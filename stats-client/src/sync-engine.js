@@ -2174,18 +2174,18 @@ class SyncEngine {
 
     // Parse the response - structure varies between endpoints
     let totals = {};
-    
+
     this.log(`DEBUG: Parsing response, usedReportEndpoint=${usedReportEndpoint}`);
-    
+
     if (usedReportEndpoint) {
       // /report endpoint structure:
       // - rows.data: array of row data
       // - totals.data: array of {name, value} pairs (same as traffic_report's overall_totals.data)
-      
+
       // First, try to use totals.data (like traffic_report)
       const totalsArray = response.data?.totals?.data || [];
       this.log(`DEBUG /report: totals.data length=${totalsArray.length}`);
-      
+
       if (totalsArray.length > 0) {
         // Parse totals.data array (same format as traffic_report)
         for (const field of totalsArray) {
@@ -2197,7 +2197,7 @@ class SyncEngine {
         // Fall back to summing rows.data if totals is empty
         const rowsData = response.data?.rows?.data || [];
         this.log(`DEBUG /report: No totals, summing ${rowsData.length} rows`);
-        
+
         if (rowsData.length > 0) {
           for (const row of rowsData) {
             totals.visits_count = (totals.visits_count || 0) + (parseFloat(row.visits_count) || 0);
@@ -2209,17 +2209,40 @@ class SyncEngine {
             totals.chargebacks_sum = (totals.chargebacks_sum || 0) + (parseFloat(row.chargebacks_sum) || 0);
           }
         } else {
-          this.log(`DEBUG /report: No data in rows or totals, falling back to traffic_report`);
-          // No data in /report, fall back to traffic_report
+          this.log(`DEBUG /report: No data in rows or totals, will call traffic_report`);
+          // No data in /report, need to call traffic_report
           usedReportEndpoint = false;
+          
+          // Make a NEW request to traffic_report
+          let trafficUrl;
+          if (customApiPath) {
+            trafficUrl = `${baseUrl}/traffic_report?from=${startDateISO}&to=${endDateISO}`;
+          } else {
+            trafficUrl = `${baseUrl}/api/customer/v1/partner/traffic_report?from=${startDateISO}&to=${endDateISO}`;
+          }
+          
+          this.log(`Calling traffic_report fallback: ${trafficUrl.replace(token, 'TOKEN')}`);
+          
+          try {
+            response = await this.httpRequest(trafficUrl, {
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': token
+              }
+            });
+            this.log(`traffic_report response status: ${response.status}`);
+          } catch (e) {
+            this.log(`traffic_report request failed: ${e.message}`);
+          }
         }
       }
     }
     
-    // If /report didn't work or returned empty, try traffic_report parsing
-    if (!usedReportEndpoint || Object.keys(totals).length === 0) {
+    // If we called traffic_report (either as fallback or original endpoint failed)
+    if (!usedReportEndpoint && response?.data?.overall_totals) {
       // traffic_report endpoint - totals are in overall_totals.data
-      this.log(`DEBUG: Using traffic_report parsing`);
+      this.log(`DEBUG: Parsing traffic_report response`);
       const totalsArray = response.data?.overall_totals?.data || [];
       this.log(`DEBUG traffic_report: overall_totals.data length=${totalsArray.length}`);
       for (const field of totalsArray) {
