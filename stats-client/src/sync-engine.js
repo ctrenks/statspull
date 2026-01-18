@@ -2083,11 +2083,13 @@ class SyncEngine {
     // Build URL with array syntax: columns[]=x&columns[]=y
     const columnsParam = columns.map(c => `columns[]=${c}`).join('&');
     
+    // Use conversion_currency=USD to get all values converted to USD
+    // Without this, API returns same data in multiple currency rows
     let url;
     if (customApiPath) {
-      url = `${baseUrl}/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month`;
+      url = `${baseUrl}/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
     } else {
-      url = `${baseUrl}/api/customer/v1/partner/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month`;
+      url = `${baseUrl}/api/customer/v1/partner/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
     }
     
     this.log(`Calling Affilka /report: ${url.replace(token, 'TOKEN')}`);
@@ -2133,7 +2135,7 @@ class SyncEngine {
     // Format: totals.data = array of arrays, each inner array has [{name, value, type}, ...]
     // Value can be a number OR an object {currency, amount_cents, amount}
     let totals = {};
-    
+
     // Helper to extract numeric value from field
     const getFieldValue = (field) => {
       if (!field || field.value === undefined) return 0;
@@ -2144,17 +2146,17 @@ class SyncEngine {
       // Otherwise it's a plain number
       return parseFloat(field.value) || 0;
     };
-    
+
     // totals.data is array of arrays (one per currency group)
     const totalsData = response.data?.totals?.data || [];
-    
+
     if (totalsData.length > 0) {
       this.log(`Parsing ${totalsData.length} total groups`);
-      
+
       // Sum across all currency groups
       for (const group of totalsData) {
         if (!Array.isArray(group)) continue;
-        
+
         for (const field of group) {
           if (!field.name) continue;
           const value = getFieldValue(field);
@@ -2168,7 +2170,7 @@ class SyncEngine {
 
       for (const row of rowsData) {
         if (!Array.isArray(row)) continue;
-        
+
         for (const field of row) {
           if (!field.name) continue;
           const value = getFieldValue(field);
