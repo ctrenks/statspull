@@ -2070,18 +2070,22 @@ class SyncEngine {
       throw new Error('Affilka programs require an API Token');
     }
 
-    // First, check what columns are available for this account
-    let attributesUrl;
+    // Try traffic_report first (has traffic stats: visits, registrations, ftd_count)
+    // Fall back to /report if traffic_report returns 403
+    let url;
     if (customApiPath) {
-      attributesUrl = `${baseUrl}/report/attributes`;
+      url = `${baseUrl}/traffic_report?from=${startDateISO}&to=${endDateISO}`;
     } else {
-      attributesUrl = `${baseUrl}/api/customer/v1/partner/report/attributes`;
+      url = `${baseUrl}/api/customer/v1/partner/traffic_report?from=${startDateISO}&to=${endDateISO}`;
     }
     
-    this.log(`Checking available columns: ${attributesUrl.replace(token, 'TOKEN')}`);
+    this.log(`Calling Affilka traffic_report: ${url.replace(token, 'TOKEN')}`);
+    
+    let response;
+    let useTrafficReport = true;
     
     try {
-      const attrResponse = await this.httpRequest(attributesUrl, {
+      response = await this.httpRequest(url, {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -2089,45 +2093,34 @@ class SyncEngine {
         }
       });
       
-      if (attrResponse.data?.available_columns) {
-        this.log(`Available columns: ${JSON.stringify(attrResponse.data.available_columns.slice(0, 10))}...`);
-        this.log(`Available groupers: ${JSON.stringify(attrResponse.data.available_groupers || [])}`);
+      // Check if traffic_report returned 403 (no access)
+      if (response.status === 403) {
+        this.log('traffic_report returned 403, trying /report endpoint...');
+        useTrafficReport = false;
       }
     } catch (e) {
-      this.log(`Could not fetch attributes: ${e.message}`);
+      this.log(`traffic_report failed: ${e.message}, trying /report...`);
+      useTrafficReport = false;
     }
     
-    // Use /report endpoint - try WITHOUT group_by first to see raw data
-    const columns = 'visits_count,registrations_count,first_deposits_count,deposits_sum,partner_income,ngr';
-    
-    let url;
-    if (customApiPath) {
-      url = `${baseUrl}/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}`;
-    } else {
-      url = `${baseUrl}/api/customer/v1/partner/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}`;
-    }
-    
-    this.log(`Calling Affilka /report API: ${url.replace(token, 'TOKEN')}`);
-    
-    let response = await this.httpRequest(url, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': token
+    // Fall back to /report if traffic_report failed
+    if (!useTrafficReport) {
+      const columns = 'visits_count,registrations_count,first_deposits_count,deposits_sum,partner_income,real_ngr';
+      if (customApiPath) {
+        url = `${baseUrl}/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}&group_by=month`;
+      } else {
+        url = `${baseUrl}/api/customer/v1/partner/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}&group_by=month`;
       }
-    });
-    
-    // Debug: dump the FULL raw response
-    this.log(`DEBUG FULL /report response: ${JSON.stringify(response.data).substring(0, 1000)}`);
-    
-    // Check rows structure
-    if (response.data?.rows) {
-      this.log(`DEBUG rows keys: ${JSON.stringify(Object.keys(response.data.rows))}`);
-      this.log(`DEBUG rows.data length: ${response.data.rows.data?.length || 0}`);
-    }
-    if (response.data?.totals) {
-      this.log(`DEBUG totals keys: ${JSON.stringify(Object.keys(response.data.totals))}`);
-      this.log(`DEBUG totals.data: ${JSON.stringify(response.data.totals.data)}`);
+      
+      this.log(`Calling Affilka /report: ${url.replace(token, 'TOKEN')}`);
+      
+      response = await this.httpRequest(url, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': token
+        }
+      });
     }
 
     this.log(`Response status: ${response.status}`);
@@ -2159,48 +2152,54 @@ class SyncEngine {
       throw new Error(`Affilka API returned status ${response.status}`);
     }
 
-    // Parse the response from /report endpoint
-    // Structure: rows.data = array of row objects, totals.data = array of {name, value}
+    // Parse the response - format differs between endpoints:
+    // - traffic_report: overall_totals.data = [{name: "visits", value: "123"}, ...]
+    // - /report: totals.data = [{name: "visits_count", value: "123"}, ...]
     let totals = {};
 
-    // First try totals.data (aggregated totals)
-    const totalsArray = response.data?.totals?.data || [];
+    // Try overall_totals.data first (traffic_report format)
+    let totalsArray = response.data?.overall_totals?.data || [];
+    
+    // Fall back to totals.data (/report format)
+    if (totalsArray.length === 0) {
+      totalsArray = response.data?.totals?.data || [];
+    }
+    
     if (totalsArray.length > 0) {
-      this.log(`Using totals.data (${totalsArray.length} fields)`);
+      this.log(`Parsing ${totalsArray.length} total fields`);
       for (const field of totalsArray) {
         if (field.name && field.value !== undefined) {
           totals[field.name] = parseFloat(field.value) || 0;
         }
       }
     } else {
-      // Sum up rows.data if no totals
+      // Sum up rows.data if no totals (for /report endpoint)
       const rowsData = response.data?.rows?.data || [];
-      this.log(`No totals.data, summing ${rowsData.length} rows`);
+      this.log(`No totals, summing ${rowsData.length} rows`);
 
       for (const row of rowsData) {
-        // Each row is an object with column values
         totals.visits_count = (totals.visits_count || 0) + (parseFloat(row.visits_count) || 0);
         totals.registrations_count = (totals.registrations_count || 0) + (parseFloat(row.registrations_count) || 0);
         totals.first_deposits_count = (totals.first_deposits_count || 0) + (parseFloat(row.first_deposits_count) || 0);
         totals.deposits_sum = (totals.deposits_sum || 0) + (parseFloat(row.deposits_sum) || 0);
         totals.partner_income = (totals.partner_income || 0) + (parseFloat(row.partner_income) || 0);
-        totals.ngr = (totals.ngr || 0) + (parseFloat(row.ngr) || 0);
-        totals.chargebacks_sum = (totals.chargebacks_sum || 0) + (parseFloat(row.chargebacks_sum) || 0);
+        totals.real_ngr = (totals.real_ngr || 0) + (parseFloat(row.real_ngr) || 0);
       }
     }
 
     this.log(`Parsed totals: ${JSON.stringify(totals)}`);
 
-    // Map Affilka /report fields to our stats format
+    // Map to our stats format - handle both field naming conventions
+    // traffic_report uses: visits, registrations_count, ftd_count
+    // /report uses: visits_count, registrations_count, first_deposits_count
     const stats = [{
       date: new Date().toISOString().split('T')[0],
-      clicks: totals.visits_count || 0,
+      clicks: totals.visits || totals.visits_count || 0,
       impressions: 0,
       signups: totals.registrations_count || 0,
-      ftds: totals.first_deposits_count || 0,
+      ftds: totals.ftd_count || totals.first_deposits_count || 0,
       deposits: Math.round((totals.deposits_sum || 0) * 100), // Convert to cents
-      chargebacks: Math.round((totals.chargebacks_sum || 0) * 100),
-      revenue: Math.round((totals.partner_income || totals.ngr || 0) * 100) // Convert to cents
+      revenue: Math.round((totals.partner_income || totals.real_ngr || totals.ngr || 0) * 100) // Convert to cents
     }];
 
     this.log(`✓ Affilka sync complete: clicks=${stats[0].clicks}, signups=${stats[0].signups}, ftds=${stats[0].ftds}, revenue=${stats[0].revenue/100}`);
