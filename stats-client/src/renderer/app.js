@@ -354,11 +354,13 @@ async function loadDashboardData() {
     }
 
     elements.currentMonthFTDs.textContent = totalFTDs.toLocaleString();
+    // Hide cents for values over $10K to save space
+    const showCents = totalRevenue < 10000;
     elements.currentMonthRevenue.textContent = `${
       CURRENCY_SYMBOLS[defaultCurrency] || "$"
     }${totalRevenue.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: showCents ? 2 : 0,
+      maximumFractionDigits: showCents ? 2 : 0,
     })}`;
   } catch (error) {
     console.error("Error loading current month stats:", error);
