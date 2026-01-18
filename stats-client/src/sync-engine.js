@@ -1297,34 +1297,34 @@ class SyncEngine {
       }
 
       await scr.delay(3000);
-      
+
       // Navigate to Monthly Figures report
       const reportsUrl = new URL('/Reports/MonthlyFigures', baseUrl).href;
       this.log(`NetRefer - navigating to ${reportsUrl}`);
       await page.goto(reportsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(2000);
-      
+
       // Calculate date values for this month and last month
       // Format is YYMM (e.g., 2601 for Jan 2026, 2512 for Dec 2025)
       const now = new Date();
       const thisMonthValue = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}`;
       const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastMonthValue = `${String(lastMonthDate.getFullYear()).slice(2)}${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-      
+
       this.log(`NetRefer - fetching this month (${thisMonthValue}) and last month (${lastMonthValue})`);
-      
+
       const allStats = [];
-      
+
       // Fetch this month's data
       const thisMonthStats = await this.fetchNetReferMonth(page, scr, thisMonthValue, thisMonthValue);
       allStats.push(...thisMonthStats);
-      
+
       // Fetch last month's data
       const lastMonthStats = await this.fetchNetReferMonth(page, scr, lastMonthValue, lastMonthValue);
       allStats.push(...lastMonthStats);
-      
+
       this.log(`NetRefer - returning ${allStats.length} month(s) of data`);
-      
+
       return allStats;
     } finally {
       // Close the page
@@ -1337,22 +1337,22 @@ class SyncEngine {
   // Helper to fetch a specific month from NetRefer by selecting dates and clicking Search
   async fetchNetReferMonth(page, scr, fromValue, toValue) {
     this.log(`NetRefer - selecting date range: ${fromValue} to ${toValue}`);
-    
+
     // Select the From date
     await page.select('#selectedDateFrom', fromValue);
     await scr.delay(500);
-    
+
     // Select the To date
     await page.select('#selectedDateTo', toValue);
     await scr.delay(500);
-    
+
     // Click the Search button
     this.log('NetRefer - clicking Search button...');
     await page.click('#btnSearch');
-    
+
     // Wait for the table to load (it updates via AJAX)
     await scr.delay(3000);
-    
+
     // Wait for table rows to appear
     try {
       await page.waitForSelector('#monthlyFiguresDataTable tbody tr', { timeout: 10000 });
@@ -1360,7 +1360,7 @@ class SyncEngine {
       this.log('NetRefer - no data rows found for this period');
       return [];
     }
-    
+
     // Parse the table
     return await this.parseNetReferTable(page);
   }
@@ -1368,7 +1368,7 @@ class SyncEngine {
   // Parse NetRefer MonthlyFigures table - scrapes all rows from #monthlyFiguresDataTable
   async parseNetReferTable(page) {
     this.log('NetRefer - parsing table data...');
-    
+
     const stats = await page.evaluate(() => {
       const table = document.querySelector('#monthlyFiguresDataTable');
       if (!table) return [];
@@ -1528,22 +1528,29 @@ class SyncEngine {
       throw new Error('Affilka programs require a Base URL (e.g., https://dashboard.yourprogram.com)');
     }
 
-    // Clean up the base URL:
-    // 1. Remove any API path if user accidentally included it
-    // 2. Remove trailing slashes to prevent double slashes when appending paths
-    baseUrl = baseUrl
-      .replace(/\/api\/customer.*$/, '')  // Remove API path if included
-      .replace(/\/partner.*$/, '')         // Remove partner path if included
-      .replace(/\/+$/, '');                // Remove trailing slashes
+    // Check if user specified a custom API path (e.g., /partner/api)
+    // If the URL contains /partner/api or similar, preserve it as custom API base
+    const hasCustomApiPath = /\/partner\/api|\/api\/v\d/.test(baseUrl);
+    
+    if (hasCustomApiPath) {
+      // User specified a custom API path - pass it through as-is
+      this.log(`Affilka - using custom API path: ${baseUrl}`);
+      baseUrl = baseUrl.replace(/\/+$/, ''); // Just remove trailing slashes
+    } else {
+      // Clean up the base URL - only strip if it's the standard path
+      baseUrl = baseUrl
+        .replace(/\/api\/customer.*$/, '')  // Remove standard API path if included
+        .replace(/\/+$/, '');                // Remove trailing slashes
+    }
 
-    return this.sync7BitPartners({ program, credentials, config, apiUrl: baseUrl });
+    return this.sync7BitPartners({ program, credentials, config, apiUrl: baseUrl, customApiPath: hasCustomApiPath });
   }
 
-  async sync7BitPartners({ program, credentials, config, apiUrl }) {
+  async sync7BitPartners({ program, credentials, config, apiUrl, customApiPath }) {
     let baseUrl = apiUrl || config?.apiUrl || 'https://dashboard.7bitpartners.com';
 
-    // Clean up the base URL - remove trailing slashes and any API paths
-    baseUrl = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+    // Clean up the base URL - remove trailing slashes
+    baseUrl = baseUrl.replace(/\/+$/, '');
 
     const token = credentials.apiKey || ''; // This is the "statistic token" from Affilka
     const username = credentials.username || '';
@@ -1580,9 +1587,20 @@ class SyncEngine {
     }
 
     // Construct the API URL
-    const apiPath = '/api/customer/v1/partner/traffic_report';
-    const url = `${baseUrl}${apiPath}?from=${startDateISO}&to=${endDateISO}`;
-    this.log(`Calling Affilka API: ${url.replace(token, 'TOKEN')}`);
+    // If customApiPath is true, user provided a custom API base (e.g., /partner/api)
+    // In that case, just append the endpoint name, otherwise use full default path
+    let url;
+    if (customApiPath) {
+      // Custom API path provided - append just the endpoint
+      // e.g., https://example.com/partner/api → https://example.com/partner/api/traffic_report
+      url = `${baseUrl}/traffic_report?from=${startDateISO}&to=${endDateISO}`;
+      this.log(`Affilka - using custom API: ${url.replace(token, 'TOKEN')}`);
+    } else {
+      // Use default Affilka API path
+      const apiPath = '/api/customer/v1/partner/traffic_report';
+      url = `${baseUrl}${apiPath}?from=${startDateISO}&to=${endDateISO}`;
+      this.log(`Calling Affilka API: ${url.replace(token, 'TOKEN')}`);
+    }
 
     const response = await this.httpRequest(url, {
       headers: {
