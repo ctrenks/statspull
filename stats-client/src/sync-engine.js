@@ -930,11 +930,21 @@ class SyncEngine {
       const ftds = parseInt(row.ftds || row.ftd || row['first deposit count'] || row['first time depositors'] || row.new_depositors || row.ndc || 0) || 0;
       // Deposits: "net deposits" is a currency value - convert to cents
       const deposits = Math.round(parseFloat(row.deposits || row['net deposits'] || row['deposit total'] || row.deposit_count || 0) * 100) || 0;
-      const revenue = Math.round(parseFloat(row.income || row.commission || row.earnings || row.revenue || row['net revenue'] || row.total || row['net gaming'] || 0) * 100) || 0;
+      // Try multiple possible revenue column names
+      const revenueValue = row.income || row.commission || row.earnings || row.revenue || 
+                           row['net revenue'] || row.total || row['net gaming'] || 
+                           row.payout || row.amount || row.share || row['affiliate share'] ||
+                           row['aff share'] || row['player value'] || row.pvr || row.cpa ||
+                           row['rev share'] || row['rs'] || row['net income'] || row['monthly income'] ||
+                           row['total earnings'] || row['your earnings'] || row['affiliate earnings'] || 0;
+      const revenue = Math.round(parseFloat(revenueValue) * 100) || 0;
 
-      // Debug: log first row's parsed data
+      // Debug: log first row's parsed data with the raw value found
       if (i === 1) {
-        this.log(`MyAffiliates first row parsed: channel=${channel}, clicks=${clicks}, signups=${signups}, ftds=${ftds}, deposits=${deposits}, revenue=${revenue}`);
+        this.log(`MyAffiliates first row parsed: channel=${channel}, clicks=${clicks}, signups=${signups}, ftds=${ftds}, deposits=${deposits}, revenue=${revenue} (raw: ${revenueValue})`);
+        // Log all column names that contain 'rev', 'earn', 'income', 'comm', 'share', 'pay'
+        const revenueColumns = headers.filter(h => /rev|earn|income|comm|share|pay|total|amount/.test(h));
+        this.log(`MyAffiliates potential revenue columns: ${JSON.stringify(revenueColumns)}`);
       }
 
       // Save per-channel record (if channel exists)
@@ -1683,23 +1693,23 @@ class SyncEngine {
     }
 
     this.log('Mexos - logging in...');
-    
+
     // Launch browser and create page
     await scr.launch();
     const page = await scr.browser.newPage();
-    
+
     try {
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
+
       // Navigate to login page
       this.log(`Mexos - navigating to ${baseUrl}`);
       await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(3000);
-      
+
       // Fill login form
       const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[name="login"]', '#username', '#email', 'input[type="text"]', 'input[type="email"]'];
       const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
-      
+
       for (const sel of usernameSelectors) {
         try {
           const exists = await page.$(sel);
@@ -1710,7 +1720,7 @@ class SyncEngine {
           }
         } catch (e) { /* try next */ }
       }
-      
+
       for (const sel of passwordSelectors) {
         try {
           const exists = await page.$(sel);
@@ -1721,7 +1731,7 @@ class SyncEngine {
           }
         } catch (e) { /* try next */ }
       }
-      
+
       // Submit login
       const submitBtn = await page.$('button[type="submit"], input[type="submit"], .btn-primary, .login-btn');
       if (submitBtn) {
@@ -1730,26 +1740,26 @@ class SyncEngine {
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
         ]);
       }
-      
+
       await scr.delay(4000);
-      
+
       // Navigate to statistics page (Angular hash routing)
       const statsUrl = baseUrl.replace(/\/$/, '') + '/#/statistics';
       this.log(`Mexos - navigating to statistics: ${statsUrl}`);
       await page.goto(statsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(4000);
-      
+
       // Wait for Angular to load the form
       try {
         await page.waitForSelector('.statistics-box', { timeout: 10000 });
       } catch (e) {
         this.log('Mexos - statistics form not found, trying to continue');
       }
-      
+
       // Fetch current month stats
       const now = new Date();
       const allStats = [];
-      
+
       // Current month
       const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       const thisMonthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -1758,7 +1768,7 @@ class SyncEngine {
         thisMonthStats.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
         allStats.push(thisMonthStats);
       }
-      
+
       // Last month
       const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -1769,7 +1779,7 @@ class SyncEngine {
         lastMonthStats.date = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
         allStats.push(lastMonthStats);
       }
-      
+
       this.log(`Mexos - returning ${allStats.length} month(s) of data`);
       return allStats;
     } finally {
@@ -1783,7 +1793,7 @@ class SyncEngine {
   async fetchMexosStats(page, scr, startDate, endDate) {
     const dateRange = `${startDate} - ${endDate}`;
     this.log(`Mexos - setting date range: ${dateRange}`);
-    
+
     // Set the date range value via JavaScript (Angular input)
     await page.evaluate((range) => {
       const input = document.querySelector('#statDate, input[name="dateRange"], .date-range');
@@ -1796,9 +1806,9 @@ class SyncEngine {
         input.dispatchEvent(changeEvent);
       }
     }, dateRange);
-    
+
     await scr.delay(1000);
-    
+
     // Click Run Report button
     this.log('Mexos - clicking Run Report...');
     const runBtn = await page.$('button.btn:not(.btn-export)');
@@ -1812,9 +1822,9 @@ class SyncEngine {
         if (runBtn) runBtn.click();
       });
     }
-    
+
     await scr.delay(5000);
-    
+
     // Wait for table to load
     try {
       await page.waitForSelector('table.statistic-table tfoot .grand-total', { timeout: 15000 });
@@ -1822,22 +1832,22 @@ class SyncEngine {
       this.log('Mexos - no results table found');
       return null;
     }
-    
+
     // Parse the Grand Totals row
     const stats = await page.evaluate(() => {
       const totalRow = document.querySelector('table.statistic-table tfoot tr.grand-total');
       if (!totalRow) return null;
-      
+
       const cells = totalRow.querySelectorAll('td');
       if (cells.length < 14) return null;
-      
+
       // Parse number, handling decimals
       const parseNum = (text) => {
         if (!text) return 0;
         const cleaned = text.replace(/[^0-9.-]/g, '');
         return parseFloat(cleaned) || 0;
       };
-      
+
       // Column mapping based on headers:
       // 0: (empty - Date total)
       // 1: Impressions
@@ -1856,10 +1866,10 @@ class SyncEngine {
       // 14: Casino Net Gaming Commission
       // 15: Sport Net Gaming Commission
       // 16: Net Gaming After Deduction
-      
+
       const casinoFtds = parseInt(cells[6]?.textContent?.trim() || '0') || 0;
       const sportFtds = parseInt(cells[8]?.textContent?.trim() || '0') || 0;
-      
+
       return {
         impressions: parseInt(cells[1]?.textContent?.trim() || '0') || 0,
         clicks: parseInt(cells[2]?.textContent?.trim() || '0') || 0,
@@ -1870,14 +1880,14 @@ class SyncEngine {
         revenue: Math.round(parseNum(cells[13]?.textContent) * 100) // Commission
       };
     });
-    
+
     if (!stats) {
       this.log('Mexos - failed to parse grand totals');
       return null;
     }
-    
+
     this.log(`Mexos - ${startDate}: clicks=${stats.clicks}, signups=${stats.signups}, ftds=${stats.ftds}, revenue=${stats.revenue/100}`);
-    
+
     return {
       date: startDate,
       clicks: stats.clicks,
