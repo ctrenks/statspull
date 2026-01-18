@@ -1243,24 +1243,24 @@ class SyncEngine {
     }
 
     this.log('NetRefer - logging in...');
-    
+
     // Launch browser and create page (following the same pattern as other scrapers)
     await scr.launch();
     const page = await scr.browser.newPage();
-    
+
     try {
       // Set user agent
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
+
       // Navigate to login page
       this.log(`NetRefer - navigating to ${baseUrl}`);
       await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(2000);
-      
+
       // Fill login form
       const usernameSelectors = ['input[name="username"]', 'input[name="email"]', '#username', '#email', 'input[type="text"]'];
       const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
-      
+
       for (const sel of usernameSelectors) {
         try {
           const exists = await page.$(sel);
@@ -1271,7 +1271,7 @@ class SyncEngine {
           }
         } catch (e) { /* try next */ }
       }
-      
+
       for (const sel of passwordSelectors) {
         try {
           const exists = await page.$(sel);
@@ -1282,7 +1282,7 @@ class SyncEngine {
           }
         } catch (e) { /* try next */ }
       }
-      
+
       // Submit login
       try {
         const submitBtn = await page.$('button[type="submit"], input[type="submit"], .login-button, #loginButton, .btn-primary');
@@ -1295,31 +1295,37 @@ class SyncEngine {
       } catch (e) {
         this.log(`NetRefer - login submit: ${e.message}`);
       }
-      
+
       await scr.delay(3000);
       
       // Navigate to Monthly Figures report
       const reportsUrl = new URL('/Reports/MonthlyFigures', baseUrl).href;
       this.log(`NetRefer - navigating to ${reportsUrl}`);
       await page.goto(reportsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-      await scr.delay(3000);
+      await scr.delay(2000);
       
-      // Parse the MonthlyFigures table - it shows all months by default
-      const stats = await this.parseNetReferTable(page);
-      
-      // Filter to just this month and last month
+      // Calculate date values for this month and last month
+      // Format is YYMM (e.g., 2601 for Jan 2026, 2512 for Dec 2025)
       const now = new Date();
-      const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const thisMonthValue = `${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}`;
       const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+      const lastMonthValue = `${String(lastMonthDate.getFullYear()).slice(2)}${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
       
-      const filteredStats = stats.filter(s => 
-        s.date.startsWith(thisMonth) || s.date.startsWith(lastMonth)
-      );
+      this.log(`NetRefer - fetching this month (${thisMonthValue}) and last month (${lastMonthValue})`);
       
-      this.log(`NetRefer - returning ${filteredStats.length} months (this month: ${thisMonth}, last month: ${lastMonth})`);
+      const allStats = [];
       
-      return filteredStats;
+      // Fetch this month's data
+      const thisMonthStats = await this.fetchNetReferMonth(page, scr, thisMonthValue, thisMonthValue);
+      allStats.push(...thisMonthStats);
+      
+      // Fetch last month's data
+      const lastMonthStats = await this.fetchNetReferMonth(page, scr, lastMonthValue, lastMonthValue);
+      allStats.push(...lastMonthStats);
+      
+      this.log(`NetRefer - returning ${allStats.length} month(s) of data`);
+      
+      return allStats;
     } finally {
       // Close the page
       try {
@@ -1328,16 +1334,40 @@ class SyncEngine {
     }
   }
 
-  // Parse NetRefer MonthlyFigures table - scrapes all rows from #monthlyFiguresDataTable
-  async parseNetReferTable(page) {
-    this.log('NetRefer - waiting for table to load...');
+  // Helper to fetch a specific month from NetRefer by selecting dates and clicking Search
+  async fetchNetReferMonth(page, scr, fromValue, toValue) {
+    this.log(`NetRefer - selecting date range: ${fromValue} to ${toValue}`);
     
-    // Wait for the table
+    // Select the From date
+    await page.select('#selectedDateFrom', fromValue);
+    await scr.delay(500);
+    
+    // Select the To date
+    await page.select('#selectedDateTo', toValue);
+    await scr.delay(500);
+    
+    // Click the Search button
+    this.log('NetRefer - clicking Search button...');
+    await page.click('#btnSearch');
+    
+    // Wait for the table to load (it updates via AJAX)
+    await scr.delay(3000);
+    
+    // Wait for table rows to appear
     try {
       await page.waitForSelector('#monthlyFiguresDataTable tbody tr', { timeout: 10000 });
     } catch (e) {
-      this.log('NetRefer - table not found, trying to proceed anyway');
+      this.log('NetRefer - no data rows found for this period');
+      return [];
     }
+    
+    // Parse the table
+    return await this.parseNetReferTable(page);
+  }
+
+  // Parse NetRefer MonthlyFigures table - scrapes all rows from #monthlyFiguresDataTable
+  async parseNetReferTable(page) {
+    this.log('NetRefer - parsing table data...');
     
     const stats = await page.evaluate(() => {
       const table = document.querySelector('#monthlyFiguresDataTable');
