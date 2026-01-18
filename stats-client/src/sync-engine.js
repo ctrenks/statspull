@@ -1284,20 +1284,20 @@ class SyncEngine {
     this.log(`NetRefer - navigating to ${reportsUrl}`);
     await this.scraper.goto(reportsUrl);
     await this.scraper.sleep(3000);
-    
+
     // Parse the MonthlyFigures table - it shows all months by default
     const stats = await this.parseNetReferTable();
-    
+
     // Filter to just this month and last month
     const now = new Date();
     const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
-    
-    const filteredStats = stats.filter(s => 
+
+    const filteredStats = stats.filter(s =>
       s.date.startsWith(thisMonth) || s.date.startsWith(lastMonth)
     );
-    
+
     this.log(`NetRefer - returning ${filteredStats.length} months (this month: ${thisMonth}, last month: ${lastMonth})`);
     return filteredStats;
   }
@@ -1306,25 +1306,25 @@ class SyncEngine {
   async parseNetReferTable() {
     this.log('NetRefer - waiting for table to load...');
     await this.scraper.sleep(2000);
-    
+
     // Wait for the table
     try {
       await this.scraper.page.waitForSelector('#monthlyFiguresDataTable tbody tr', { timeout: 10000 });
     } catch (e) {
       this.log('NetRefer - table not found, trying to proceed anyway');
     }
-    
+
     const stats = await this.scraper.page.evaluate(() => {
       const table = document.querySelector('#monthlyFiguresDataTable');
       if (!table) return [];
-      
+
       const results = [];
       const rows = table.querySelectorAll('tbody tr');
-      
+
       // Table columns by index:
       // 0: Month (e.g., "2025-12")
       // 1: Views
-      // 2: Unique Views  
+      // 2: Unique Views
       // 3: Clicks
       // 4: Unique Clicks
       // 5: Signups
@@ -1336,25 +1336,25 @@ class SyncEngine {
       // 11: First Time Active Customers
       // 12: Deposits (€0.00)
       // 13: Net Revenue (€-0.83)
-      
+
       rows.forEach(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length < 14) return;
-        
+
         const monthStr = cells[0]?.textContent?.trim() || '';
         if (!monthStr || !monthStr.match(/^\d{4}-\d{2}$/)) return;
-        
+
         const parseNum = (cell) => {
           const text = cell?.textContent?.trim() || '0';
           return parseInt(text.replace(/[^0-9-]/g, '')) || 0;
         };
-        
+
         const parseCurrency = (cell) => {
           const text = cell?.textContent?.trim() || '0';
           const num = parseFloat(text.replace(/[^0-9.-]/g, '')) || 0;
           return Math.round(num * 100); // Convert to cents
         };
-        
+
         results.push({
           date: `${monthStr}-01`, // Convert "2025-12" to "2025-12-01"
           impressions: parseNum(cells[1]), // Views
@@ -1365,15 +1365,15 @@ class SyncEngine {
           revenue: parseCurrency(cells[13]) // Net Revenue
         });
       });
-      
+
       return results;
     });
-    
+
     this.log(`NetRefer - found ${stats.length} months in table`);
     stats.forEach(s => {
       this.log(`  ${s.date}: clicks=${s.clicks}, signups=${s.signups}, ftds=${s.ftds}, revenue=${s.revenue/100}`);
     });
-    
+
     return stats;
   }
 
