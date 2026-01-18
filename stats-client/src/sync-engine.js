@@ -898,9 +898,10 @@ class SyncEngine {
       const row = {};
       headers.forEach((h, idx) => row[h] = values[idx] || '');
 
-      // Debug: log first row's raw data
+      // Debug: log first row's raw data - show ALL columns
       if (i === 1) {
-        this.log(`MyAffiliates first row raw: ${JSON.stringify(row)}`);
+        this.log(`MyAffiliates ALL COLUMNS: ${JSON.stringify(headers)}`);
+        this.log(`MyAffiliates FIRST ROW ALL VALUES: ${JSON.stringify(row)}`);
       }
 
       // Get channel name (casino/brand)
@@ -959,7 +960,7 @@ class SyncEngine {
         row['your earnings'],
         row['affiliate earnings']
       ];
-      
+
       // Find the first non-zero value, or use the first available value
       let revenueValue = 0;
       for (const val of revenueCandidates) {
