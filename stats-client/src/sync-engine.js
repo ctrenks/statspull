@@ -2048,14 +2048,18 @@ class SyncEngine {
       throw new Error('API token (statistic token) OR username/password required for Affilka');
     }
 
-    // Get CURRENT MONTH range (not last 30 days)
-    // The dashboard shows "Month" = current month data
+    // Get date ranges for current month and last month
     const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startDateISO = this.formatDate(firstDayOfMonth);
-    const endDateISO = this.formatDate(now);
+    
+    // Current month
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = now;
+    
+    // Last month
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of previous month
 
-    this.log(`Fetching Affilka stats from ${startDateISO} to ${endDateISO} (current month)`);
+    this.log(`Fetching Affilka stats for current month and last month`);
 
     // If no token but have credentials, fall back to web scraping
     if (!hasToken && hasCredentials) {
@@ -2070,130 +2074,126 @@ class SyncEngine {
       throw new Error('Affilka programs require an API Token');
     }
 
-    // Use /report endpoint with array syntax for columns[] and group_by[]
-    // This is the correct format per Affilka API docs
-    const columns = [
-      'visits_count',
-      'registrations_count', 
-      'first_deposits_count',
-      'deposits_sum',
-      'partner_income'
-    ];
-    
-    // Build URL with array syntax: columns[]=x&columns[]=y
-    const columnsParam = columns.map(c => `columns[]=${c}`).join('&');
-    
-    // Use conversion_currency=USD to get all values converted to USD
-    // Without this, API returns same data in multiple currency rows
-    let url;
-    if (customApiPath) {
-      url = `${baseUrl}/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
-    } else {
-      url = `${baseUrl}/api/customer/v1/partner/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
-    }
-    
-    this.log(`Calling Affilka /report: ${url.replace(token, 'TOKEN')}`);
-    
-    const response = await this.httpRequest(url, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': token
+    // Helper function to fetch stats for a date range
+    const fetchAffilkaStats = async (startDate, endDate, label) => {
+      const startDateISO = this.formatDate(startDate);
+      const endDateISO = this.formatDate(endDate);
+      
+      // Use /report endpoint with array syntax for columns[] and group_by[]
+      const columns = [
+        'visits_count',
+        'registrations_count',
+        'first_deposits_count',
+        'deposits_sum',
+        'partner_income'
+      ];
+      
+      const columnsParam = columns.map(c => `columns[]=${c}`).join('&');
+      
+      let url;
+      if (customApiPath) {
+        url = `${baseUrl}/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
+      } else {
+        url = `${baseUrl}/api/customer/v1/partner/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
       }
-    });
-
-    this.log(`Response status: ${response.status}`);
-
-    // Check for error responses
-    if (response.status === 403) {
-      this.log(`⚠ 403 Forbidden - check your API token in the affiliate dashboard`);
-      if (hasCredentials) {
-        this.log('Falling back to web scraping...');
-        return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
+      
+      this.log(`Fetching ${label}: ${startDateISO} to ${endDateISO}`);
+      
+      const response = await this.httpRequest(url, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': token
+        }
+      });
+      
+      // Check for error responses
+      if (response.status === 403) {
+        throw new Error(`403 Forbidden - check your API token`);
       }
-      throw new Error(`Affilka API 403 Forbidden - invalid or expired token. Get a new token from ${baseUrl}/partner/api_docs`);
-    }
-
-    if (response.status === 401) {
-      throw new Error('Affilka API 401 Unauthorized - invalid token');
-    }
-
-    if (response.status === 404 || (typeof response.data === 'string' && response.data.includes('<!doctype'))) {
-      this.log(`⚠ API endpoint not found`);
-      if (hasCredentials) {
-        this.log('Falling back to web scraping...');
-        return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
+      if (response.status === 401) {
+        throw new Error('401 Unauthorized - invalid token');
       }
-      throw new Error(`Affilka API not available at ${baseUrl}`);
-    }
-
-    if (response.status !== 200) {
-      throw new Error(`Affilka API returned status ${response.status}`);
-    }
-
-    // Parse the /report response
-    // Format: totals.data = array of arrays, each inner array has [{name, value, type}, ...]
-    // Value can be a number OR an object {currency, amount_cents, amount}
-    let totals = {};
-
-    // Helper to extract numeric value from field
-    const getFieldValue = (field) => {
-      if (!field || field.value === undefined) return 0;
-      // If value is a money object, use amount_cents (in cents already)
-      if (typeof field.value === 'object' && field.value.amount_cents !== undefined) {
-        return parseFloat(field.value.amount_cents) || 0;
+      if (response.status === 404) {
+        throw new Error('API endpoint not found');
       }
-      // Otherwise it's a plain number
-      return parseFloat(field.value) || 0;
+      if (response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      // Helper to extract numeric value from field
+      const getFieldValue = (field) => {
+        if (!field || field.value === undefined) return 0;
+        if (typeof field.value === 'object' && field.value.amount_cents !== undefined) {
+          return parseFloat(field.value.amount_cents) || 0;
+        }
+        return parseFloat(field.value) || 0;
+      };
+      
+      // Parse totals
+      let totals = {};
+      const totalsData = response.data?.totals?.data || [];
+      
+      if (totalsData.length > 0) {
+        for (const group of totalsData) {
+          if (!Array.isArray(group)) continue;
+          for (const field of group) {
+            if (!field.name) continue;
+            totals[field.name] = (totals[field.name] || 0) + getFieldValue(field);
+          }
+        }
+      } else {
+        // Sum up rows.data if no totals
+        const rowsData = response.data?.rows?.data || [];
+        for (const row of rowsData) {
+          if (!Array.isArray(row)) continue;
+          for (const field of row) {
+            if (!field.name) continue;
+            totals[field.name] = (totals[field.name] || 0) + getFieldValue(field);
+          }
+        }
+      }
+      
+      // Use first day of the month as the date for this stat entry
+      const statDate = this.formatDate(startDate);
+      
+      return {
+        date: statDate,
+        clicks: Math.round(totals.visits_count || 0),
+        impressions: 0,
+        signups: Math.round(totals.registrations_count || 0),
+        ftds: Math.round(totals.first_deposits_count || 0),
+        deposits: Math.round(totals.deposits_sum || 0),
+        revenue: Math.round(totals.partner_income || 0)
+      };
     };
-
-    // totals.data is array of arrays (one per currency group)
-    const totalsData = response.data?.totals?.data || [];
-
-    if (totalsData.length > 0) {
-      this.log(`Parsing ${totalsData.length} total groups`);
-
-      // Sum across all currency groups
-      for (const group of totalsData) {
-        if (!Array.isArray(group)) continue;
-
-        for (const field of group) {
-          if (!field.name) continue;
-          const value = getFieldValue(field);
-          totals[field.name] = (totals[field.name] || 0) + value;
-        }
+    
+    // Fetch current month and last month
+    const stats = [];
+    
+    try {
+      const currentMonthStats = await fetchAffilkaStats(currentMonthStart, currentMonthEnd, 'current month');
+      this.log(`Current month: clicks=${currentMonthStats.clicks}, signups=${currentMonthStats.signups}, ftds=${currentMonthStats.ftds}, deposits=$${currentMonthStats.deposits/100}, revenue=$${currentMonthStats.revenue/100}`);
+      stats.push(currentMonthStats);
+    } catch (e) {
+      this.log(`Failed to fetch current month: ${e.message}`);
+      if (hasCredentials) {
+        this.log('Falling back to web scraping...');
+        return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
       }
-    } else {
-      // Sum up rows.data if no totals
-      const rowsData = response.data?.rows?.data || [];
-      this.log(`No totals, summing ${rowsData.length} rows`);
-
-      for (const row of rowsData) {
-        if (!Array.isArray(row)) continue;
-
-        for (const field of row) {
-          if (!field.name) continue;
-          const value = getFieldValue(field);
-          totals[field.name] = (totals[field.name] || 0) + value;
-        }
-      }
+      throw e;
     }
-
-    this.log(`Parsed totals: ${JSON.stringify(totals)}`);
-
-    // Map to our stats format
-    // Note: money values are already in cents (amount_cents from API)
-    const stats = [{
-      date: new Date().toISOString().split('T')[0],
-      clicks: Math.round(totals.visits_count || 0),
-      impressions: 0,
-      signups: Math.round(totals.registrations_count || 0),
-      ftds: Math.round(totals.first_deposits_count || 0),
-      deposits: Math.round(totals.deposits_sum || 0), // Already in cents from amount_cents
-      revenue: Math.round(totals.partner_income || 0) // Already in cents from amount_cents
-    }];
-
-    this.log(`✓ Affilka sync complete: clicks=${stats[0].clicks}, signups=${stats[0].signups}, ftds=${stats[0].ftds}, deposits=${stats[0].deposits/100}, revenue=${stats[0].revenue/100}`);
+    
+    try {
+      const lastMonthStats = await fetchAffilkaStats(lastMonthStart, lastMonthEnd, 'last month');
+      this.log(`Last month: clicks=${lastMonthStats.clicks}, signups=${lastMonthStats.signups}, ftds=${lastMonthStats.ftds}, deposits=$${lastMonthStats.deposits/100}, revenue=$${lastMonthStats.revenue/100}`);
+      stats.push(lastMonthStats);
+    } catch (e) {
+      this.log(`Failed to fetch last month: ${e.message}`);
+      // Continue with just current month if last month fails
+    }
+    
+    this.log(`✓ Affilka sync complete: ${stats.length} month(s) fetched`);
     return stats;
   }
 
