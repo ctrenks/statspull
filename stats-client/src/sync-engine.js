@@ -2050,11 +2050,11 @@ class SyncEngine {
 
     // Get date ranges for current month and last month
     const now = new Date();
-    
+
     // Current month
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = now;
-    
+
     // Last month
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of previous month
@@ -2063,8 +2063,11 @@ class SyncEngine {
 
     // If no token but have credentials, fall back to web scraping
     if (!hasToken && hasCredentials) {
-      this.log('No API token - falling back to web login');
-      return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl: `${baseUrl}/partner/login` });
+      this.log(`No API token - falling back to web login for ${baseUrl}`);
+      this.log(`Using credentials: username=${username ? 'SET' : 'EMPTY'}, password=${password ? 'SET' : 'EMPTY'}`);
+      const loginUrl = `${baseUrl}/partner/login`;
+      this.log(`Login URL: ${loginUrl}`);
+      return this.sync7BitPartnersScrape({ program, credentials, config, loginUrl });
     }
 
     // Affilka API
@@ -2078,7 +2081,7 @@ class SyncEngine {
     const fetchAffilkaStats = async (startDate, endDate, label) => {
       const startDateISO = this.formatDate(startDate);
       const endDateISO = this.formatDate(endDate);
-      
+
       // Use /report endpoint with array syntax for columns[] and group_by[]
       const columns = [
         'visits_count',
@@ -2087,18 +2090,18 @@ class SyncEngine {
         'deposits_sum',
         'partner_income'
       ];
-      
+
       const columnsParam = columns.map(c => `columns[]=${c}`).join('&');
-      
+
       let url;
       if (customApiPath) {
         url = `${baseUrl}/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
       } else {
         url = `${baseUrl}/api/customer/v1/partner/report?async=false&from=${startDateISO}&to=${endDateISO}&${columnsParam}&group_by[]=month&conversion_currency=USD`;
       }
-      
+
       this.log(`Fetching ${label}: ${startDateISO} to ${endDateISO}`);
-      
+
       const response = await this.httpRequest(url, {
         headers: {
           'Accept': 'application/json',
@@ -2106,7 +2109,7 @@ class SyncEngine {
           'Authorization': token
         }
       });
-      
+
       // Check for error responses
       if (response.status === 403) {
         throw new Error(`403 Forbidden - check your API token`);
@@ -2120,7 +2123,7 @@ class SyncEngine {
       if (response.status !== 200) {
         throw new Error(`API returned status ${response.status}`);
       }
-      
+
       // Helper to extract numeric value from field
       const getFieldValue = (field) => {
         if (!field || field.value === undefined) return 0;
@@ -2129,11 +2132,11 @@ class SyncEngine {
         }
         return parseFloat(field.value) || 0;
       };
-      
+
       // Parse totals
       let totals = {};
       const totalsData = response.data?.totals?.data || [];
-      
+
       if (totalsData.length > 0) {
         for (const group of totalsData) {
           if (!Array.isArray(group)) continue;
@@ -2153,10 +2156,10 @@ class SyncEngine {
           }
         }
       }
-      
+
       // Use first day of the month as the date for this stat entry
       const statDate = this.formatDate(startDate);
-      
+
       return {
         date: statDate,
         clicks: Math.round(totals.visits_count || 0),
@@ -2167,10 +2170,10 @@ class SyncEngine {
         revenue: Math.round(totals.partner_income || 0)
       };
     };
-    
+
     // Fetch current month and last month
     const stats = [];
-    
+
     try {
       const currentMonthStats = await fetchAffilkaStats(currentMonthStart, currentMonthEnd, 'current month');
       this.log(`Current month: clicks=${currentMonthStats.clicks}, signups=${currentMonthStats.signups}, ftds=${currentMonthStats.ftds}, deposits=$${currentMonthStats.deposits/100}, revenue=$${currentMonthStats.revenue/100}`);
@@ -2183,7 +2186,7 @@ class SyncEngine {
       }
       throw e;
     }
-    
+
     try {
       const lastMonthStats = await fetchAffilkaStats(lastMonthStart, lastMonthEnd, 'last month');
       this.log(`Last month: clicks=${lastMonthStats.clicks}, signups=${lastMonthStats.signups}, ftds=${lastMonthStats.ftds}, deposits=$${lastMonthStats.deposits/100}, revenue=$${lastMonthStats.revenue/100}`);
@@ -2192,7 +2195,7 @@ class SyncEngine {
       this.log(`Failed to fetch last month: ${e.message}`);
       // Continue with just current month if last month fails
     }
-    
+
     this.log(`✓ Affilka sync complete: ${stats.length} month(s) fetched`);
     return stats;
   }
@@ -2204,13 +2207,16 @@ class SyncEngine {
     const username = credentials.username;
     const password = credentials.password;
 
+    this.log(`sync7BitPartnersScrape called with loginUrl: ${login}`);
+    this.log(`Scraper instance: ${scr ? 'EXISTS' : 'NULL'}`);
+
     if (!username || !password) {
       throw new Error('Username and password required for 7BitPartners scraping');
     }
 
     const { startDate, endDate } = this.getDateRange(7);
 
-    this.log('Starting 7BitPartners web scrape...');
+    this.log(`Starting 7BitPartners web scrape for ${login}...`);
 
     try {
       const stats = await scr.scrape7BitPartners({
