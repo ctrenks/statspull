@@ -1242,15 +1242,15 @@ class SyncEngine {
     }
 
     this.log('NetRefer - logging in...');
-    
+
     // Navigate to login page
     await this.scraper.goto(baseUrl);
     await this.scraper.waitForSelector('input[type="text"], input[name="username"], input[name="email"], #username, #email');
-    
+
     // Fill login form
     const usernameSelectors = ['input[name="username"]', 'input[name="email"]', '#username', '#email', 'input[type="text"]'];
     const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
-    
+
     for (const sel of usernameSelectors) {
       try {
         const exists = await this.scraper.page.$(sel);
@@ -1260,7 +1260,7 @@ class SyncEngine {
         }
       } catch (e) { /* try next */ }
     }
-    
+
     for (const sel of passwordSelectors) {
       try {
         const exists = await this.scraper.page.$(sel);
@@ -1270,191 +1270,111 @@ class SyncEngine {
         }
       } catch (e) { /* try next */ }
     }
-    
+
     // Submit login
     await Promise.all([
       this.scraper.page.click('button[type="submit"], input[type="submit"], .login-button, #loginButton'),
       this.scraper.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
     ]);
-    
+
     await this.scraper.sleep(2000);
-    
+
     // Navigate to Monthly Figures report
     const reportsUrl = new URL('/Reports/MonthlyFigures', baseUrl).href;
     this.log(`NetRefer - navigating to ${reportsUrl}`);
     await this.scraper.goto(reportsUrl);
-    await this.scraper.sleep(2000);
+    await this.scraper.sleep(3000);
     
-    const stats = [];
+    // Parse the MonthlyFigures table - it shows all months by default
+    const stats = await this.parseNetReferTable();
     
-    // Get this month's stats
+    // Filter to just this month and last month
     const now = new Date();
-    const thisMonthStats = await this.scrapeNetReferMonth(now.getFullYear(), now.getMonth() + 1);
-    if (thisMonthStats) stats.push(thisMonthStats);
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
     
-    // Get last month's stats
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthStats = await this.scrapeNetReferMonth(lastMonth.getFullYear(), lastMonth.getMonth() + 1);
-    if (lastMonthStats) stats.push(lastMonthStats);
+    const filteredStats = stats.filter(s => 
+      s.date.startsWith(thisMonth) || s.date.startsWith(lastMonth)
+    );
     
-    this.log(`NetRefer - scraped ${stats.length} months of data`);
-    return stats;
+    this.log(`NetRefer - returning ${filteredStats.length} months (this month: ${thisMonth}, last month: ${lastMonth})`);
+    return filteredStats;
   }
 
-  // Helper to scrape a specific month from NetRefer MonthlyFigures
-  async scrapeNetReferMonth(year, month) {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthName = monthNames[month - 1];
-    const dateStr = `${monthName} ${year}`;
+  // Parse NetRefer MonthlyFigures table - scrapes all rows from #monthlyFiguresDataTable
+  async parseNetReferTable() {
+    this.log('NetRefer - waiting for table to load...');
+    await this.scraper.sleep(2000);
     
-    this.log(`NetRefer - selecting date range: ${dateStr} to ${dateStr}`);
-    
+    // Wait for the table
     try {
-      // Look for date selectors - NetRefer typically has From/To dropdowns
-      const fromSelectors = ['#FromDate', 'select[name="FromDate"]', '.from-date select', '[data-from-date]'];
-      const toSelectors = ['#ToDate', 'select[name="ToDate"]', '.to-date select', '[data-to-date]'];
+      await this.scraper.page.waitForSelector('#monthlyFiguresDataTable tbody tr', { timeout: 10000 });
+    } catch (e) {
+      this.log('NetRefer - table not found, trying to proceed anyway');
+    }
+    
+    const stats = await this.scraper.page.evaluate(() => {
+      const table = document.querySelector('#monthlyFiguresDataTable');
+      if (!table) return [];
       
-      // Try to select the from date
-      for (const sel of fromSelectors) {
-        try {
-          const exists = await this.scraper.page.$(sel);
-          if (exists) {
-            await this.scraper.page.select(sel, `${month}/${year}`).catch(() => {});
-            // Also try selecting by visible text
-            await this.scraper.page.evaluate((selector, value) => {
-              const el = document.querySelector(selector);
-              if (el && el.tagName === 'SELECT') {
-                for (const opt of el.options) {
-                  if (opt.text.includes(value) || opt.value.includes(value)) {
-                    el.value = opt.value;
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    break;
-                  }
-                }
-              }
-            }, sel, dateStr).catch(() => {});
-            break;
-          }
-        } catch (e) { /* try next */ }
-      }
+      const results = [];
+      const rows = table.querySelectorAll('tbody tr');
       
-      // Try to select the to date  
-      for (const sel of toSelectors) {
-        try {
-          const exists = await this.scraper.page.$(sel);
-          if (exists) {
-            await this.scraper.page.select(sel, `${month}/${year}`).catch(() => {});
-            await this.scraper.page.evaluate((selector, value) => {
-              const el = document.querySelector(selector);
-              if (el && el.tagName === 'SELECT') {
-                for (const opt of el.options) {
-                  if (opt.text.includes(value) || opt.value.includes(value)) {
-                    el.value = opt.value;
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    break;
-                  }
-                }
-              }
-            }, sel, dateStr).catch(() => {});
-            break;
-          }
-        } catch (e) { /* try next */ }
-      }
+      // Table columns by index:
+      // 0: Month (e.g., "2025-12")
+      // 1: Views
+      // 2: Unique Views  
+      // 3: Clicks
+      // 4: Unique Clicks
+      // 5: Signups
+      // 6: Depositing Customers
+      // 7: Active Customers
+      // 8: New Depositing Customers
+      // 9: New Active Customers
+      // 10: First Time Depositing Customers (FTD)
+      // 11: First Time Active Customers
+      // 12: Deposits (€0.00)
+      // 13: Net Revenue (€-0.83)
       
-      // Click the submit/view button
-      const submitSelectors = ['button[type="submit"]', 'input[type="submit"]', '.btn-primary', '#viewReport', '.view-report'];
-      for (const sel of submitSelectors) {
-        try {
-          const exists = await this.scraper.page.$(sel);
-          if (exists) {
-            await this.scraper.page.click(sel);
-            break;
-          }
-        } catch (e) { /* try next */ }
-      }
-      
-      await this.scraper.sleep(3000);
-      
-      // Parse the stats table
-      const tableData = await this.scraper.page.evaluate(() => {
-        // Look for a stats table
-        const tables = document.querySelectorAll('table');
-        for (const table of tables) {
-          const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent?.toLowerCase().trim() || '');
-          
-          // Check if this looks like a stats table
-          const hasClicks = headers.some(h => h.includes('click'));
-          const hasRevenue = headers.some(h => h.includes('commission') || h.includes('revenue') || h.includes('earning'));
-          
-          if (hasClicks || hasRevenue) {
-            // Get the data row (usually the first data row or summary row)
-            const rows = table.querySelectorAll('tbody tr, tr.data, tr.summary');
-            if (rows.length > 0) {
-              const lastRow = rows[rows.length - 1]; // Often the totals row
-              const cells = Array.from(lastRow.querySelectorAll('td'));
-              
-              const result = {
-                clicks: 0,
-                impressions: 0,
-                signups: 0,
-                ftds: 0,
-                deposits: 0,
-                revenue: 0
-              };
-              
-              // Try to match headers to values
-              headers.forEach((header, idx) => {
-                const cellText = cells[idx]?.textContent?.trim() || '0';
-                const value = parseFloat(cellText.replace(/[^0-9.-]/g, '')) || 0;
-                
-                if (header.includes('click')) result.clicks = Math.round(value);
-                else if (header.includes('impression') || header.includes('view')) result.impressions = Math.round(value);
-                else if (header.includes('signup') || header.includes('registration')) result.signups = Math.round(value);
-                else if (header.includes('ftd') || header.includes('first')) result.ftds = Math.round(value);
-                else if (header.includes('deposit') && !header.includes('first')) result.deposits = Math.round(value * 100);
-                else if (header.includes('commission') || header.includes('revenue') || header.includes('earning')) {
-                  result.revenue = Math.round(value * 100);
-                }
-              });
-              
-              return result;
-            }
-          }
-        }
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 14) return;
         
-        // Fallback: try to find values from any visible elements
-        const getText = (selectors) => {
-          for (const sel of selectors) {
-            const el = document.querySelector(sel);
-            if (el) return el.textContent?.trim() || '0';
-          }
-          return '0';
+        const monthStr = cells[0]?.textContent?.trim() || '';
+        if (!monthStr || !monthStr.match(/^\d{4}-\d{2}$/)) return;
+        
+        const parseNum = (cell) => {
+          const text = cell?.textContent?.trim() || '0';
+          return parseInt(text.replace(/[^0-9-]/g, '')) || 0;
         };
         
-        return {
-          clicks: parseInt(getText(['.clicks', '[data-clicks]', '.stat-clicks'])) || 0,
-          impressions: parseInt(getText(['.impressions', '[data-impressions]', '.stat-impressions'])) || 0,
-          signups: parseInt(getText(['.signups', '[data-signups]', '.stat-signups'])) || 0,
-          ftds: parseInt(getText(['.ftds', '[data-ftds]', '.stat-ftds'])) || 0,
-          deposits: Math.round(parseFloat(getText(['.deposits', '[data-deposits]', '.stat-deposits']).replace(/[^0-9.-]/g, '')) * 100) || 0,
-          revenue: Math.round(parseFloat(getText(['.revenue', '.commission', '[data-revenue]', '.stat-revenue']).replace(/[^0-9.-]/g, '')) * 100) || 0
+        const parseCurrency = (cell) => {
+          const text = cell?.textContent?.trim() || '0';
+          const num = parseFloat(text.replace(/[^0-9.-]/g, '')) || 0;
+          return Math.round(num * 100); // Convert to cents
         };
+        
+        results.push({
+          date: `${monthStr}-01`, // Convert "2025-12" to "2025-12-01"
+          impressions: parseNum(cells[1]), // Views
+          clicks: parseNum(cells[3]), // Clicks
+          signups: parseNum(cells[5]), // Signups
+          ftds: parseNum(cells[10]), // First Time Depositing Customers
+          deposits: parseCurrency(cells[12]), // Deposits
+          revenue: parseCurrency(cells[13]) // Net Revenue
+        });
       });
       
-      if (tableData && (tableData.clicks > 0 || tableData.revenue > 0 || tableData.signups > 0)) {
-        const dateFormatted = `${year}-${String(month).padStart(2, '0')}-01`;
-        this.log(`NetRefer - ${dateStr}: clicks=${tableData.clicks}, signups=${tableData.signups}, ftds=${tableData.ftds}, revenue=${tableData.revenue/100}`);
-        return {
-          date: dateFormatted,
-          ...tableData
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      this.log(`NetRefer - error scraping ${dateStr}: ${error.message}`);
-      return null;
-    }
+      return results;
+    });
+    
+    this.log(`NetRefer - found ${stats.length} months in table`);
+    stats.forEach(s => {
+      this.log(`  ${s.date}: clicks=${s.clicks}, signups=${s.signups}, ftds=${s.ftds}, revenue=${s.revenue/100}`);
+    });
+    
+    return stats;
   }
 
   // Wynta - auto-detect API vs Web Login
