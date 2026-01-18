@@ -931,20 +931,60 @@ class SyncEngine {
       // Deposits: "net deposits" is a currency value - convert to cents
       const deposits = Math.round(parseFloat(row.deposits || row['net deposits'] || row['deposit total'] || row.deposit_count || 0) * 100) || 0;
       // Try multiple possible revenue column names
-      const revenueValue = row.income || row.commission || row.earnings || row.revenue || 
-                           row['net revenue'] || row.total || row['net gaming'] || 
-                           row.payout || row.amount || row.share || row['affiliate share'] ||
-                           row['aff share'] || row['player value'] || row.pvr || row.cpa ||
-                           row['rev share'] || row['rs'] || row['net income'] || row['monthly income'] ||
-                           row['total earnings'] || row['your earnings'] || row['affiliate earnings'] || 0;
+      // Note: "total ngr" = Total Net Gaming Revenue (common in MyAffiliates)
+      // Check columns in priority order - use the first one with a non-zero value
+      const revenueCandidates = [
+        row['total ngr'],    // Total Net Gaming Revenue - most specific
+        row.ngr,             // Net Gaming Revenue
+        row.income,
+        row.commission,
+        row.earnings,
+        row.revenue,
+        row['net revenue'],
+        row['net gaming'],
+        row.total,
+        row.payout,
+        row.amount,
+        row.share,
+        row['affiliate share'],
+        row['aff share'],
+        row['player value'],
+        row.pvr,
+        row.cpa,
+        row['rev share'],
+        row['rs'],
+        row['net income'],
+        row['monthly income'],
+        row['total earnings'],
+        row['your earnings'],
+        row['affiliate earnings']
+      ];
+      
+      // Find the first non-zero value, or use the first available value
+      let revenueValue = 0;
+      for (const val of revenueCandidates) {
+        if (val !== undefined && val !== null && val !== '') {
+          const parsed = parseFloat(val);
+          if (!isNaN(parsed) && parsed !== 0) {
+            revenueValue = val;
+            break;
+          }
+          // Keep track of first non-null value even if zero
+          if (revenueValue === 0) revenueValue = val;
+        }
+      }
       const revenue = Math.round(parseFloat(revenueValue) * 100) || 0;
 
       // Debug: log first row's parsed data with the raw value found
       if (i === 1) {
         this.log(`MyAffiliates first row parsed: channel=${channel}, clicks=${clicks}, signups=${signups}, ftds=${ftds}, deposits=${deposits}, revenue=${revenue} (raw: ${revenueValue})`);
         // Log all column names that contain 'rev', 'earn', 'income', 'comm', 'share', 'pay'
-        const revenueColumns = headers.filter(h => /rev|earn|income|comm|share|pay|total|amount/.test(h));
+        const revenueColumns = headers.filter(h => /rev|earn|income|comm|share|pay|total|amount|ngr/.test(h));
         this.log(`MyAffiliates potential revenue columns: ${JSON.stringify(revenueColumns)}`);
+        // Show actual values for these columns
+        const revenueValues = {};
+        revenueColumns.forEach(col => { revenueValues[col] = row[col]; });
+        this.log(`MyAffiliates revenue column values: ${JSON.stringify(revenueValues)}`);
       }
 
       // Save per-channel record (if channel exists)
