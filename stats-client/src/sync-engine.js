@@ -443,6 +443,7 @@ class SyncEngine {
       'INCOME_ACCESS': this.syncIncomeAccess,
       'NETREFER': this.syncNetrefer,
       'EGO': this.syncEgo,
+      'MEXOS': this.syncMexos,
       'WYNTA': this.syncWynta,
       'AFFILKA': this.syncAffilka, // Generic Affilka handler
       '7BITPARTNERS': this.sync7BitPartners,
@@ -1665,6 +1666,229 @@ class SyncEngine {
       chargebacks: 0,
       revenue: stats.revenue
     }];
+  }
+
+  // Mexos Platform - Angular SPA with hash routing
+  async syncMexos({ program, credentials, config, loginUrl, scraper }) {
+    const scr = scraper || this.scraper;
+    const baseUrl = loginUrl || config?.loginUrl;
+    if (!baseUrl) {
+      throw new Error('No login URL configured');
+    }
+
+    const username = credentials.username;
+    const password = credentials.password;
+    if (!username || !password) {
+      throw new Error('Username and password required for Mexos');
+    }
+
+    this.log('Mexos - logging in...');
+    
+    // Launch browser and create page
+    await scr.launch();
+    const page = await scr.browser.newPage();
+    
+    try {
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      
+      // Navigate to login page
+      this.log(`Mexos - navigating to ${baseUrl}`);
+      await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await scr.delay(3000);
+      
+      // Fill login form
+      const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[name="login"]', '#username', '#email', 'input[type="text"]', 'input[type="email"]'];
+      const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
+      
+      for (const sel of usernameSelectors) {
+        try {
+          const exists = await page.$(sel);
+          if (exists) {
+            await page.type(sel, username);
+            this.log(`Mexos - filled username`);
+            break;
+          }
+        } catch (e) { /* try next */ }
+      }
+      
+      for (const sel of passwordSelectors) {
+        try {
+          const exists = await page.$(sel);
+          if (exists) {
+            await page.type(sel, password);
+            this.log(`Mexos - filled password`);
+            break;
+          }
+        } catch (e) { /* try next */ }
+      }
+      
+      // Submit login
+      const submitBtn = await page.$('button[type="submit"], input[type="submit"], .btn-primary, .login-btn');
+      if (submitBtn) {
+        await Promise.all([
+          submitBtn.click(),
+          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
+        ]);
+      }
+      
+      await scr.delay(4000);
+      
+      // Navigate to statistics page (Angular hash routing)
+      const statsUrl = baseUrl.replace(/\/$/, '') + '/#/statistics';
+      this.log(`Mexos - navigating to statistics: ${statsUrl}`);
+      await page.goto(statsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await scr.delay(4000);
+      
+      // Wait for Angular to load the form
+      try {
+        await page.waitForSelector('.statistics-box', { timeout: 10000 });
+      } catch (e) {
+        this.log('Mexos - statistics form not found, trying to continue');
+      }
+      
+      // Fetch current month stats
+      const now = new Date();
+      const allStats = [];
+      
+      // Current month
+      const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const thisMonthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const thisMonthStats = await this.fetchMexosStats(page, scr, thisMonthStart, thisMonthEnd);
+      if (thisMonthStats) {
+        thisMonthStats.date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        allStats.push(thisMonthStats);
+      }
+      
+      // Last month
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastMonthEndStr = `${lastMonthEnd.getFullYear()}-${String(lastMonthEnd.getMonth() + 1).padStart(2, '0')}-${String(lastMonthEnd.getDate()).padStart(2, '0')}`;
+      const lastMonthStats = await this.fetchMexosStats(page, scr, lastMonthStart, lastMonthEndStr);
+      if (lastMonthStats) {
+        lastMonthStats.date = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
+        allStats.push(lastMonthStats);
+      }
+      
+      this.log(`Mexos - returning ${allStats.length} month(s) of data`);
+      return allStats;
+    } finally {
+      try {
+        await page.close();
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  // Helper to fetch Mexos stats for a date range
+  async fetchMexosStats(page, scr, startDate, endDate) {
+    const dateRange = `${startDate} - ${endDate}`;
+    this.log(`Mexos - setting date range: ${dateRange}`);
+    
+    // Set the date range value via JavaScript (Angular input)
+    await page.evaluate((range) => {
+      const input = document.querySelector('#statDate, input[name="dateRange"], .date-range');
+      if (input) {
+        input.value = range;
+        // Trigger Angular change detection
+        const event = new Event('input', { bubbles: true });
+        input.dispatchEvent(event);
+        const changeEvent = new Event('change', { bubbles: true });
+        input.dispatchEvent(changeEvent);
+      }
+    }, dateRange);
+    
+    await scr.delay(1000);
+    
+    // Click Run Report button
+    this.log('Mexos - clicking Run Report...');
+    const runBtn = await page.$('button.btn:not(.btn-export)');
+    if (runBtn) {
+      await runBtn.click();
+    } else {
+      // Try finding by text content
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button.btn'));
+        const runBtn = buttons.find(b => b.textContent.includes('Run Report'));
+        if (runBtn) runBtn.click();
+      });
+    }
+    
+    await scr.delay(5000);
+    
+    // Wait for table to load
+    try {
+      await page.waitForSelector('table.statistic-table tfoot .grand-total', { timeout: 15000 });
+    } catch (e) {
+      this.log('Mexos - no results table found');
+      return null;
+    }
+    
+    // Parse the Grand Totals row
+    const stats = await page.evaluate(() => {
+      const totalRow = document.querySelector('table.statistic-table tfoot tr.grand-total');
+      if (!totalRow) return null;
+      
+      const cells = totalRow.querySelectorAll('td');
+      if (cells.length < 14) return null;
+      
+      // Parse number, handling decimals
+      const parseNum = (text) => {
+        if (!text) return 0;
+        const cleaned = text.replace(/[^0-9.-]/g, '');
+        return parseFloat(cleaned) || 0;
+      };
+      
+      // Column mapping based on headers:
+      // 0: (empty - Date total)
+      // 1: Impressions
+      // 2: Unique Clicks
+      // 3: Casino Signups Cnt
+      // 4: Sport Signups Cnt
+      // 5: Casino RFD Amt
+      // 6: Casino RFD Cnt (FTDs casino)
+      // 7: Sport RFD Amt
+      // 8: Sport RFD Cnt (FTDs sport)
+      // 9: Signup To RFD Ratio
+      // 10: Deposit Cnt
+      // 11: Withdrawal Cnt
+      // 12: Withdrawal Amt
+      // 13: Commission
+      // 14: Casino Net Gaming Commission
+      // 15: Sport Net Gaming Commission
+      // 16: Net Gaming After Deduction
+      
+      const casinoFtds = parseInt(cells[6]?.textContent?.trim() || '0') || 0;
+      const sportFtds = parseInt(cells[8]?.textContent?.trim() || '0') || 0;
+      
+      return {
+        impressions: parseInt(cells[1]?.textContent?.trim() || '0') || 0,
+        clicks: parseInt(cells[2]?.textContent?.trim() || '0') || 0,
+        signups: (parseInt(cells[3]?.textContent?.trim() || '0') || 0) + (parseInt(cells[4]?.textContent?.trim() || '0') || 0),
+        ftds: casinoFtds + sportFtds,
+        deposits: Math.round(parseNum(cells[5]?.textContent) * 100) + Math.round(parseNum(cells[7]?.textContent) * 100), // RFD Amt
+        withdrawals: Math.round(parseNum(cells[12]?.textContent) * 100),
+        revenue: Math.round(parseNum(cells[13]?.textContent) * 100) // Commission
+      };
+    });
+    
+    if (!stats) {
+      this.log('Mexos - failed to parse grand totals');
+      return null;
+    }
+    
+    this.log(`Mexos - ${startDate}: clicks=${stats.clicks}, signups=${stats.signups}, ftds=${stats.ftds}, revenue=${stats.revenue/100}`);
+    
+    return {
+      date: startDate,
+      clicks: stats.clicks,
+      impressions: stats.impressions,
+      signups: stats.signups,
+      ftds: stats.ftds,
+      deposits: stats.deposits,
+      withdrawals: stats.withdrawals,
+      chargebacks: 0,
+      revenue: stats.revenue
+    };
   }
 
   // Wynta - auto-detect API vs Web Login
