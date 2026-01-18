@@ -887,7 +887,6 @@ class SyncEngine {
     if (lines.length < 2) return [];
 
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
-    this.log(`MyAffiliates CSV headers: ${JSON.stringify(headers)}`);
 
     // Store both per-channel records AND aggregated totals
     const stats = [];
@@ -897,12 +896,6 @@ class SyncEngine {
       const values = lines[i].split(',').map(v => v.trim().replace(/['"]/g, ''));
       const row = {};
       headers.forEach((h, idx) => row[h] = values[idx] || '');
-
-      // Debug: log first row's raw data - show ALL columns
-      if (i === 1) {
-        this.log(`MyAffiliates ALL COLUMNS: ${JSON.stringify(headers)}`);
-        this.log(`MyAffiliates FIRST ROW ALL VALUES: ${JSON.stringify(row)}`);
-      }
 
       // Get channel name (casino/brand)
       const channel = row.channel || row.brand || row.site || null;
@@ -975,18 +968,6 @@ class SyncEngine {
         }
       }
       const revenue = Math.round(parseFloat(revenueValue) * 100) || 0;
-
-      // Debug: log first row's parsed data with the raw value found
-      if (i === 1) {
-        this.log(`MyAffiliates first row parsed: channel=${channel}, clicks=${clicks}, signups=${signups}, ftds=${ftds}, deposits=${deposits}, revenue=${revenue} (raw: ${revenueValue})`);
-        // Log all column names that contain 'rev', 'earn', 'income', 'comm', 'share', 'pay'
-        const revenueColumns = headers.filter(h => /rev|earn|income|comm|share|pay|total|amount|ngr/.test(h));
-        this.log(`MyAffiliates potential revenue columns: ${JSON.stringify(revenueColumns)}`);
-        // Show actual values for these columns
-        const revenueValues = {};
-        revenueColumns.forEach(col => { revenueValues[col] = row[col]; });
-        this.log(`MyAffiliates revenue column values: ${JSON.stringify(revenueValues)}`);
-      }
 
       // Save per-channel record (if channel exists)
       if (channel) {
@@ -1127,13 +1108,6 @@ class SyncEngine {
         }
 
         this.log(`MyAffiliates - received ${csvText.length} bytes of CSV data`);
-
-        // Debug: show full first line (headers) and second line (first data row)
-        const csvLines = csvText.split('\n');
-        this.log(`MyAffiliates CSV HEADERS: ${csvLines[0]}`);
-        if (csvLines.length > 1) {
-          this.log(`MyAffiliates CSV FIRST ROW: ${csvLines[1]}`);
-        }
 
         const stats = this.parseMyAffiliatesCsv(csvText);
         this.log(`MyAffiliates - parsed ${stats.length} stat rows`);
