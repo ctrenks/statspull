@@ -2070,23 +2070,38 @@ class SyncEngine {
       throw new Error('Affilka programs require an API Token');
     }
 
-    // Use traffic_report endpoint (works for most Affilka programs)
+    // Use /report endpoint with columns and group_by=month for aggregated data
+    // This is more universally available than traffic_report
+    const columns = 'visits_count,registrations_count,first_deposits_count,deposits_sum,partner_income,ngr,chargebacks_sum';
+    
     let url;
     if (customApiPath) {
-      url = `${baseUrl}/traffic_report?from=${startDateISO}&to=${endDateISO}`;
+      url = `${baseUrl}/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}&group_by=month`;
     } else {
-      url = `${baseUrl}/api/customer/v1/partner/traffic_report?from=${startDateISO}&to=${endDateISO}`;
+      url = `${baseUrl}/api/customer/v1/partner/report?from=${startDateISO}&to=${endDateISO}&columns=${columns}&group_by=month`;
     }
     
-    this.log(`Calling Affilka API: ${url.replace(token, 'TOKEN')}`);
+    this.log(`Calling Affilka /report API: ${url.replace(token, 'TOKEN')}`);
     
-    const response = await this.httpRequest(url, {
+    let response = await this.httpRequest(url, {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': token
       }
     });
+    
+    // Debug: log the raw response structure
+    this.log(`DEBUG /report response keys: ${JSON.stringify(Object.keys(response.data || {}))}`);
+    if (response.data?.rows?.data) {
+      this.log(`DEBUG /report rows.data length: ${response.data.rows.data.length}`);
+      if (response.data.rows.data.length > 0) {
+        this.log(`DEBUG /report first row: ${JSON.stringify(response.data.rows.data[0])}`);
+      }
+    }
+    if (response.data?.totals?.data) {
+      this.log(`DEBUG /report totals.data: ${JSON.stringify(response.data.totals.data)}`);
+    }
 
     this.log(`Response status: ${response.status}`);
 
@@ -2117,32 +2132,51 @@ class SyncEngine {
       throw new Error(`Affilka API returned status ${response.status}`);
     }
 
-    // Parse the response - totals are in overall_totals.data
-    const totalsArray = response.data?.overall_totals?.data || [];
+    // Parse the response from /report endpoint
+    // Structure: rows.data = array of row objects, totals.data = array of {name, value}
+    let totals = {};
     
-    // Convert array to object for easier access
-    const totals = {};
-    for (const field of totalsArray) {
-      if (field.name && field.value !== undefined) {
-        totals[field.name] = parseFloat(field.value) || 0;
+    // First try totals.data (aggregated totals)
+    const totalsArray = response.data?.totals?.data || [];
+    if (totalsArray.length > 0) {
+      this.log(`Using totals.data (${totalsArray.length} fields)`);
+      for (const field of totalsArray) {
+        if (field.name && field.value !== undefined) {
+          totals[field.name] = parseFloat(field.value) || 0;
+        }
+      }
+    } else {
+      // Sum up rows.data if no totals
+      const rowsData = response.data?.rows?.data || [];
+      this.log(`No totals.data, summing ${rowsData.length} rows`);
+      
+      for (const row of rowsData) {
+        // Each row is an object with column values
+        totals.visits_count = (totals.visits_count || 0) + (parseFloat(row.visits_count) || 0);
+        totals.registrations_count = (totals.registrations_count || 0) + (parseFloat(row.registrations_count) || 0);
+        totals.first_deposits_count = (totals.first_deposits_count || 0) + (parseFloat(row.first_deposits_count) || 0);
+        totals.deposits_sum = (totals.deposits_sum || 0) + (parseFloat(row.deposits_sum) || 0);
+        totals.partner_income = (totals.partner_income || 0) + (parseFloat(row.partner_income) || 0);
+        totals.ngr = (totals.ngr || 0) + (parseFloat(row.ngr) || 0);
+        totals.chargebacks_sum = (totals.chargebacks_sum || 0) + (parseFloat(row.chargebacks_sum) || 0);
       }
     }
 
     this.log(`Parsed totals: ${JSON.stringify(totals)}`);
 
-    // Map Affilka fields to our stats format
-    // visits = clicks, registrations_count = signups, ftd_count = FTDs
+    // Map Affilka /report fields to our stats format
     const stats = [{
       date: new Date().toISOString().split('T')[0],
-      clicks: totals.visits || 0,
+      clicks: totals.visits_count || 0,
       impressions: 0,
       signups: totals.registrations_count || 0,
-      ftds: totals.ftd_count || 0,
-      deposits: totals.deposits_sum || 0,
-      revenue: totals.partner_income || totals.ngr || 0
+      ftds: totals.first_deposits_count || 0,
+      deposits: Math.round((totals.deposits_sum || 0) * 100), // Convert to cents
+      chargebacks: Math.round((totals.chargebacks_sum || 0) * 100),
+      revenue: Math.round((totals.partner_income || totals.ngr || 0) * 100) // Convert to cents
     }];
 
-    this.log(`✓ Affilka sync complete: clicks=${stats[0].clicks}, signups=${stats[0].signups}, ftds=${stats[0].ftds}, revenue=${stats[0].revenue}`);
+    this.log(`✓ Affilka sync complete: clicks=${stats[0].clicks}, signups=${stats[0].signups}, ftds=${stats[0].ftds}, revenue=${stats[0].revenue/100}`);
     return stats;
   }
 
