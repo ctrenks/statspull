@@ -28,12 +28,14 @@ interface Template {
 
 // Known software types for the dropdown
 const SOFTWARE_TYPES = [
-  { value: "7bitpartners", label: "7BitPartners" },
-  { value: "affilka", label: "Affilka (Generic)" },
+  { value: "affilka", label: "Affilka" },
+  { value: "alanbase", label: "Alanbase" },
   { value: "cellxpert", label: "CellXpert" },
   { value: "casino-rewards", label: "Casino Rewards" },
   { value: "deckmedia", label: "DeckMedia" },
+  { value: "ego", label: "EGO" },
   { value: "income-access", label: "Income Access" },
+  { value: "mexos", label: "Mexos" },
   { value: "myaffiliates", label: "MyAffiliates" },
   { value: "netrefer", label: "NetRefer" },
   { value: "partnermatrix", label: "PartnerMatrix" },

@@ -43,6 +43,27 @@ interface TemplateFormData {
   supportsOAuth: boolean;
 }
 
+// Known software types for the dropdown - MUST match TemplatesContent.tsx
+const SOFTWARE_TYPES = [
+  { value: "affilka", label: "Affilka" },
+  { value: "alanbase", label: "Alanbase" },
+  { value: "cellxpert", label: "CellXpert" },
+  { value: "casino-rewards", label: "Casino Rewards" },
+  { value: "deckmedia", label: "DeckMedia" },
+  { value: "ego", label: "EGO" },
+  { value: "income-access", label: "Income Access" },
+  { value: "mexos", label: "Mexos" },
+  { value: "myaffiliates", label: "MyAffiliates" },
+  { value: "netrefer", label: "NetRefer" },
+  { value: "partnermatrix", label: "PartnerMatrix" },
+  { value: "rival", label: "Rival (CasinoController)" },
+  { value: "rtg", label: "RTG (New)" },
+  { value: "rtg-original", label: "RTG Original" },
+  { value: "scaleo", label: "Scaleo" },
+  { value: "wynta", label: "Wynta" },
+  { value: "custom", label: "Custom / Other" },
+];
+
 // Auth type options matching the main template form
 const AUTH_TYPES = [
   { value: 'API_KEY', label: 'API Key Only', description: '⚡ Recommended - Fast & accurate. User enters API key/token.' },
@@ -795,14 +816,18 @@ export default function StatsDroneProgramsPage() {
               {/* Software Type */}
               <div>
                 <label className="block text-sm font-medium mb-1">Software Type *</label>
-                <input
-                  type="text"
+                <select
                   value={templateForm.softwareType}
                   onChange={(e) => setTemplateForm({ ...templateForm, softwareType: e.target.value })}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded"
-                  placeholder="e.g., cellxpert, income-access"
-                />
-                <p className="text-xs text-dark-400 mt-1">Lowercase, use hyphens for spaces</p>
+                >
+                  <option value="">Select software...</option>
+                  {SOFTWARE_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Auth Type */}
