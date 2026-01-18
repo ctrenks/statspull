@@ -2101,14 +2101,16 @@ class SyncEngine {
         this.log('Using /report endpoint (full data with partner_income)');
         // Debug: show raw response structure
         this.log(`DEBUG /report raw response keys: ${JSON.stringify(Object.keys(response.data))}`);
-        if (response.data.data) {
-          this.log(`DEBUG /report data is array: ${Array.isArray(response.data.data)}, length: ${response.data.data?.length || 0}`);
-          if (Array.isArray(response.data.data) && response.data.data.length > 0) {
-            this.log(`DEBUG /report first row: ${JSON.stringify(response.data.data[0])}`);
+        // Data is in 'rows.data', not 'data'
+        if (response.data.rows) {
+          this.log(`DEBUG /report rows.data is array: ${Array.isArray(response.data.rows.data)}, length: ${response.data.rows.data?.length || 0}`);
+          if (Array.isArray(response.data.rows.data) && response.data.rows.data.length > 0) {
+            this.log(`DEBUG /report first row: ${JSON.stringify(response.data.rows.data[0])}`);
           }
         }
-        if (response.data.totals) {
-          this.log(`DEBUG /report totals: ${JSON.stringify(response.data.totals)}`);
+        // Totals is in 'totals.data' (same format as traffic_report's overall_totals.data)
+        if (response.data.totals?.data) {
+          this.log(`DEBUG /report totals.data: ${JSON.stringify(response.data.totals.data)}`);
         }
       } else {
         this.log(`/report endpoint returned ${response.status}, trying /traffic_report...`);
@@ -2176,33 +2178,50 @@ class SyncEngine {
     this.log(`DEBUG: Parsing response, usedReportEndpoint=${usedReportEndpoint}`);
     
     if (usedReportEndpoint) {
-      // /report endpoint returns data differently - check for rows or totals
-      const data = response.data?.data || response.data;
-      this.log(`DEBUG /report: data type=${typeof data}, isArray=${Array.isArray(data)}`);
+      // /report endpoint structure:
+      // - rows.data: array of row data
+      // - totals.data: array of {name, value} pairs (same as traffic_report's overall_totals.data)
       
-      if (Array.isArray(data) && data.length > 0) {
-        this.log(`DEBUG /report: Summing ${data.length} rows`);
-        // Sum up all rows for totals
-        for (const row of data) {
-          totals.visits_count = (totals.visits_count || 0) + (parseFloat(row.visits_count) || 0);
-          totals.registrations_count = (totals.registrations_count || 0) + (parseFloat(row.registrations_count) || 0);
-          totals.first_deposits_count = (totals.first_deposits_count || 0) + (parseFloat(row.first_deposits_count) || 0);
-          totals.deposits_sum = (totals.deposits_sum || 0) + (parseFloat(row.deposits_sum) || 0);
-          totals.partner_income = (totals.partner_income || 0) + (parseFloat(row.partner_income) || 0);
-          totals.ngr = (totals.ngr || 0) + (parseFloat(row.ngr) || 0);
-          totals.chargebacks_sum = (totals.chargebacks_sum || 0) + (parseFloat(row.chargebacks_sum) || 0);
+      // First, try to use totals.data (like traffic_report)
+      const totalsArray = response.data?.totals?.data || [];
+      this.log(`DEBUG /report: totals.data length=${totalsArray.length}`);
+      
+      if (totalsArray.length > 0) {
+        // Parse totals.data array (same format as traffic_report)
+        for (const field of totalsArray) {
+          if (field.name && field.value !== undefined) {
+            totals[field.name] = parseFloat(field.value) || 0;
+          }
         }
-      } else if (response.data?.totals) {
-        this.log(`DEBUG /report: Using response.data.totals`);
-        totals = response.data.totals;
       } else {
-        this.log(`DEBUG /report: No data array or totals found, raw: ${JSON.stringify(response.data).substring(0, 500)}`);
+        // Fall back to summing rows.data if totals is empty
+        const rowsData = response.data?.rows?.data || [];
+        this.log(`DEBUG /report: No totals, summing ${rowsData.length} rows`);
+        
+        if (rowsData.length > 0) {
+          for (const row of rowsData) {
+            totals.visits_count = (totals.visits_count || 0) + (parseFloat(row.visits_count) || 0);
+            totals.registrations_count = (totals.registrations_count || 0) + (parseFloat(row.registrations_count) || 0);
+            totals.first_deposits_count = (totals.first_deposits_count || 0) + (parseFloat(row.first_deposits_count) || 0);
+            totals.deposits_sum = (totals.deposits_sum || 0) + (parseFloat(row.deposits_sum) || 0);
+            totals.partner_income = (totals.partner_income || 0) + (parseFloat(row.partner_income) || 0);
+            totals.ngr = (totals.ngr || 0) + (parseFloat(row.ngr) || 0);
+            totals.chargebacks_sum = (totals.chargebacks_sum || 0) + (parseFloat(row.chargebacks_sum) || 0);
+          }
+        } else {
+          this.log(`DEBUG /report: No data in rows or totals, falling back to traffic_report`);
+          // No data in /report, fall back to traffic_report
+          usedReportEndpoint = false;
+        }
       }
-    } else {
+    }
+    
+    // If /report didn't work or returned empty, try traffic_report parsing
+    if (!usedReportEndpoint || Object.keys(totals).length === 0) {
       // traffic_report endpoint - totals are in overall_totals.data
-      this.log(`DEBUG traffic_report: overall_totals exists=${!!response.data?.overall_totals}`);
+      this.log(`DEBUG: Using traffic_report parsing`);
       const totalsArray = response.data?.overall_totals?.data || [];
-      this.log(`DEBUG traffic_report: totalsArray length=${totalsArray.length}`);
+      this.log(`DEBUG traffic_report: overall_totals.data length=${totalsArray.length}`);
       for (const field of totalsArray) {
         if (field.name && field.value !== undefined) {
           totals[field.name] = parseFloat(field.value) || 0;
