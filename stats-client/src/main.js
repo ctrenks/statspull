@@ -899,7 +899,7 @@ function setupIpcHandlers() {
       { code: 'CELLXPERT', name: 'CellXpert', authType: 'CREDENTIALS', icon: '📊' },
       { code: 'MYAFFILIATES', name: 'MyAffiliates', authType: 'BOTH', icon: '🤝', supportsOAuth: true, apiKeyLabel: 'Client ID', apiSecretLabel: 'Client Secret' },
       { code: 'INCOME_ACCESS', name: 'Income Access', authType: 'CREDENTIALS', icon: '💰' },
-      { code: 'NETREFER', name: 'NetRefer', authType: 'API_KEY', icon: '🌐', apiKeyLabel: 'API Key' },
+      { code: 'NETREFER', name: 'NetRefer', authType: 'CREDENTIALS', icon: '🌐', description: 'Login and scrape MonthlyFigures report' },
       { code: 'WYNTA', name: 'Wynta', authType: 'CREDENTIALS', icon: '🎲' },
       { code: 'AFFILKA', name: 'Affilka', authType: 'BOTH', icon: '🔗', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', apiKeyLabel: 'Statistic Token' },
       { code: '7BITPARTNERS', name: '7BitPartners', authType: 'BOTH', icon: '🎰', baseUrl: 'https://dashboard.7bitpartners.com', apiKeyLabel: 'Statistic Token' },

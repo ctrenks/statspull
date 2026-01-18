@@ -51,7 +51,7 @@ const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { name: 'CellXpert', softwareType: 'cellxpert', authType: 'BOTH', icon: '📊' },
   { name: 'MyAffiliates', softwareType: 'myaffiliates', authType: 'BOTH', icon: '🤝', supportsOAuth: true, apiKeyLabel: 'Client ID', apiSecretLabel: 'Client Secret' },
   { name: 'Income Access', softwareType: 'income-access', authType: 'CREDENTIALS', icon: '💰' },
-  { name: 'NetRefer', softwareType: 'netrefer', authType: 'API_KEY', apiKeyLabel: 'API Token', icon: '🌐' },
+  { name: 'NetRefer', softwareType: 'netrefer', authType: 'CREDENTIALS', icon: '🌐', description: 'Login and scrape MonthlyFigures report' },
   { name: 'Wynta', softwareType: 'wynta', authType: 'BOTH', icon: '🎲' },
   { name: 'Affilka (Generic)', softwareType: 'affilka', authType: 'BOTH', apiKeyLabel: 'Statistic Token', requiresBaseUrl: true, baseUrlLabel: 'Affiliate Dashboard URL', icon: '🔗' },
   { name: 'DeckMedia', softwareType: 'deckmedia', authType: 'CREDENTIALS', icon: '🃏' },
