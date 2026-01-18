@@ -883,7 +883,7 @@ body {
 
 .stats-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 980px;
   border-collapse: collapse;
   font-size: 0.8125rem;
   table-layout: fixed;
@@ -924,13 +924,13 @@ body {
   text-align: right;
 }
 
-/* Columns 6-7: Deposits, Revenue - wider for $XXX,XXX.XX */
+/* Columns 6-7: Deposits, Revenue - wider for $X,XXX,XXX.XX */
 .stats-table th:nth-child(6),
 .stats-table td:nth-child(6),
 .stats-table th:nth-child(7),
 .stats-table td:nth-child(7) {
-  width: 110px;
-  min-width: 110px;
+  width: 150px;
+  min-width: 150px;
   text-align: right;
 }
 

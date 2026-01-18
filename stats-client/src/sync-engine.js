@@ -2219,11 +2219,11 @@ class SyncEngine {
 
     // Get date ranges for current month and last month
     const now = new Date();
-    
+
     // Current month
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = now;
-    
+
     // Last month
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -2237,7 +2237,7 @@ class SyncEngine {
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day} 00:00`;
       };
-      
+
       const formatDateTimeEnd = (d) => {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -2271,7 +2271,7 @@ class SyncEngine {
 
       // Parse response - aggregate all days into monthly totals
       const data = response.data?.data || [];
-      
+
       let totals = {
         clicks: 0,
         registrations: 0,
