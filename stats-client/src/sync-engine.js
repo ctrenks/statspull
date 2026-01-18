@@ -1448,23 +1448,23 @@ class SyncEngine {
     }
 
     this.log('EGO - logging in...');
-    
+
     // Launch browser and create page
     await scr.launch();
     const page = await scr.browser.newPage();
-    
+
     try {
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
+
       // Navigate to login page
       this.log(`EGO - navigating to ${baseUrl}`);
       await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(2000);
-      
+
       // Fill login form
       const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[name="login"]', '#username', '#email', 'input[type="text"]'];
       const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
-      
+
       for (const sel of usernameSelectors) {
         try {
           const exists = await page.$(sel);
@@ -1475,7 +1475,7 @@ class SyncEngine {
           }
         } catch (e) { /* try next */ }
       }
-      
+
       for (const sel of passwordSelectors) {
         try {
           const exists = await page.$(sel);
@@ -1486,7 +1486,7 @@ class SyncEngine {
           }
         } catch (e) { /* try next */ }
       }
-      
+
       // Submit login
       const submitBtn = await page.$('button[type="submit"], input[type="submit"], .bouton, .btn-primary');
       if (submitBtn) {
@@ -1495,9 +1495,9 @@ class SyncEngine {
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
         ]);
       }
-      
+
       await scr.delay(3000);
-      
+
       // Navigate to stats page if not already there
       // EGO stats pages are typically at /affiliates/statistics.html or similar
       const currentUrl = page.url();
@@ -1507,15 +1507,15 @@ class SyncEngine {
         await page.goto(statsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
         await scr.delay(2000);
       }
-      
+
       // Set date range to current month
       // EGO uses hidden inputs: #jDate1D (datedeb) and #jDate2D (datefin) in DD-MM-YYYY format
       const now = new Date();
       const firstOfMonth = `1-${now.getMonth() + 1}-${now.getFullYear()}`;
       const today = `${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
-      
+
       this.log(`EGO - setting date range: ${firstOfMonth} to ${today}`);
-      
+
       // Set the hidden input values directly via JavaScript
       await page.evaluate((fromDate, toDate) => {
         const fromInput = document.querySelector('#jDate1D');
@@ -1523,9 +1523,9 @@ class SyncEngine {
         if (fromInput) fromInput.value = fromDate;
         if (toInput) toInput.value = toDate;
       }, firstOfMonth, today);
-      
+
       await scr.delay(500);
-      
+
       // Submit the form
       this.log('EGO - submitting form...');
       const formSubmit = await page.$('input[type="submit"].bouton, input[type="submit"]');
@@ -1535,29 +1535,29 @@ class SyncEngine {
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
         ]);
       }
-      
+
       await scr.delay(3000);
-      
+
       // Parse the stats table - look for TOTAL row
       const stats = await this.parseEgoTable(page);
-      
+
       // Also fetch last month
       const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of previous month
       const lastMonthFrom = `1-${lastMonthDate.getMonth() + 1}-${lastMonthDate.getFullYear()}`;
       const lastMonthTo = `${lastMonthEnd.getDate()}-${lastMonthEnd.getMonth() + 1}-${lastMonthEnd.getFullYear()}`;
-      
+
       this.log(`EGO - fetching last month: ${lastMonthFrom} to ${lastMonthTo}`);
-      
+
       await page.evaluate((fromDate, toDate) => {
         const fromInput = document.querySelector('#jDate1D');
         const toInput = document.querySelector('#jDate2D');
         if (fromInput) fromInput.value = fromDate;
         if (toInput) toInput.value = toDate;
       }, lastMonthFrom, lastMonthTo);
-      
+
       await scr.delay(500);
-      
+
       const formSubmit2 = await page.$('input[type="submit"].bouton, input[type="submit"]');
       if (formSubmit2) {
         await Promise.all([
@@ -1565,12 +1565,12 @@ class SyncEngine {
           page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
         ]);
       }
-      
+
       await scr.delay(3000);
-      
+
       const lastMonthStats = await this.parseEgoTable(page, lastMonthDate);
       stats.push(...lastMonthStats);
-      
+
       this.log(`EGO - returning ${stats.length} month(s) of data`);
       return stats;
     } finally {
@@ -1583,16 +1583,16 @@ class SyncEngine {
   // Parse EGO stats table - get TOTAL row
   async parseEgoTable(page, dateOverride = null) {
     this.log('EGO - parsing stats table...');
-    
+
     const stats = await page.evaluate(() => {
       // Find the data table
       const table = document.querySelector('table.dataTable');
       if (!table) return null;
-      
+
       // Find the TOTAL row (last row in tbody, or row containing "TOTAL")
       const rows = table.querySelectorAll('tbody tr');
       let totalRow = null;
-      
+
       for (const row of rows) {
         const firstCell = row.querySelector('td');
         if (firstCell && firstCell.textContent.includes('TOTAL')) {
@@ -1600,17 +1600,17 @@ class SyncEngine {
           break;
         }
       }
-      
+
       if (!totalRow) {
         // Use last row as fallback
         totalRow = rows[rows.length - 1];
       }
-      
+
       if (!totalRow) return null;
-      
+
       const cells = totalRow.querySelectorAll('td');
       if (cells.length < 12) return null;
-      
+
       // Parse currency values (European format with comma: "0,00 $")
       const parseCurrency = (text) => {
         if (!text) return 0;
@@ -1618,7 +1618,7 @@ class SyncEngine {
         const cleaned = text.replace(/[^0-9,.-]/g, '').replace(',', '.');
         return Math.round(parseFloat(cleaned) * 100) || 0;
       };
-      
+
       // Column mapping from the HTML:
       // 0: Website (TOTAL)
       // 1: Disp. (impressions)
@@ -1632,7 +1632,7 @@ class SyncEngine {
       // 9: Total Deposit
       // 10: Net Income
       // 11: Earnings
-      
+
       return {
         impressions: parseInt(cells[1]?.textContent?.trim() || '0') || 0,
         clicks: parseInt(cells[2]?.textContent?.trim() || '0') || 0,
@@ -1642,18 +1642,18 @@ class SyncEngine {
         revenue: parseCurrency(cells[11]?.textContent) // Earnings
       };
     });
-    
+
     if (!stats) {
       this.log('EGO - no stats table found');
       return [];
     }
-    
+
     // Determine the date for this record
     const date = dateOverride || new Date();
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-    
+
     this.log(`EGO - ${dateStr}: clicks=${stats.clicks}, signups=${stats.signups}, ftds=${stats.ftds}, revenue=${stats.revenue/100}`);
-    
+
     return [{
       date: dateStr,
       clicks: stats.clicks,
