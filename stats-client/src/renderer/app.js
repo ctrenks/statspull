@@ -252,6 +252,25 @@ function updateCredentialFields(provider, isEditMode = false) {
     passwordGroup.style.display = 'block';
     apiKeyGroup.style.display = 'block';
     if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || provider.api_key_label || 'API Key (optional if using login)';
+    
+    // CellXpert-specific help text
+    const providerCode = provider.code || provider.provider || '';
+    if (providerCode.toUpperCase() === 'CELLXPERT' && descriptionEl) {
+      descriptionEl.innerHTML = `
+        <strong>🚀 API Recommended (faster & more accurate):</strong><br>
+        • <strong>Username:</strong> Your Affiliate ID number (find in CellXpert dashboard)<br>
+        • <strong>API Key:</strong> Your x-api-key from CellXpert<br>
+        • Leave Password empty<br><br>
+        <em>📋 Scraping fallback:</em> Use email + password (no API key)
+      `;
+      descriptionEl.style.display = 'block';
+      descriptionEl.style.marginBottom = '15px';
+      descriptionEl.style.padding = '10px';
+      descriptionEl.style.backgroundColor = 'rgba(100, 200, 100, 0.1)';
+      descriptionEl.style.borderRadius = '6px';
+      descriptionEl.style.fontSize = '0.85rem';
+      descriptionEl.style.lineHeight = '1.5';
+    }
   }
 
   // Show API Secret field if OAuth is supported
