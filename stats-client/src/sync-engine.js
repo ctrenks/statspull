@@ -576,15 +576,20 @@ class SyncEngine {
     const password = credentials.password;
     const apiKey = credentials.apiKey;
 
-    // If we have API key and username (affiliate ID), use the official API
-    if (apiKey && username) {
-      this.log('Using CellXpert official API (affiliateid + x-api-key)');
+    this.log(`CellXpert credentials check: username=${username ? 'set' : 'empty'}, password=${password ? 'set' : 'empty'}, apiKey=${apiKey ? 'set' : 'empty'}`);
+
+    // PREFER API: If we have API key, use the official API (username = affiliate ID)
+    if (apiKey) {
+      if (!username) {
+        throw new Error('CellXpert API requires Affiliate ID in the Username field');
+      }
+      this.log('Using CellXpert official API (affiliateid + x-api-key) - preferred method');
       return this.syncCellxpertAPI({ program, credentials, config, apiUrl: baseUrl || loginPath });
     }
 
-    // Check if this looks like a web interface (scraping needed) vs API
+    // Fallback to web scraping if no API key
     if (loginPath && (loginPath.includes('/partner/') || loginPath.includes('/login'))) {
-      this.log('This Cellxpert platform requires web scraping', 'info');
+      this.log('No API key provided, using web scraping fallback', 'info');
 
       // Use scraper
       try {
@@ -801,11 +806,11 @@ class SyncEngine {
 
     // Get date ranges for current month and last month
     const now = new Date();
-    
+
     // Current month
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = now;
-    
+
     // Last month
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -823,7 +828,7 @@ class SyncEngine {
 
       // Parse XML rows
       const rowMatches = xmlText.match(/<row>([\s\S]*?)<\/row>/gi) || [];
-      
+
       for (const row of rowMatches) {
         // Extract values using regex
         const getValue = (tag) => {
