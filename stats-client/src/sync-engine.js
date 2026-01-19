@@ -437,6 +437,7 @@ class SyncEngine {
   getProviderHandler(provider) {
     const handlers = {
       'CELLXPERT': this.syncCellxpert,
+      'CELLXPERT_API': this.syncCellxpertAPI,
       'CELLXPERT_SCRAPE': this.syncCellxpertScrape,
       'MYAFFILIATES': this.syncMyAffiliates,
       'MYAFFILIATES_SCRAPE': this.syncMyAffiliatesScrape,
@@ -574,6 +575,12 @@ class SyncEngine {
     const username = credentials.username;
     const password = credentials.password;
     const apiKey = credentials.apiKey;
+
+    // If we have API key and username (affiliate ID), use the official API
+    if (apiKey && username) {
+      this.log('Using CellXpert official API (affiliateid + x-api-key)');
+      return this.syncCellxpertAPI({ program, credentials, config, apiUrl: baseUrl || loginPath });
+    }
 
     // Check if this looks like a web interface (scraping needed) vs API
     if (loginPath && (loginPath.includes('/partner/') || loginPath.includes('/login'))) {
@@ -768,6 +775,138 @@ class SyncEngine {
     }
 
     return dates;
+  }
+
+  // CellXpert API - uses affiliateid + x-api-key headers
+  // Docs: https://cx-new-ui.cellxpert.com/api/?command=mediareport
+  async syncCellxpertAPI({ program, credentials, config, apiUrl }) {
+    const baseUrl = apiUrl || config?.apiUrl || config?.baseUrl;
+    const affiliateId = credentials.username; // Affiliate ID goes in username field
+    const apiKey = credentials.apiKey;
+
+    if (!baseUrl) {
+      throw new Error('CellXpert API requires a Base URL');
+    }
+
+    if (!affiliateId) {
+      throw new Error('CellXpert API requires Affiliate ID (enter in Username field)');
+    }
+
+    if (!apiKey) {
+      throw new Error('CellXpert API requires API Key');
+    }
+
+    // Clean up base URL
+    const cleanBaseUrl = baseUrl.replace(/\/+$/, '').replace(/\/api\/?$/, '');
+
+    // Get date ranges for current month and last month
+    const now = new Date();
+    
+    // Current month
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = now;
+    
+    // Last month
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // Helper to parse XML response
+    const parseXmlStats = (xmlText) => {
+      const results = {
+        impressions: 0,
+        clicks: 0,
+        signups: 0,
+        ftds: 0,
+        deposits: 0,
+        revenue: 0
+      };
+
+      // Parse XML rows
+      const rowMatches = xmlText.match(/<row>([\s\S]*?)<\/row>/gi) || [];
+      
+      for (const row of rowMatches) {
+        // Extract values using regex
+        const getValue = (tag) => {
+          const match = row.match(new RegExp(`<${tag}>(.*?)<\/${tag}>`, 'i'));
+          return match ? parseFloat(match[1]) || 0 : 0;
+        };
+
+        results.impressions += getValue('Impressions');
+        results.clicks += getValue('Visitors') || getValue('Unique_Visitors');
+        results.signups += getValue('Leads') || getValue('Unique_Leads');
+        results.ftds += getValue('FTD');
+        results.deposits += getValue('Deposits');
+        results.revenue += getValue('Commission');
+      }
+
+      return results;
+    };
+
+    // Helper function to fetch stats for a date range
+    const fetchCellxpertStats = async (startDate, endDate, label) => {
+      const fromDate = this.formatDate(startDate);
+      const toDate = this.formatDate(endDate);
+
+      // Build API URL - use Day=1 breakdown for daily data, then aggregate
+      const url = `${cleanBaseUrl}/api/?command=mediareport&fromdate=${fromDate}&todate=${toDate}&Day=1`;
+
+      this.log(`Fetching CellXpert ${label}: ${fromDate} to ${toDate}`);
+
+      const response = await this.httpRequest(url, {
+        headers: {
+          'affiliateid': affiliateId,
+          'x-api-key': apiKey,
+          'Accept': '*/*'
+        }
+      });
+
+      if (response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const responseText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+
+      // Check for error responses
+      if (responseText.includes('Bad Command') || responseText.includes('Bad Authentication')) {
+        throw new Error(`API Error: ${responseText}`);
+      }
+
+      // Parse XML response
+      const totals = parseXmlStats(responseText);
+
+      return {
+        date: this.formatDate(startDate),
+        clicks: totals.clicks,
+        impressions: totals.impressions,
+        signups: totals.signups,
+        ftds: totals.ftds,
+        deposits: Math.round(totals.deposits * 100), // Convert to cents
+        revenue: Math.round(totals.revenue * 100) // Convert to cents
+      };
+    };
+
+    // Fetch both months
+    const stats = [];
+
+    try {
+      const currentStats = await fetchCellxpertStats(currentMonthStart, currentMonthEnd, 'current month');
+      this.log(`Current month: clicks=${currentStats.clicks}, signups=${currentStats.signups}, ftds=${currentStats.ftds}, revenue=$${currentStats.revenue/100}`);
+      stats.push(currentStats);
+    } catch (e) {
+      this.log(`Failed to fetch current month: ${e.message}`);
+      throw e;
+    }
+
+    try {
+      const lastStats = await fetchCellxpertStats(lastMonthStart, lastMonthEnd, 'last month');
+      this.log(`Last month: clicks=${lastStats.clicks}, signups=${lastStats.signups}, ftds=${lastStats.ftds}, revenue=$${lastStats.revenue/100}`);
+      stats.push(lastStats);
+    } catch (e) {
+      this.log(`Failed to fetch last month: ${e.message}`);
+    }
+
+    this.log(`✓ CellXpert API sync complete: ${stats.length} month(s) fetched`);
+    return stats;
   }
 
   // Cellxpert Scrape (web login)
