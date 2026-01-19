@@ -581,7 +581,7 @@ class SyncEngine {
     // PREFER API: If we have API key, use the official API (username = affiliate ID)
     if (apiKey) {
       if (!username) {
-        throw new Error('CellXpert API requires Affiliate ID in the Username field');
+        throw new Error('CellXpert API requires your Affiliate ID number in the Username field (find it in your CellXpert dashboard)');
       }
       this.log('Using CellXpert official API (affiliateid + x-api-key) - preferred method');
       return this.syncCellxpertAPI({ program, credentials, config, apiUrl: baseUrl || loginPath });
