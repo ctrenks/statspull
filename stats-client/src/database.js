@@ -159,11 +159,11 @@ class Database {
     try {
       // Find and delete duplicates, keeping the record with highest revenue (most complete data)
       this.db.run(`
-        DELETE FROM stats 
+        DELETE FROM stats
         WHERE id NOT IN (
           SELECT id FROM (
             SELECT id, ROW_NUMBER() OVER (
-              PARTITION BY program_id, date 
+              PARTITION BY program_id, date
               ORDER BY revenue DESC, clicks DESC, created_at DESC
             ) as rn
             FROM stats

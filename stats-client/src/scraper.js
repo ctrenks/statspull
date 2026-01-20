@@ -4107,10 +4107,12 @@ class Scraper {
           const signupEl = document.querySelector('#id_signup');
           const clickEl = document.querySelector('#id_clicks');
           const earningEl = document.querySelector('#id_earning');
+          const ftdEl = document.querySelector('#id_net_new_acquisitions'); // Net New depositors = FTDs
 
           if (signupEl) result.signups = parseInt(signupEl.textContent.trim()) || 0;
           if (clickEl) result.clicks = parseInt(clickEl.textContent.trim()) || 0;
           if (earningEl) result.revenue = Math.round(parseVal(earningEl.textContent) * 100);
+          if (ftdEl) result.ftds = parseInt(ftdEl.textContent.trim()) || 0;
 
           // Look for conversion rate in the page (e.g., "2.33%", "Conversion Rate: 2.33%")
           const pageText = document.body.innerText;
@@ -4138,7 +4140,7 @@ class Scraper {
           });
 
           // If specific IDs not found, fallback to text pattern matching
-          if (!signupEl && !clickEl && !earningEl) {
+          if (!signupEl && !clickEl && !earningEl && !ftdEl) {
             panels.forEach(panel => {
               const heading = panel.querySelector('.media-heading, .heading, h3, h4, label');
               const value = panel.querySelector('.lead, .value, .number, p:last-child');
@@ -4152,6 +4154,8 @@ class Scraper {
                   result.clicks = parseInt(valText.replace(/,/g, '')) || 0;
                 } else if (headingText.includes('earning') || headingText.includes('commission') || headingText.includes('revenue')) {
                   result.revenue = Math.round(parseVal(valText) * 100);
+                } else if (headingText.includes('depositor') || headingText.includes('net new') || headingText.includes('ftd') || headingText.includes('first time')) {
+                  result.ftds = parseInt(valText.replace(/,/g, '')) || 0;
                 }
               }
             });
@@ -4164,14 +4168,16 @@ class Scraper {
       // Extract this month's stats
       const thisMonthStats = await extractDashboardStats();
 
-      // Calculate FTDs from signups × conversion rate (like CellXpert)
-      let calculatedFtds = 0;
-      if (thisMonthStats.conversionRate > 0 && thisMonthStats.signups > 0) {
-        calculatedFtds = Math.round(thisMonthStats.signups * (thisMonthStats.conversionRate / 100));
-        this.log(`Calculated FTDs: ${thisMonthStats.signups} signups × ${thisMonthStats.conversionRate}% = ${calculatedFtds} FTDs`);
+      // Use actual FTDs if scraped, otherwise calculate from conversion rate
+      let ftds = thisMonthStats.ftds || 0;
+      if (ftds === 0 && thisMonthStats.conversionRate > 0 && thisMonthStats.signups > 0) {
+        ftds = Math.round(thisMonthStats.signups * (thisMonthStats.conversionRate / 100));
+        this.log(`Calculated FTDs: ${thisMonthStats.signups} signups × ${thisMonthStats.conversionRate}% = ${ftds} FTDs`);
+      } else if (ftds > 0) {
+        this.log(`Using scraped FTDs (Net New depositors): ${ftds}`);
       }
 
-      this.log(`This month stats: clicks=${thisMonthStats.clicks}, signups=${thisMonthStats.signups}, ftds=${calculatedFtds}, revenue=${thisMonthStats.revenue/100}, convRate=${thisMonthStats.conversionRate}%`);
+      this.log(`This month stats: clicks=${thisMonthStats.clicks}, signups=${thisMonthStats.signups}, ftds=${ftds}, revenue=${thisMonthStats.revenue/100}, convRate=${thisMonthStats.conversionRate}%`);
 
       const allStats = [];
       const now = new Date();
@@ -4182,7 +4188,7 @@ class Scraper {
         clicks: thisMonthStats.clicks || 0,
         impressions: 0,
         signups: thisMonthStats.signups || 0,
-        ftds: calculatedFtds,
+        ftds: ftds,
         deposits: thisMonthStats.deposits || 0,
         revenue: thisMonthStats.revenue || 0
       });
