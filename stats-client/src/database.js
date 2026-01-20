@@ -154,6 +154,33 @@ class Database {
       // Column may already exist
     }
 
+    // Migration: Clean up duplicate stats records (keep the one with highest values)
+    // This fixes databases where UNIQUE constraint wasn't enforced
+    try {
+      // Find and delete duplicates, keeping the record with highest revenue (most complete data)
+      this.db.run(`
+        DELETE FROM stats 
+        WHERE id NOT IN (
+          SELECT id FROM (
+            SELECT id, ROW_NUMBER() OVER (
+              PARTITION BY program_id, date 
+              ORDER BY revenue DESC, clicks DESC, created_at DESC
+            ) as rn
+            FROM stats
+          ) WHERE rn = 1
+        )
+      `);
+    } catch (e) {
+      // May fail on older SQLite versions, that's OK
+    }
+
+    // Create unique index to enforce constraint on old databases
+    try {
+      this.db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_stats_unique_program_date ON stats(program_id, date)");
+    } catch (e) {
+      // May fail if duplicates still exist
+    }
+
     // Create separate table for per-channel stats (avoids UNIQUE constraint issues)
     this.db.run(`
       CREATE TABLE IF NOT EXISTS channel_stats (
@@ -859,6 +886,7 @@ class Database {
   // SUMs all daily values into a single monthly record
   // NOTE: Only consolidates records WITHOUT a channel (channel IS NULL)
   // Per-channel records are kept separate for drill-down
+  // Uses MAX instead of SUM because most scrapers return cumulative monthly totals
   consolidateMonthlyStats(programId) {
     // Get all months with multiple records (only for non-channel records)
     const duplicates = this.query(
@@ -874,18 +902,19 @@ class Database {
 
     let consolidated = 0;
     for (const dup of duplicates) {
-      // SUM all records for this month (daily stats should be aggregated)
+      // Use MAX for all values - cumulative totals should take highest value, not sum
+      // This prevents doubling when syncing the same month multiple times
       const totals = this.queryOne(
         `
         SELECT
-          SUM(clicks) as clicks,
-          SUM(impressions) as impressions,
-          SUM(signups) as signups,
-          SUM(ftds) as ftds,
-          SUM(deposits) as deposits,
-          SUM(withdrawals) as withdrawals,
-          SUM(chargebacks) as chargebacks,
-          SUM(revenue) as revenue
+          MAX(clicks) as clicks,
+          MAX(impressions) as impressions,
+          MAX(signups) as signups,
+          MAX(ftds) as ftds,
+          MAX(deposits) as deposits,
+          MAX(withdrawals) as withdrawals,
+          MAX(chargebacks) as chargebacks,
+          MAX(revenue) as revenue
         FROM stats
         WHERE program_id = ? AND date LIKE ? AND channel IS NULL
       `,

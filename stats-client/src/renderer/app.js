@@ -252,7 +252,7 @@ function updateCredentialFields(provider, isEditMode = false) {
     passwordGroup.style.display = 'block';
     apiKeyGroup.style.display = 'block';
     if (apiKeyLabel) apiKeyLabel.textContent = provider.apiKeyLabel || provider.api_key_label || 'API Key (optional if using login)';
-    
+
     // CellXpert-specific help text
     const providerCode = provider.code || provider.provider || '';
     if (providerCode.toUpperCase() === 'CELLXPERT' && descriptionEl) {
