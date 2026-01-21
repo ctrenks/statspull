@@ -126,5 +126,3 @@ function generateReferralCode(userId: string): string {
   }
   return code;
 }
-
-
