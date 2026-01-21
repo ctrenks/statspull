@@ -29,6 +29,7 @@ export default function AppHeader({ activePage }: AppHeaderProps) {
     { href: "/downloads", label: "Download", active: false },
     { href: "/subscribe", label: "Pricing", active: false },
     { href: "/forum", label: "Forum", active: false },
+    { href: "/help", label: "Help", active: false },
   ];
 
   return (

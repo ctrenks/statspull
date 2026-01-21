@@ -140,14 +140,14 @@ export default function StatsPage() {
       : (bVal as number) - (aVal as number);
   });
 
-  // Calculate totals
+  // Calculate totals (only include positive revenue - negative balances don't deduct)
   const totals = filteredStats.reduce(
     (acc, s) => ({
       clicks: acc.clicks + s.clicks,
       signups: acc.signups + s.signups,
       ftds: acc.ftds + s.ftds,
       deposits: acc.deposits + s.deposits,
-      revenue: acc.revenue + s.revenue,
+      revenue: acc.revenue + (s.revenue > 0 ? s.revenue : 0),
     }),
     { clicks: 0, signups: 0, ftds: 0, deposits: 0, revenue: 0 }
   );

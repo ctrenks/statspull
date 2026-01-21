@@ -41,6 +41,9 @@ export default async function Home() {
               <Link href="/forum" className="btn-ghost">
                 Forum
               </Link>
+              <Link href="/help" className="btn-ghost">
+                Help
+              </Link>
               <Link href="/auth/signin" className="btn-ghost">
                 Sign In
               </Link>
