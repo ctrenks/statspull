@@ -368,7 +368,10 @@ async function loadDashboardData() {
           const rate = EXCHANGE_RATES[stat.currency]?.[defaultCurrency] || 1;
           revenue = revenue * rate;
         }
-        totalRevenue += revenue;
+        // Only count positive revenue - negative means no payment, not deduction
+        if (revenue > 0) {
+          totalRevenue += revenue;
+        }
       }
     }
 
