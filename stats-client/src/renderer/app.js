@@ -2815,4 +2815,13 @@ function initSidebarSyncButton() {
       }
     });
   }
+
+  // Help button - opens help page in browser
+  const helpBtn = document.getElementById('helpBtn');
+  if (helpBtn) {
+    helpBtn.addEventListener('click', () => {
+      // Open help page in default browser
+      window.api.openExternal('https://www.statsfetch.com/help');
+    });
+  }
 }
