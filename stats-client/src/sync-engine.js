@@ -2715,10 +2715,11 @@ class SyncEngine {
 
   // Number 1 Affiliates - DevExtreme grid scraper
   // One-off scraper for their monthly reports page
-  async syncNumber1Affiliates({ program, credentials, config, loginUrl, statsUrl, scraper }) {
+  async syncNumber1Affiliates({ program, credentials, config, loginUrl, statsUrl, apiUrl, scraper }) {
     const scr = scraper || this.scraper;
     const login = loginUrl || config?.loginUrl;
-    const stats = statsUrl || config?.statsUrl;
+    // Stats URL can be in statsUrl, apiUrl, or config.apiUrl field
+    const stats = statsUrl || apiUrl || config?.statsUrl || config?.apiUrl;
 
     if (!login) {
       throw new Error('Number 1 Affiliates requires a login URL');
@@ -2838,7 +2839,7 @@ class SyncEngine {
       // Step 6: Filter for current month and last month only
       const now = new Date();
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const lastMonth = now.getMonth() === 0 
+      const lastMonth = now.getMonth() === 0
         ? `${now.getFullYear() - 1}-12`
         : `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
 
