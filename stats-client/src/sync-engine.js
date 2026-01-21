@@ -2784,7 +2784,61 @@ class SyncEngine {
         await scr.delay(3000);
       }
 
-      // Step 4: Wait for DevExtreme grid to load
+      // Step 4: Click submit/search button to load data (date picker needs submit)
+      this.log('Looking for submit/search button...');
+      const submitClicked = await page.evaluate(() => {
+        // Common submit button selectors
+        const selectors = [
+          'button[type="submit"]',
+          'input[type="submit"]',
+          '.btn-primary',
+          '.btn-search',
+          '.btn-submit',
+          'button.submit',
+          '#btnSearch',
+          '#btnSubmit',
+          '#submitBtn',
+          'button:contains("Search")',
+          'button:contains("Submit")',
+          'button:contains("Apply")',
+          'button:contains("Go")',
+          'button:contains("Show")',
+          '.dx-button'
+        ];
+        
+        for (const sel of selectors) {
+          try {
+            const btn = document.querySelector(sel);
+            if (btn && btn.offsetParent !== null) { // visible
+              btn.click();
+              return sel;
+            }
+          } catch (e) {}
+        }
+        
+        // Also try finding button by text content
+        const buttons = document.querySelectorAll('button, input[type="button"], .btn');
+        for (const btn of buttons) {
+          const text = btn.textContent?.toLowerCase() || '';
+          if (text.includes('search') || text.includes('submit') || text.includes('apply') || text.includes('show') || text.includes('go')) {
+            btn.click();
+            return 'text: ' + text;
+          }
+        }
+        
+        return null;
+      });
+
+      if (submitClicked) {
+        this.log(`Clicked submit button: ${submitClicked}`);
+        await scr.delay(3000); // Wait for data to load
+        await page.waitForResponse(response => response.status() === 200, { timeout: 10000 }).catch(() => {});
+        await scr.delay(2000);
+      } else {
+        this.log('No submit button found, data may already be loaded');
+      }
+
+      // Step 5: Wait for DevExtreme grid to load
       this.log('Waiting for data grid...');
       await page.waitForSelector('.dx-datagrid-rowsview', { timeout: 15000 });
       await scr.delay(2000); // Extra wait for data to populate
