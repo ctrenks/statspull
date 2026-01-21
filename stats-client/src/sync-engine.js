@@ -469,6 +469,7 @@ class SyncEngine {
       'RIVAL': this.syncRival,
       'CASINO_REWARDS': this.syncCasinoRewards,
       'NUMBER1AFFILIATES': this.syncNumber1Affiliates,
+      'MAP': this.syncCustom,  // MAP uses custom/generic scraping for now
       'CUSTOM': this.syncCustom
     };
     return handlers[provider];
