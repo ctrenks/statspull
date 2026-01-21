@@ -38,6 +38,7 @@ const SOFTWARE_TYPES = [
   { value: "mexos", label: "Mexos" },
   { value: "myaffiliates", label: "MyAffiliates" },
   { value: "netrefer", label: "NetRefer" },
+  { value: "number1affiliates", label: "Number 1 Affiliates" },
   { value: "partnermatrix", label: "PartnerMatrix" },
   { value: "rival", label: "Rival (CasinoController)" },
   { value: "rtg", label: "RTG (New)" },

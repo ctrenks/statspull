@@ -456,6 +456,7 @@ class SyncEngine {
       'RTG_ORIGINAL': this.syncRTG,
       'RIVAL': this.syncRival,
       'CASINO_REWARDS': this.syncCasinoRewards,
+      'NUMBER1AFFILIATES': this.syncNumber1Affiliates,
       'CUSTOM': this.syncCustom
     };
     return handlers[provider];
@@ -2708,6 +2709,174 @@ class SyncEngine {
       if (!this.inBatchMode) {
         await scr.closePages();
       }
+      throw error;
+    }
+  }
+
+  // Number 1 Affiliates - DevExtreme grid scraper
+  // One-off scraper for their monthly reports page
+  async syncNumber1Affiliates({ program, credentials, config, loginUrl, statsUrl, scraper }) {
+    const scr = scraper || this.scraper;
+    const login = loginUrl || config?.loginUrl;
+    const stats = statsUrl || config?.statsUrl;
+
+    if (!login) {
+      throw new Error('Number 1 Affiliates requires a login URL');
+    }
+
+    this.log('Starting Number 1 Affiliates scrape...');
+    await scr.launch();
+    const page = await scr.browser.newPage();
+
+    try {
+      // Step 1: Navigate to login
+      this.log(`Navigating to login: ${login}`);
+      await page.goto(login, { waitUntil: 'networkidle2', timeout: 30000 });
+      await scr.delay(2000);
+
+      // Step 2: Fill login form
+      const username = credentials.username;
+      const password = credentials.password;
+
+      if (!username || !password) {
+        throw new Error('Username and password required');
+      }
+
+      // Try common login selectors
+      const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[type="email"]', '#username', '#email', 'input[name="userName"]'];
+      const passwordSelectors = ['input[name="password"]', 'input[type="password"]', '#password'];
+
+      let usernameField = null;
+      for (const sel of usernameSelectors) {
+        usernameField = await page.$(sel);
+        if (usernameField) break;
+      }
+
+      let passwordField = null;
+      for (const sel of passwordSelectors) {
+        passwordField = await page.$(sel);
+        if (passwordField) break;
+      }
+
+      if (usernameField && passwordField) {
+        await usernameField.type(username, { delay: 50 });
+        await passwordField.type(password, { delay: 50 });
+
+        // Find and click submit
+        const submitBtn = await page.$('button[type="submit"], input[type="submit"], .btn-login, #loginBtn');
+        if (submitBtn) {
+          await submitBtn.click();
+        } else {
+          await page.keyboard.press('Enter');
+        }
+
+        await scr.delay(3000);
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+      }
+
+      this.log('✓ Logged in');
+
+      // Step 3: Navigate to stats page
+      if (stats) {
+        this.log(`Navigating to stats: ${stats}`);
+        await page.goto(stats, { waitUntil: 'networkidle2', timeout: 30000 });
+        await scr.delay(3000);
+      }
+
+      // Step 4: Wait for DevExtreme grid to load
+      this.log('Waiting for data grid...');
+      await page.waitForSelector('.dx-datagrid-rowsview', { timeout: 15000 });
+      await scr.delay(2000); // Extra wait for data to populate
+
+      // Step 5: Extract data from DevExtreme grid
+      this.log('Extracting stats from grid...');
+      const gridData = await page.evaluate(() => {
+        const results = [];
+        const rows = document.querySelectorAll('.dx-datagrid-rowsview .dx-data-row');
+
+        for (const row of rows) {
+          const cells = row.querySelectorAll('td[role="gridcell"]');
+          if (cells.length < 10) continue;
+
+          // Parse cell values by aria-colindex
+          const getCellValue = (colIndex) => {
+            for (const cell of cells) {
+              if (cell.getAttribute('aria-colindex') === String(colIndex)) {
+                return cell.textContent.trim();
+              }
+            }
+            return '';
+          };
+
+          const parseNumber = (text) => {
+            if (!text) return 0;
+            const cleaned = text.replace(/[$€£,\s]/g, '').replace(/[()]/g, '');
+            const num = parseFloat(cleaned) || 0;
+            return text.includes('-') ? -Math.abs(num) : num;
+          };
+
+          const date = getCellValue(2); // Date column
+          if (!date || !date.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
+
+          results.push({
+            date: date,
+            clicks: parseInt(getCellValue(3).replace(/,/g, '')) || 0,
+            signups: parseInt(getCellValue(4).replace(/,/g, '')) || 0,
+            ftds: parseInt(getCellValue(5).replace(/,/g, '')) || 0,
+            deposits: parseNumber(getCellValue(8)), // Deposits amount (column 8)
+            withdrawals: parseNumber(getCellValue(10)), // Withdrawals amount
+            chargebacks: parseNumber(getCellValue(17)), // CB's amount
+            revenue: parseNumber(getCellValue(22)) // Earnings
+          });
+        }
+
+        return results;
+      });
+
+      this.log(`Found ${gridData.length} rows in grid`);
+
+      // Step 6: Filter for current month and last month only
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const lastMonth = now.getMonth() === 0 
+        ? `${now.getFullYear() - 1}-12`
+        : `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+
+      this.log(`Looking for months: ${currentMonth} and ${lastMonth}`);
+
+      const allStats = [];
+      for (const row of gridData) {
+        const rowMonth = row.date.substring(0, 7); // YYYY-MM
+        if (rowMonth === currentMonth || rowMonth === lastMonth) {
+          // Convert to first of month format and cents
+          const statDate = `${rowMonth}-01`;
+          allStats.push({
+            date: statDate,
+            clicks: row.clicks,
+            impressions: 0,
+            signups: row.signups,
+            ftds: row.ftds,
+            deposits: Math.round(Math.abs(row.deposits) * 100), // Convert to cents
+            withdrawals: Math.round(Math.abs(row.withdrawals) * 100),
+            chargebacks: Math.round(Math.abs(row.chargebacks) * 100),
+            revenue: Math.round(row.revenue * 100) // Keep sign for revenue
+          });
+          this.log(`Found ${rowMonth}: clicks=${row.clicks}, signups=${row.signups}, ftds=${row.ftds}, deposits=$${row.deposits}, revenue=$${row.revenue}`);
+        }
+      }
+
+      await page.close();
+
+      if (allStats.length === 0) {
+        this.log('No data found for current/last month');
+      }
+
+      this.log(`✓ Number 1 Affiliates sync complete: ${allStats.length} month(s)`);
+      return allStats;
+
+    } catch (error) {
+      this.log(`Number 1 Affiliates error: ${error.message}`, 'error');
+      await page.close();
       throw error;
     }
   }

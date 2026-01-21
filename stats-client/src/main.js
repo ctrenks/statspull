@@ -909,6 +909,7 @@ function setupIpcHandlers() {
       { code: 'RTG_ORIGINAL', name: 'RTG Original', authType: 'CREDENTIALS', icon: '🕹️', description: 'Supports D-W-C revenue calculation' },
       { code: 'RIVAL', name: 'Rival (CasinoController)', authType: 'CREDENTIALS', icon: '🎯', description: 'Syncs sequentially to avoid rate limits' },
       { code: 'CASINO_REWARDS', name: 'Casino Rewards', authType: 'CREDENTIALS', icon: '🏆' },
+      { code: 'NUMBER1AFFILIATES', name: 'Number 1 Affiliates', authType: 'CREDENTIALS', icon: '🔢', description: 'Custom scraper for monthly reports' },
       { code: 'PARTNERMATRIX', name: 'PartnerMatrix', authType: 'CREDENTIALS', icon: '📈' },
       { code: 'SCALEO', name: 'Scaleo', authType: 'API_KEY', icon: '⚡', apiKeyLabel: 'API Key' },
       { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS', icon: '⚙️' }
