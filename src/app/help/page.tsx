@@ -69,7 +69,7 @@ export default async function HelpPage() {
               </span>
               Getting Started
             </h2>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               {/* Placeholder for video - replace src with actual YouTube embed */}
               <div className="card overflow-hidden">
@@ -113,7 +113,7 @@ export default async function HelpPage() {
               </span>
               Features & Tips
             </h2>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               <div className="card overflow-hidden">
                 <div className="aspect-video bg-dark-800 flex items-center justify-center">
@@ -185,12 +185,12 @@ export default async function HelpPage() {
               </span>
               Frequently Asked Questions
             </h2>
-            
+
             <div className="space-y-4">
               <div className="card">
                 <h3 className="font-semibold mb-2">Is my data secure?</h3>
                 <p className="text-dark-400 text-sm">
-                  Yes! All your credentials are stored locally on your computer using encrypted storage. 
+                  Yes! All your credentials are stored locally on your computer using encrypted storage.
                   We never have access to your login details. Stats are only uploaded to our servers if you enable the stats sharing feature.
                 </p>
               </div>
@@ -198,7 +198,7 @@ export default async function HelpPage() {
               <div className="card">
                 <h3 className="font-semibold mb-2">Which affiliate platforms are supported?</h3>
                 <p className="text-dark-400 text-sm">
-                  We support 15+ major affiliate platforms including CellXpert, MyAffiliates, Income Access, 
+                  We support 15+ major affiliate platforms including CellXpert, MyAffiliates, Income Access,
                   NetRefer, Affilka, RTG, and many more. Check our templates section for the full list.
                 </p>
               </div>
@@ -214,7 +214,7 @@ export default async function HelpPage() {
               <div className="card">
                 <h3 className="font-semibold mb-2">How do I get an API key for my affiliate program?</h3>
                 <p className="text-dark-400 text-sm">
-                  Most platforms have an &quot;API&quot; or &quot;Developer&quot; section in their settings. 
+                  Most platforms have an &quot;API&quot; or &quot;Developer&quot; section in their settings.
                   Look for OAuth settings, API keys, or contact your affiliate manager for access.
                 </p>
               </div>
@@ -222,7 +222,7 @@ export default async function HelpPage() {
               <div className="card">
                 <h3 className="font-semibold mb-2">Can I use Stats Fetch on multiple computers?</h3>
                 <p className="text-dark-400 text-sm">
-                  Your license is tied to one device. If you need to switch computers, use the backup/restore 
+                  Your license is tied to one device. If you need to switch computers, use the backup/restore
                   feature and contact support to transfer your license.
                 </p>
               </div>
