@@ -132,12 +132,24 @@ class SyncEngine {
   }
 
   // Sync all active programs
-  async syncAll() {
-    const programs = this.db.getPrograms().filter(p => p.is_active);
+  // maxPrograms: limit how many programs to sync (for demo accounts)
+  async syncAll(maxPrograms = Infinity) {
+    let programs = this.db.getPrograms().filter(p => p.is_active);
 
     if (programs.length === 0) {
       this.log('No active programs to sync', 'warn');
       return { success: true, synced: 0, failed: 0, results: [] };
+    }
+
+    // If over program limit, only sync oldest programs (by created_at)
+    const totalActive = programs.length;
+    if (totalActive > maxPrograms) {
+      this.log(`⚠️ Program limit: ${totalActive} active programs, but limit is ${maxPrograms}. Syncing oldest ${maxPrograms} only.`, 'warn');
+      // Sort by created_at (oldest first) and take only maxPrograms
+      programs = programs
+        .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+        .slice(0, maxPrograms);
+      this.log(`Skipping ${totalActive - maxPrograms} newer programs. Upgrade to sync all.`, 'warn');
     }
 
     // Fetch exchange rates before syncing (cached for 24h)

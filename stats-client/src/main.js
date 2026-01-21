@@ -76,7 +76,7 @@ let licenseInfo = {
   role: 0,
   roleLabel: 'invalid',
   lastChecked: null,
-  maxPrograms: 5  // Default to demo limit
+  maxPrograms: 20  // Default to demo limit (20 programs)
 };
 
 // Check interval (24 hours in ms)
@@ -177,7 +177,7 @@ async function validateApiKey(apiKey) {
               userId: data.userId,
               username: data.username,
               lastChecked: Date.now(),
-              maxPrograms: (data.role <= 1) ? 5 : Infinity,  // Demo = 5, Full/Admin = unlimited
+              maxPrograms: (data.role <= 1) ? 20 : Infinity,  // Demo = 20, Full/Admin = unlimited
               boundToDevice: data.boundToDevice
             };
             // Save to settings
@@ -189,7 +189,7 @@ async function validateApiKey(apiKey) {
           } else {
             licenseInfo.valid = false;
             licenseInfo.role = 0;
-            licenseInfo.maxPrograms = 5;
+            licenseInfo.maxPrograms = 20;
             // Check for installation mismatch
             if (data.code === 'INSTALLATION_MISMATCH') {
               resolve({ valid: false, error: data.error, code: 'INSTALLATION_MISMATCH' });
@@ -635,7 +635,7 @@ async function initialize() {
   const cachedLastChecked = db.getSetting('license_last_checked');
   if (cachedRole) {
     licenseInfo.role = parseInt(cachedRole, 10);
-    licenseInfo.maxPrograms = (licenseInfo.role <= 1) ? 5 : Infinity;
+    licenseInfo.maxPrograms = (licenseInfo.role <= 1) ? 20 : Infinity;
     licenseInfo.lastChecked = cachedLastChecked ? parseInt(cachedLastChecked, 10) : null;
   }
 
@@ -921,7 +921,8 @@ function setupIpcHandlers() {
   // Sync all programs
   ipcMain.handle('sync-all', async () => {
     try {
-      const result = await syncEngine.syncAll();
+      // Pass program limit for demo accounts
+      const result = await syncEngine.syncAll(licenseInfo.maxPrograms);
 
       // If stats upload is enabled and we have pending data, upload it
       if (result.pendingStatsUpload && result.pendingStatsUpload.length > 0) {
@@ -1019,7 +1020,7 @@ function setupIpcHandlers() {
     db.setSecureSetting('api_key', '');
     licenseInfo.valid = false;
     licenseInfo.role = 0;
-    licenseInfo.maxPrograms = 5;
+    licenseInfo.maxPrograms = 20;
     return { success: true };
   });
 
