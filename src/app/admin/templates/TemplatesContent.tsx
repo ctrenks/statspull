@@ -35,6 +35,7 @@ const SOFTWARE_TYPES = [
   { value: "deckmedia", label: "DeckMedia" },
   { value: "ego", label: "EGO" },
   { value: "income-access", label: "Income Access" },
+  { value: "map", label: "MAP" },
   { value: "mexos", label: "Mexos" },
   { value: "myaffiliates", label: "MyAffiliates" },
   { value: "netrefer", label: "NetRefer" },

@@ -427,6 +427,7 @@ const SOFTWARE_TO_PROVIDER = {
   'rtg-original': 'RTG_ORIGINAL',
   'rival': 'RIVAL',
   'casino-rewards': 'CASINO_REWARDS',
+  'map': 'MAP',
   'custom': 'CUSTOM'
 };
 
@@ -912,6 +913,7 @@ function setupIpcHandlers() {
       { code: 'NUMBER1AFFILIATES', name: 'Number 1 Affiliates', authType: 'CREDENTIALS', icon: '🔢', description: 'Custom scraper for monthly reports' },
       { code: 'PARTNERMATRIX', name: 'PartnerMatrix', authType: 'CREDENTIALS', icon: '📈' },
       { code: 'SCALEO', name: 'Scaleo', authType: 'API_KEY', icon: '⚡', apiKeyLabel: 'API Key' },
+      { code: 'MAP', name: 'MAP', authType: 'CREDENTIALS', icon: '🗺️', description: 'MAP affiliate platform' },
       { code: 'CUSTOM', name: 'Custom / Other', authType: 'CREDENTIALS', icon: '⚙️' }
     ];
 

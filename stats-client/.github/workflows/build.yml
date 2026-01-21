@@ -29,6 +29,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sign Windows App with Azure Trusted Signing
+        continue-on-error: true  # Don't fail build if signing fails
+        if: ${{ secrets.AZURE_CLIENT_ID != '' }}
         uses: azure/trusted-signing-action@v0.3.16
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
