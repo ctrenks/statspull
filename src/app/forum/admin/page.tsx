@@ -26,6 +26,9 @@ function Header({ session }: { session: { user?: { name?: string | null; email?:
             <Link href="/forum" className="text-emerald-400 font-medium">
               Forum
             </Link>
+            <Link href="/help" className="text-gray-400 hover:text-white transition">
+              Help
+            </Link>
             {session?.user ? (
               <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition">
                 Dashboard

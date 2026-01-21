@@ -49,12 +49,14 @@ export default async function SubscribePage() {
                   <Link href="/downloads" className="btn-ghost">Download</Link>
                   <Link href="/subscribe" className="btn-ghost text-primary-400">Pricing</Link>
                   <Link href="/forum" className="btn-ghost">Forum</Link>
+                  <Link href="/help" className="btn-ghost">Help</Link>
                 </>
               ) : (
                 <>
                   <Link href="/downloads" className="btn-ghost">Download</Link>
                   <Link href="/subscribe" className="btn-ghost text-primary-400">Pricing</Link>
                   <Link href="/forum" className="btn-ghost">Forum</Link>
+                  <Link href="/help" className="btn-ghost">Help</Link>
                   <Link href="/auth/signin" className="btn-ghost">Sign In</Link>
                   <Link href="/auth/signup" className="btn-primary">Get Started</Link>
                 </>

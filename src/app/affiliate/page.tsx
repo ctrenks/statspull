@@ -77,12 +77,13 @@ export default async function AffiliatePage() {
             </Link>
 
             <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="btn-ghost">
-                Dashboard
-              </Link>
-              <Link href="/profile" className="btn-ghost">
-                Profile
-              </Link>
+              <Link href="/programs" className="btn-ghost">My Programs</Link>
+              <Link href="/stats" className="btn-ghost">My Stats</Link>
+              <Link href="/dashboard" className="btn-ghost">Dashboard</Link>
+              <Link href="/downloads" className="btn-ghost">Download</Link>
+              <Link href="/subscribe" className="btn-ghost">Pricing</Link>
+              <Link href="/forum" className="btn-ghost">Forum</Link>
+              <Link href="/help" className="btn-ghost">Help</Link>
             </div>
           </div>
         </div>

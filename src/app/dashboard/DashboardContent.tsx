@@ -72,9 +72,10 @@ export default function DashboardContent({ user }: { user: User }) {
       if (statsRes.ok) {
         const data = await statsRes.json();
         const allStats = data.stats || [];
+        // Only sum positive revenue - negative balances don't deduct, they just won't pay
         const totals = allStats.reduce(
           (acc: Stats, s: { revenue: number; signups: number; ftds: number }) => ({
-            revenue: acc.revenue + s.revenue,
+            revenue: acc.revenue + (s.revenue > 0 ? s.revenue : 0),
             signups: acc.signups + s.signups,
             ftds: acc.ftds + s.ftds,
             hasStats: true,
