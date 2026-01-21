@@ -469,7 +469,7 @@ class SyncEngine {
       'RIVAL': this.syncRival,
       'CASINO_REWARDS': this.syncCasinoRewards,
       'NUMBER1AFFILIATES': this.syncNumber1Affiliates,
-      'MAP': this.syncCustom,  // MAP uses custom/generic scraping for now
+      'MAP': this.syncMAP,
       'CUSTOM': this.syncCustom
     };
     return handlers[provider];
@@ -2949,9 +2949,254 @@ class SyncEngine {
     }
   }
 
+  // MAP Affiliate Platform scraper
+  async syncMAP({ program, credentials, config, loginUrl, scraper }) {
+    const scr = scraper || this.scraper;
+    const login = loginUrl || config?.loginUrl;
+
+    if (!login) {
+      throw new Error('MAP requires a login URL');
+    }
+
+    this.log('Starting MAP scrape...');
+    await scr.launch();
+    const page = await scr.browser.newPage();
+
+    try {
+      // Step 1: Navigate to login
+      this.log(`Navigating to login: ${login}`);
+      await page.goto(login, { waitUntil: 'networkidle2', timeout: 60000 });
+      await scr.delay(2000);
+
+      // Step 2: Fill login form
+      const username = credentials.username;
+      const password = credentials.password;
+
+      if (!username || !password) {
+        throw new Error('Username and password required');
+      }
+
+      // Try common login selectors for MAP
+      const usernameSelectors = ['input[name="username"]', 'input[name="txtUser"]', '#txtUser', 'input[type="text"]', '#username'];
+      const passwordSelectors = ['input[name="password"]', 'input[name="txtPassword"]', '#txtPassword', 'input[type="password"]'];
+
+      let usernameField = null;
+      for (const sel of usernameSelectors) {
+        usernameField = await page.$(sel);
+        if (usernameField) break;
+      }
+
+      let passwordField = null;
+      for (const sel of passwordSelectors) {
+        passwordField = await page.$(sel);
+        if (passwordField) break;
+      }
+
+      if (usernameField && passwordField) {
+        await usernameField.type(username, { delay: 50 });
+        await passwordField.type(password, { delay: 50 });
+
+        // Find and click submit
+        const submitBtn = await page.$('button[type="submit"], input[type="submit"], #btnLogin, .btn-login');
+        if (submitBtn) {
+          await submitBtn.click();
+        } else {
+          await page.keyboard.press('Enter');
+        }
+
+        await scr.delay(3000);
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+      } else {
+        throw new Error('Could not find login form fields');
+      }
+
+      this.log('✓ Logged in');
+
+      // Step 3: Navigate to reports/activity page
+      const baseUrl = login.replace(/\/[^/]*$/, '').replace(/\/+$/, '');
+      const reportsUrl = `${baseUrl}/reportsactivity.aspx`;
+      this.log(`Navigating to reports: ${reportsUrl}`);
+      await page.goto(reportsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await scr.delay(2000);
+
+      // Get exchange rates for currency conversion
+      const exchangeRates = await this.getExchangeRates();
+      this.log(`Loaded exchange rates: GBP=${exchangeRates.GBP}, EUR=${exchangeRates.EUR}`);
+
+      const allStats = [];
+
+      // Fetch both this month and last month
+      for (const period of ['thisMonth', 'lastMonth']) {
+        const dateValue = period === 'thisMonth' ? '4' : '5';
+        this.log(`Fetching ${period}...`);
+
+        // Select date range using Select2 dropdown
+        await page.select('#ContentPlaceHolder1_ddlviewby', dateValue);
+        await scr.delay(1500); // Wait for ASP.NET postback
+
+        // Ensure "All Brands" is selected
+        await page.select('#ContentPlaceHolder1_ddlBrand', '0');
+        await scr.delay(500);
+
+        // Click search button
+        await page.click('#btnSearch');
+        await scr.delay(3000); // Wait for results to load
+
+        // Wait for table to update
+        await page.waitForSelector('#gvActivityreport tbody tr', { timeout: 10000 }).catch(() => {});
+        await scr.delay(1000);
+
+        // Parse the results table
+        const periodData = await page.evaluate(() => {
+          const table = document.querySelector('#gvActivityreport');
+          if (!table) return null;
+
+          const rows = table.querySelectorAll('tbody tr');
+          const data = {
+            impressions: 0,
+            clicks: 0,
+            signups: 0,
+            ftds: 0,
+            currencyData: []
+          };
+
+          rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 12) {
+              const brand = cells[0].textContent.trim();
+              const impressions = parseInt(cells[1].textContent.replace(/[^0-9.-]/g, '')) || 0;
+              const clicks = parseInt(cells[2].textContent.replace(/[^0-9.-]/g, '')) || 0;
+              const signups = parseInt(cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
+              const ftds = parseInt(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
+              const currencyText = cells[7].textContent.trim();
+              const deposits = parseFloat(cells[8].textContent.replace(/[^0-9.-]/g, '')) || 0;
+              const netRevenue = parseFloat(cells[10].textContent.replace(/[^0-9.-]/g, '')) || 0;
+              const commission = parseFloat(cells[11].textContent.replace(/[^0-9.-]/g, '')) || 0;
+
+              // Extract currency code from format like "GBP(£)" or "EUR(€)"
+              let currency = 'USD';
+              const currencyMatch = currencyText.match(/^([A-Z]{3})/);
+              if (currencyMatch) {
+                currency = currencyMatch[1];
+              }
+
+              data.impressions += impressions;
+              data.clicks += clicks;
+              data.signups += signups;
+              data.ftds += ftds;
+
+              // Store per-brand currency data for conversion
+              data.currencyData.push({
+                brand,
+                currency,
+                deposits,
+                revenue: commission || netRevenue
+              });
+            }
+          });
+
+          return data;
+        });
+
+        if (periodData && periodData.currencyData.length > 0) {
+          // Convert all amounts to USD
+          let totalDepositsUSD = 0;
+          let totalRevenueUSD = 0;
+
+          for (const item of periodData.currencyData) {
+            const rate = exchangeRates[item.currency] || 1;
+            // Exchange rates are typically X per 1 USD, so we divide
+            const depositsUSD = item.deposits / rate;
+            const revenueUSD = item.revenue / rate;
+
+            this.log(`  ${item.brand}: ${item.currency} deposits=${item.deposits} -> USD ${depositsUSD.toFixed(2)}, revenue=${item.revenue} -> USD ${revenueUSD.toFixed(2)}`);
+
+            totalDepositsUSD += depositsUSD;
+            totalRevenueUSD += revenueUSD;
+          }
+
+          // Calculate date for this period
+          const now = new Date();
+          let statDate;
+          if (period === 'thisMonth') {
+            statDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          } else {
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+            statDate = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-15`;
+          }
+
+          allStats.push({
+            date: statDate,
+            impressions: periodData.impressions,
+            clicks: periodData.clicks,
+            signups: periodData.signups,
+            ftds: periodData.ftds,
+            deposits: Math.round(totalDepositsUSD * 100), // Convert to cents
+            revenue: Math.round(totalRevenueUSD * 100)
+          });
+
+          this.log(`${period}: clicks=${periodData.clicks}, signups=${periodData.signups}, ftds=${periodData.ftds}, deposits=$${totalDepositsUSD.toFixed(2)}, revenue=$${totalRevenueUSD.toFixed(2)}`);
+        } else {
+          this.log(`No data found for ${period}`);
+        }
+      }
+
+      await page.close();
+
+      this.log(`✓ MAP sync complete: ${allStats.length} month(s)`);
+      return allStats;
+
+    } catch (error) {
+      this.log(`MAP error: ${error.message}`, 'error');
+      await page.close();
+      throw error;
+    }
+  }
+
+  // Get exchange rates from API (cached for 1 hour)
+  async getExchangeRates() {
+    // Check cache
+    if (this._exchangeRates && this._exchangeRatesTime && (Date.now() - this._exchangeRatesTime) < 3600000) {
+      return this._exchangeRates;
+    }
+
+    try {
+      // Use frankfurter.app - free, no API key required
+      const response = await this.httpRequest('https://api.frankfurter.app/latest?from=USD');
+      if (response.data && response.data.rates) {
+        this._exchangeRates = response.data.rates;
+        // Add USD as 1
+        this._exchangeRates.USD = 1;
+        this._exchangeRatesTime = Date.now();
+        this.log(`Fetched exchange rates from API`);
+        return this._exchangeRates;
+      }
+    } catch (error) {
+      this.log(`Exchange rate API error: ${error.message}, using fallback rates`);
+    }
+
+    // Fallback rates (approximate)
+    this._exchangeRates = {
+      USD: 1,
+      EUR: 0.92,
+      GBP: 0.79,
+      CAD: 1.36,
+      AUD: 1.53,
+      CHF: 0.88,
+      SEK: 10.5,
+      NOK: 10.8,
+      DKK: 6.9,
+      NZD: 1.65
+    };
+    this._exchangeRatesTime = Date.now();
+    return this._exchangeRates;
+  }
+
   async syncCustom({ program, credentials, config }) {
     throw new Error('Custom providers require manual configuration');
   }
 }
+
+module.exports = SyncEngine;
 
 module.exports = SyncEngine;
