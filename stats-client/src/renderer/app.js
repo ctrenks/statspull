@@ -2020,6 +2020,10 @@ async function syncAllPrograms() {
     // Refresh data
     await loadDashboardData();
     await loadPrograms();
+    // Also refresh stats view if it's visible
+    if (document.getElementById('statsView')?.classList.contains('active')) {
+      await loadStats();
+    }
   } catch (error) {
     log("Sync error: " + error.message, "error");
     showToast("Sync error: " + error.message, "error");
@@ -2070,6 +2074,10 @@ async function syncProgram(programId) {
 
     await loadPrograms();
     await loadDashboardData();
+    // Also refresh stats view if it's visible
+    if (document.getElementById('statsView')?.classList.contains('active')) {
+      await loadStats();
+    }
   } catch (error) {
     log("Sync error: " + error.message, "error");
     showToast("Sync error: " + error.message, "error");

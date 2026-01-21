@@ -2805,7 +2805,7 @@ class SyncEngine {
           'button:contains("Show")',
           '.dx-button'
         ];
-        
+
         for (const sel of selectors) {
           try {
             const btn = document.querySelector(sel);
@@ -2815,7 +2815,7 @@ class SyncEngine {
             }
           } catch (e) {}
         }
-        
+
         // Also try finding button by text content
         const buttons = document.querySelectorAll('button, input[type="button"], .btn');
         for (const btn of buttons) {
@@ -2825,7 +2825,7 @@ class SyncEngine {
             return 'text: ' + text;
           }
         }
-        
+
         return null;
       });
 
