@@ -3019,6 +3019,30 @@ class SyncEngine {
       await page.goto(reportsUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(2000);
 
+      // Step 4: Set up report filters (only once, before first search)
+      // Select "Monthly Report" (value=2) from Report Display Type
+      this.log('Selecting Monthly Report...');
+      await page.select('#ContentPlaceHolder1_ddltype', '2');
+      await scr.delay(1500); // Wait for ASP.NET postback
+
+      // Select "All Brands" (value=0)
+      this.log('Selecting All Brands...');
+      await page.select('#ContentPlaceHolder1_ddlBrand', '0');
+      await scr.delay(1000);
+
+      // Ensure "Include Clicks & Impressions" checkbox is checked
+      const clicksCheckbox = await page.$('#ContentPlaceHolder1_chkclicks');
+      if (clicksCheckbox) {
+        const isChecked = await page.evaluate(el => el.checked, clicksCheckbox);
+        if (!isChecked) {
+          this.log('Checking Include Clicks & Impressions...');
+          await clicksCheckbox.click();
+          await scr.delay(1000);
+        } else {
+          this.log('Include Clicks & Impressions already checked');
+        }
+      }
+
       // Get exchange rates for currency conversion
       const exchangeRates = await this.getExchangeRates();
       this.log(`Loaded exchange rates: GBP=${exchangeRates.GBP}, EUR=${exchangeRates.EUR}`);
@@ -3030,13 +3054,9 @@ class SyncEngine {
         const dateValue = period === 'thisMonth' ? '4' : '5';
         this.log(`Fetching ${period}...`);
 
-        // Select date range using Select2 dropdown
+        // Select date range (This Month=4, Last Month=5)
         await page.select('#ContentPlaceHolder1_ddlviewby', dateValue);
         await scr.delay(1500); // Wait for ASP.NET postback
-
-        // Ensure "All Brands" is selected
-        await page.select('#ContentPlaceHolder1_ddlBrand', '0');
-        await scr.delay(500);
 
         // Click search button
         await page.click('#btnSearch');
