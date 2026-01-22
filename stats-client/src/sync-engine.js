@@ -2996,6 +2996,16 @@ class SyncEngine {
         await usernameField.type(username, { delay: 50 });
         await passwordField.type(password, { delay: 50 });
 
+        // Check "Remember Me" checkbox if present
+        const rememberMe = await page.$('input[type="checkbox"][name*="remember"], input[type="checkbox"][id*="remember"], #RememberMe, .remember-me input');
+        if (rememberMe) {
+          const isChecked = await page.evaluate(el => el.checked, rememberMe);
+          if (!isChecked) {
+            await rememberMe.click();
+            this.log('Checked Remember Me');
+          }
+        }
+
         // Find and click submit
         const submitBtn = await page.$('button[type="submit"], input[type="submit"], #btnLogin, .btn-login');
         if (submitBtn) {
@@ -3066,10 +3076,38 @@ class SyncEngine {
         await page.waitForSelector('#gvActivityreport tbody tr', { timeout: 10000 }).catch(() => {});
         await scr.delay(1000);
 
-        // Parse the results table
+        // Parse the results table - get column headers first to find correct indices
         const periodData = await page.evaluate(() => {
           const table = document.querySelector('#gvActivityreport');
           if (!table) return null;
+
+          // First, get the header row to find column indices dynamically
+          const headerRow = table.querySelector('thead tr');
+          const headers = [];
+          if (headerRow) {
+            headerRow.querySelectorAll('th').forEach((th, idx) => {
+              headers.push(th.textContent.trim().toLowerCase());
+            });
+          }
+
+          // Find column indices by header name
+          const findCol = (names) => {
+            for (const name of names) {
+              const idx = headers.findIndex(h => h.includes(name));
+              if (idx !== -1) return idx;
+            }
+            return -1;
+          };
+
+          const colBrand = findCol(['brand']);
+          const colImpressions = findCol(['impression']);
+          const colClicks = findCol(['clicks']);
+          const colReg = findCol(['registration', 'signup', 'reg']);
+          const colFTD = findCol(['ftd']);
+          const colCurrency = findCol(['currency']);
+          const colDeposit = findCol(['deposit']);
+          const colNetRevenue = findCol(['net revenue', 'netrevenue']);
+          const colRevCommission = findCol(['revenue commission', 'commission']);
 
           const rows = table.querySelectorAll('tbody tr');
           const data = {
@@ -3077,21 +3115,22 @@ class SyncEngine {
             clicks: 0,
             signups: 0,
             ftds: 0,
-            currencyData: []
+            currencyData: [],
+            debug: { headers, colBrand, colClicks, colFTD, colCurrency, rowCount: rows.length }
           };
 
           rows.forEach(row => {
             const cells = row.querySelectorAll('td');
-            if (cells.length >= 12) {
-              const brand = cells[0].textContent.trim();
-              const impressions = parseInt(cells[1].textContent.replace(/[^0-9.-]/g, '')) || 0;
-              const clicks = parseInt(cells[2].textContent.replace(/[^0-9.-]/g, '')) || 0;
-              const signups = parseInt(cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
-              const ftds = parseInt(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
-              const currencyText = cells[7].textContent.trim();
-              const deposits = parseFloat(cells[8].textContent.replace(/[^0-9.-]/g, '')) || 0;
-              const netRevenue = parseFloat(cells[10].textContent.replace(/[^0-9.-]/g, '')) || 0;
-              const commission = parseFloat(cells[11].textContent.replace(/[^0-9.-]/g, '')) || 0;
+            if (cells.length >= 8) {
+              const brand = colBrand >= 0 ? cells[colBrand]?.textContent.trim() : '';
+              const impressions = colImpressions >= 0 ? parseInt(cells[colImpressions]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+              const clicks = colClicks >= 0 ? parseInt(cells[colClicks]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+              const signups = colReg >= 0 ? parseInt(cells[colReg]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+              const ftds = colFTD >= 0 ? parseInt(cells[colFTD]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+              const currencyText = colCurrency >= 0 ? cells[colCurrency]?.textContent.trim() : 'USD';
+              const deposits = colDeposit >= 0 ? parseFloat(cells[colDeposit]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+              const netRevenue = colNetRevenue >= 0 ? parseFloat(cells[colNetRevenue]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
+              const commission = colRevCommission >= 0 ? parseFloat(cells[colRevCommission]?.textContent.replace(/[^0-9.-]/g, '')) || 0 : 0;
 
               // Extract currency code from format like "GBP(£)" or "EUR(€)"
               let currency = 'USD';
@@ -3110,13 +3149,21 @@ class SyncEngine {
                 brand,
                 currency,
                 deposits,
-                revenue: commission || netRevenue
+                revenue: commission || netRevenue,
+                clicks,
+                ftds
               });
             }
           });
 
           return data;
         });
+
+        // Log debug info
+        if (periodData?.debug) {
+          this.log(`Table debug: ${periodData.debug.rowCount} rows, headers: ${periodData.debug.headers.join(', ')}`);
+          this.log(`Column indices: brand=${periodData.debug.colBrand}, clicks=${periodData.debug.colClicks}, ftd=${periodData.debug.colFTD}, currency=${periodData.debug.colCurrency}`);
+        }
 
         if (periodData && periodData.currencyData.length > 0) {
           // Convert all amounts to USD
@@ -3129,7 +3176,7 @@ class SyncEngine {
             const depositsUSD = item.deposits / rate;
             const revenueUSD = item.revenue / rate;
 
-            this.log(`  ${item.brand}: ${item.currency} deposits=${item.deposits} -> USD ${depositsUSD.toFixed(2)}, revenue=${item.revenue} -> USD ${revenueUSD.toFixed(2)}`);
+            this.log(`  ${item.brand}: clicks=${item.clicks}, ftds=${item.ftds}, ${item.currency} deposits=${item.deposits} -> USD ${depositsUSD.toFixed(2)}, revenue=${item.revenue} -> USD ${revenueUSD.toFixed(2)}`);
 
             totalDepositsUSD += depositsUSD;
             totalRevenueUSD += revenueUSD;
