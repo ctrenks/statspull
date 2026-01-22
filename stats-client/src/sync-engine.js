@@ -1161,7 +1161,8 @@ class SyncEngine {
       monthlyTotals[monthKey].signups += signups;
       monthlyTotals[monthKey].ftds += ftds;
       monthlyTotals[monthKey].deposits += deposits;
-      monthlyTotals[monthKey].revenue += revenue;
+      // Only add positive revenue - negative casino balances don't reduce total
+      monthlyTotals[monthKey].revenue += revenue > 0 ? revenue : 0;
     }
 
     // Add aggregated totals to stats array
