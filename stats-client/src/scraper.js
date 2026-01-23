@@ -4783,171 +4783,139 @@ class Scraper {
     const currentMonthStats = await contentFrame.evaluate(() => {
       const parseNum = (text) => {
         if (!text) return 0;
+        // Remove $, commas, parentheses (for negative), and trim
         text = text.toString().replace(/[$,()]/g, '').trim();
+        // Skip percentage values
+        if (text.includes('%')) return 0;
         const num = parseFloat(text);
         return isNaN(num) ? 0 : num;
       };
 
       // RTG OLD table structure:
-      // - Headers are in nested tables within <td> cells
-      // - First row is often a sizing row with empty cells
-      // - Look for the "Total:" row which has aggregated values
+      // Row 0: Sizing row with WIDTH styles
+      // Row 1: Header row with nested tables containing header text  
+      // Row 2+: Data rows
+      // Last row: Total row
+      //
+      // Cell order in Total/Data rows (0-indexed):
+      // 0: empty, 1: Casino/Total, 2: Clicks, 3: Downloads, 4: Signups,
+      // 5: %, 6: %, 7: Initial Deposits ($), 8: Depositors (FTD!), 9: Deposits ($)
       
-      const bodyText = document.body.textContent;
-      
-      // Strategy 1: Find the Total row directly - it's the most reliable
-      // RTG OLD Total row format: Total: [clicks] [downloads] [signups] [%] [%] [initial_dep_amt] [depositors] [deposits_amt] ...
-      // Based on the HTML: columns are Casino, Clicks, Downloads, Signups, %, %, Initial Deposits ($), Depositors (FTD count), Deposits ($)
-      
-      // Find all rows with "Total:" to get the summary
       const allRows = document.querySelectorAll('tr');
-      let totalRow = null;
       
+      // Find the Total row - look for row where a cell contains exactly "Total:" 
       for (const row of allRows) {
-        const firstCell = row.querySelector('td, th');
-        if (firstCell && firstCell.textContent.trim().toLowerCase().includes('total')) {
-          totalRow = row;
-          break;
-        }
-      }
-      
-      if (totalRow) {
-        const cells = totalRow.querySelectorAll('td, th');
-        const cellValues = [];
-        cells.forEach(cell => {
-          const text = cell.textContent.trim();
-          cellValues.push(text);
-        });
+        const cells = row.querySelectorAll('td, th');
+        if (cells.length < 10) continue;
         
-        console.log('RTG OLD - Found Total row with', cellValues.length, 'cells');
-        console.log('RTG OLD - Total row values:', cellValues.slice(0, 15).join(' | '));
+        // Check if any cell in first few positions contains "Total:"
+        let isTotalRow = false;
+        let totalCellIndex = -1;
         
-        // RTG OLD column order (0-indexed, skipping empty first cell):
-        // 0: Total label, 1: Clicks, 2: Downloads, 3: Signups, 4: %, 5: %, 
-        // 6: Initial Deposits ($), 7: Depositors (FTD count!), 8: Deposits ($)
-        // Note: There may be an empty cell at position 0
-        
-        let offset = 0;
-        // Find the offset by looking for "Total:" text position
-        for (let i = 0; i < cellValues.length; i++) {
-          if (cellValues[i].toLowerCase().includes('total')) {
-            offset = i;
+        for (let i = 0; i < Math.min(3, cells.length); i++) {
+          const cellText = cells[i].textContent.trim();
+          if (cellText.toLowerCase() === 'total:' || cellText.toLowerCase() === 'total') {
+            isTotalRow = true;
+            totalCellIndex = i;
             break;
           }
         }
         
-        // After "Total:", the values are: Clicks, Downloads, Signups, %, %, InitialDep$, Depositors, Deposits$
-        const clicks = parseNum(cellValues[offset + 1]);
-        const downloads = parseNum(cellValues[offset + 2]);
-        const signups = parseNum(cellValues[offset + 3]);
-        // Skip percentages at offset+4 and offset+5
-        const initialDeposits = parseNum(cellValues[offset + 6]); // $ amount
-        const depositors = parseNum(cellValues[offset + 7]); // FTD count
-        const deposits = parseNum(cellValues[offset + 8]); // $ amount
+        if (!isTotalRow) continue;
         
-        // Look for withdrawals and chargebacks in remaining cells
-        let withdrawals = 0, chargebacks = 0;
-        for (let i = offset + 9; i < cellValues.length; i++) {
-          const val = cellValues[i];
-          // Check by position or value pattern
-          if (val.includes('$') || /^\d/.test(val)) {
-            // These come after deposits in order: %, %, %, %, %, Withdrawals($), ...
-          }
-        }
+        // Found Total row! Extract all cell values
+        const cellValues = [];
+        cells.forEach(cell => {
+          // Get text from the div inside if present, otherwise direct text
+          const div = cell.querySelector('div');
+          const text = div ? div.textContent.trim() : cell.textContent.trim();
+          cellValues.push(text);
+        });
         
-        // Try to find withdrawals/chargebacks by looking at specific positions
-        // They're typically around positions 16-17 (Withdrawals), 21-22 (Chargebacks)
-        if (cellValues.length > 16) {
-          withdrawals = parseNum(cellValues[offset + 16]);
-        }
-        if (cellValues.length > 21) {
-          chargebacks = parseNum(cellValues[offset + 21]);
-        }
+        console.log('RTG OLD - Found Total row at index', totalCellIndex);
+        console.log('RTG OLD - Cell values (first 12):', cellValues.slice(0, 12).join(' | '));
         
-        console.log('RTG OLD - Parsed: clicks=' + clicks + ', signups=' + signups + ', ftds=' + depositors + ', deposits=' + deposits);
+        // Column mapping from Total: position
+        // totalCellIndex = where "Total:" is (usually 1)
+        // Clicks = totalCellIndex + 1
+        // Downloads = totalCellIndex + 2  
+        // Signups = totalCellIndex + 3
+        // % = totalCellIndex + 4
+        // % = totalCellIndex + 5
+        // Initial Deposits $ = totalCellIndex + 6
+        // Depositors (FTD!) = totalCellIndex + 7
+        // Deposits $ = totalCellIndex + 8
+        
+        const clicksIdx = totalCellIndex + 1;
+        const signupsIdx = totalCellIndex + 3;
+        const ftdsIdx = totalCellIndex + 7;  // Depositors column = FTD count
+        const depositsIdx = totalCellIndex + 8;
+        const withdrawalsIdx = totalCellIndex + 15; // Withdrawals column (after more % columns)
+        
+        const clicks = parseNum(cellValues[clicksIdx]);
+        const signups = parseNum(cellValues[signupsIdx]);
+        const ftds = parseNum(cellValues[ftdsIdx]);
+        const deposits = parseNum(cellValues[depositsIdx]);
+        const withdrawals = cellValues[withdrawalsIdx] ? parseNum(cellValues[withdrawalsIdx]) : 0;
+        
+        console.log('RTG OLD - Extracted: clicks=' + clicks + ' (idx ' + clicksIdx + ')');
+        console.log('RTG OLD - Extracted: signups=' + signups + ' (idx ' + signupsIdx + ')');
+        console.log('RTG OLD - Extracted: ftds=' + ftds + ' (idx ' + ftdsIdx + ', value="' + cellValues[ftdsIdx] + '")');
+        console.log('RTG OLD - Extracted: deposits=' + deposits + ' (idx ' + depositsIdx + ')');
         
         return {
           clicks: clicks,
           signups: signups,
-          ftds: depositors,
+          ftds: ftds,
           deposits: deposits,
           withdrawals: withdrawals,
-          chargebacks: chargebacks
+          chargebacks: 0
         };
       }
       
-      // Strategy 2: Find data row (non-Total) and parse it
-      console.log('RTG OLD - No Total row found, looking for data rows');
+      console.log('RTG OLD - No Total row found, trying data rows...');
       
-      // Look for rows that have casino names (not headers, not totals)
+      // Fallback: Find first data row (casino name row)
       for (const row of allRows) {
         const cells = row.querySelectorAll('td');
         if (cells.length < 10) continue;
         
-        const firstCellText = cells[0]?.textContent.trim().toLowerCase() || '';
-        const secondCellText = cells[1]?.textContent.trim().toLowerCase() || '';
-        
-        // Skip header rows (contain "casino", "clicks" as headers)
-        if (firstCellText.includes('casino') || secondCellText.includes('casino')) continue;
-        // Skip Total row
-        if (firstCellText.includes('total') || secondCellText.includes('total')) continue;
-        // Skip sizing rows (empty or just dimensions)
-        if (!firstCellText && !secondCellText) continue;
-        
-        // This looks like a data row
+        // Get cell values
         const cellValues = [];
-        cells.forEach(cell => cellValues.push(cell.textContent.trim()));
+        cells.forEach(cell => {
+          const div = cell.querySelector('div');
+          const text = div ? div.textContent.trim() : cell.textContent.trim();
+          cellValues.push(text);
+        });
         
-        console.log('RTG OLD - Found data row:', cellValues.slice(0, 10).join(' | '));
+        // Skip empty rows, header rows, sizing rows
+        const cell1Text = cellValues[1] || '';
+        if (!cell1Text) continue;
+        if (cell1Text.toLowerCase().includes('casino')) continue; // Header
+        if (cell1Text.toLowerCase().includes('total')) continue; // Total row (already handled)
         
-        // Find offset (first non-empty cell or cell with casino name)
-        let offset = 0;
-        for (let i = 0; i < cellValues.length; i++) {
-          if (cellValues[i] && !cellValues[i].includes('px')) {
-            offset = i;
-            break;
-          }
-        }
+        // This should be a data row with casino name in cell 1
+        // Check if cell 2 looks like a number (clicks)
+        if (!/^\d+$/.test(cellValues[2])) continue;
         
-        // Parse: offset = casino name, then Clicks, Downloads, Signups, %, %, InitialDep, Depositors, Deposits
-        const clicks = parseNum(cellValues[offset + 1]);
-        const signups = parseNum(cellValues[offset + 3]);
-        const depositors = parseNum(cellValues[offset + 7]); // FTD count
-        const deposits = parseNum(cellValues[offset + 8]);
+        console.log('RTG OLD - Using data row:', cellValues.slice(0, 10).join(' | '));
         
-        console.log('RTG OLD - From data row: clicks=' + clicks + ', signups=' + signups + ', ftds=' + depositors);
+        const clicks = parseNum(cellValues[2]);
+        const signups = parseNum(cellValues[4]);
+        const ftds = parseNum(cellValues[8]); // Depositors
+        const deposits = parseNum(cellValues[9]);
         
         return {
           clicks: clicks,
           signups: signups,
-          ftds: depositors,
+          ftds: ftds,
           deposits: deposits,
           withdrawals: 0,
           chargebacks: 0
         };
       }
       
-      // Strategy 3: Fallback to text parsing
-      console.log('RTG OLD - Falling back to text parsing');
-      
-      // Look for the Total row pattern in text
-      // Format: "Total: 336 0 89 0.00% 0.00% $ 20.00 1 $ 95.00 ..."
-      const totalPattern = /Total:\s*(\d+)\s+\d+\s+(\d+)\s+[\d.]+%\s+[\d.]+%\s+\$\s*[\d,.]+\s+(\d+)\s+\$\s*([\d,.]+)/;
-      const totalMatch = bodyText.match(totalPattern);
-      
-      if (totalMatch) {
-        console.log('RTG OLD - Matched total pattern');
-        return {
-          clicks: parseNum(totalMatch[1]),
-          signups: parseNum(totalMatch[2]),
-          ftds: parseNum(totalMatch[3]),
-          deposits: parseNum(totalMatch[4]),
-          withdrawals: 0,
-          chargebacks: 0
-        };
-      }
-      
-      console.log('RTG OLD - Could not parse stats');
+      console.log('RTG OLD - Could not find stats in table');
       return { clicks: 0, signups: 0, ftds: 0, deposits: 0, withdrawals: 0, chargebacks: 0 };
     });
 
