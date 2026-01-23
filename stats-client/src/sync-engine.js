@@ -179,7 +179,11 @@ class SyncEngine {
     if (otherPrograms.length > 0) {
       // Get concurrency limit from settings (default: 5)
       const concurrencySetting = this.db.getSetting('syncConcurrency');
-      const CONCURRENCY_LIMIT = concurrencySetting ? parseInt(concurrencySetting) : 5;
+      this.log(`[DEBUG] Raw syncConcurrency setting: "${concurrencySetting}" (type: ${typeof concurrencySetting})`);
+      const parsedValue = concurrencySetting ? parseInt(concurrencySetting, 10) : 5;
+      // Ensure valid number between 1 and 20
+      const CONCURRENCY_LIMIT = (parsedValue >= 1 && parsedValue <= 20) ? parsedValue : 5;
+      this.log(`[DEBUG] Parsed concurrency: ${parsedValue}, using: ${CONCURRENCY_LIMIT}`);
       this.log(`Syncing ${otherPrograms.length} non-Rival programs (max ${CONCURRENCY_LIMIT} concurrent)...`);
 
       for (let i = 0; i < otherPrograms.length; i += CONCURRENCY_LIMIT) {
