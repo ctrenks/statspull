@@ -46,6 +46,48 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
+      - name: Regenerate latest.yml with signed EXE checksum
+        run: |
+          # Get the signed EXE file
+          $exeFile = Get-ChildItem -Path "dist" -Filter "*.exe" | Where-Object { $_.Name -notlike "*blockmap*" } | Select-Object -First 1
+          if ($exeFile) {
+            Write-Host "Regenerating latest.yml for: $($exeFile.Name)"
+            
+            # Calculate SHA512 hash
+            $hash = Get-FileHash -Path $exeFile.FullName -Algorithm SHA512
+            $base64Hash = [Convert]::ToBase64String([byte[]]::new(64))
+            $hashBytes = [System.Convert]::FromHexString($hash.Hash)
+            $base64Hash = [System.Convert]::ToBase64String($hashBytes)
+            
+            # Get file size
+            $size = $exeFile.Length
+            
+            # Get version from package.json
+            $packageJson = Get-Content -Path "package.json" | ConvertFrom-Json
+            $version = $packageJson.version
+            
+            # Generate latest.yml
+            $latestYml = @"
+          version: $version
+          files:
+            - url: $($exeFile.Name)
+              sha512: $base64Hash
+              size: $size
+          path: $($exeFile.Name)
+          sha512: $base64Hash
+          releaseDate: '$((Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))'
+          "@
+            
+            # Write to file
+            $latestYml | Out-File -FilePath "dist/latest.yml" -Encoding utf8 -NoNewline
+            Write-Host "Generated latest.yml with SHA512: $base64Hash"
+            Get-Content "dist/latest.yml"
+          } else {
+            Write-Host "No EXE file found!"
+            exit 1
+          }
+        shell: pwsh
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
