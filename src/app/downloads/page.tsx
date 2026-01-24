@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 
+// Force dynamic rendering - no caching for this page
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata = {
   title: "Download Stats Fetch - Windows & Mac",
   description: "Download Stats Fetch desktop app for Windows and Mac. Collect your iGaming affiliate stats automatically.",
@@ -9,7 +13,7 @@ export const metadata = {
 async function getLatestRelease() {
   try {
     const res = await fetch('https://api.github.com/repos/ctrenks/statspull/releases/latest', {
-      next: { revalidate: 300 } // Cache for 5 minutes
+      cache: 'no-store' // Never cache - always get fresh data
     });
 
     if (!res.ok) return null;
