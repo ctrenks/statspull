@@ -2366,6 +2366,12 @@ function createUpdateBanner() {
         await window.api.downloadUpdate();
       } else if (btn.dataset.action === "install") {
         await window.api.installUpdate();
+      } else if (btn.dataset.action === "retry") {
+        // Retry - check for updates again
+        btn.textContent = "Checking...";
+        btn.disabled = true;
+        updateBanner.style.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+        await window.api.checkForUpdates();
       }
     });
 
@@ -2432,10 +2438,14 @@ function handleUpdateStatus(data) {
     case "error":
       banner.style.display = "flex";
       messageEl.textContent = message;
-      actionBtn.style.display = "none";
+      actionBtn.style.display = "block";
+      actionBtn.textContent = "Retry";
+      actionBtn.dataset.action = "retry";
+      actionBtn.disabled = false;
       progressDiv.style.display = "none";
       banner.style.background =
         "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)";
+      showToast(message, "error");
       break;
   }
 }
