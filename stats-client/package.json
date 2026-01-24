@@ -1,6 +1,6 @@
 {
   "name": "affiliate-stats-client",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Stats Fetch - Desktop client for affiliate program statistics",
   "main": "src/main.js",
   "scripts": {
@@ -34,7 +34,7 @@
       {
         "provider": "github",
         "owner": "ctrenks",
-        "repo": "stats-client"
+        "repo": "statspull"
       }
     ],
     "directories": {
