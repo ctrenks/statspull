@@ -1889,14 +1889,14 @@ class SyncEngine {
       const currentUrl = page.url();
       const urlPath = new URL(currentUrl).pathname.toLowerCase();
       const urlHash = new URL(currentUrl).hash.toLowerCase();
-      
+
       // Check for logged-in indicators: dashboard/statistics in URL or no login form present
-      let isAlreadyLoggedIn = urlPath.includes('/dashboard') || 
+      let isAlreadyLoggedIn = urlPath.includes('/dashboard') ||
                               urlPath.includes('/statistics') ||
                               urlHash.includes('/dashboard') ||
                               urlHash.includes('/statistics') ||
                               urlHash.includes('/home');
-      
+
       // Also check if login form exists
       if (!isAlreadyLoggedIn) {
         const hasLoginForm = await page.$('input[type="password"]');
@@ -1913,7 +1913,7 @@ class SyncEngine {
         this.log(`Mexos - ✓ Already logged in via cookies, skipping login form`);
       } else {
         this.log('Mexos - logging in...');
-        
+
         // Fill login form
         const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[name="login"]', '#username', '#email', 'input[type="text"]', 'input[type="email"]'];
         const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
