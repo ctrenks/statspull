@@ -84,7 +84,12 @@ const LICENSE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 let licenseCheckTimer = null;
 let schedulerInterval = null;
 
-// Configure auto-updater
+// Configure auto-updater - explicitly set GitHub repo to ensure correct update source
+autoUpdater.setFeedURL({
+  provider: 'github',
+  owner: 'ctrenks',
+  repo: 'statspull'
+});
 autoUpdater.autoDownload = false; // Don't auto-download, ask user first
 autoUpdater.autoInstallOnAppQuit = true; // Install update when app quits
 autoUpdater.logger = {

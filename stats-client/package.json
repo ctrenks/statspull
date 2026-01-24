@@ -1,6 +1,6 @@
 {
   "name": "affiliate-stats-client",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "description": "Stats Fetch - Desktop client for affiliate program statistics",
   "main": "src/main.js",
   "scripts": {
@@ -53,10 +53,7 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false,
-      "installerIcon": "build/icon.png",
-      "uninstallerIcon": "build/icon.png",
-      "installerHeaderIcon": "build/icon.png"
+      "perMachine": false
     },
     "forceCodeSigning": false,
     "mac": {
