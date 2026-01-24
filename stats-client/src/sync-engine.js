@@ -1871,7 +1871,7 @@ class SyncEngine {
       throw new Error('Username and password required for Mexos');
     }
 
-    this.log('Mexos - logging in...');
+    this.log('Mexos - starting...');
 
     // Launch browser and create page
     await scr.launch();
@@ -1885,42 +1885,72 @@ class SyncEngine {
       await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       await scr.delay(3000);
 
-      // Fill login form
-      const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[name="login"]', '#username', '#email', 'input[type="text"]', 'input[type="email"]'];
-      const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
-
-      for (const sel of usernameSelectors) {
-        try {
-          const exists = await page.$(sel);
-          if (exists) {
-            await page.type(sel, username);
-            this.log(`Mexos - filled username`);
-            break;
+      // Check if already logged in (cookies loaded from previous session)
+      const currentUrl = page.url();
+      const urlPath = new URL(currentUrl).pathname.toLowerCase();
+      const urlHash = new URL(currentUrl).hash.toLowerCase();
+      
+      // Check for logged-in indicators: dashboard/statistics in URL or no login form present
+      let isAlreadyLoggedIn = urlPath.includes('/dashboard') || 
+                              urlPath.includes('/statistics') ||
+                              urlHash.includes('/dashboard') ||
+                              urlHash.includes('/statistics') ||
+                              urlHash.includes('/home');
+      
+      // Also check if login form exists
+      if (!isAlreadyLoggedIn) {
+        const hasLoginForm = await page.$('input[type="password"]');
+        if (!hasLoginForm) {
+          // No password field = likely already logged in
+          const hasLogoutBtn = await page.$('a[href*="logout"], button[class*="logout"], .logout, [ng-click*="logout"]');
+          if (hasLogoutBtn) {
+            isAlreadyLoggedIn = true;
           }
-        } catch (e) { /* try next */ }
+        }
       }
 
-      for (const sel of passwordSelectors) {
-        try {
-          const exists = await page.$(sel);
-          if (exists) {
-            await page.type(sel, password);
-            this.log(`Mexos - filled password`);
-            break;
-          }
-        } catch (e) { /* try next */ }
-      }
+      if (isAlreadyLoggedIn) {
+        this.log(`Mexos - ✓ Already logged in via cookies, skipping login form`);
+      } else {
+        this.log('Mexos - logging in...');
+        
+        // Fill login form
+        const usernameSelectors = ['input[name="username"]', 'input[name="email"]', 'input[name="login"]', '#username', '#email', 'input[type="text"]', 'input[type="email"]'];
+        const passwordSelectors = ['input[name="password"]', '#password', 'input[type="password"]'];
 
-      // Submit login
-      const submitBtn = await page.$('button[type="submit"], input[type="submit"], .btn-primary, .login-btn');
-      if (submitBtn) {
-        await Promise.all([
-          submitBtn.click(),
-          page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
-        ]);
-      }
+        for (const sel of usernameSelectors) {
+          try {
+            const exists = await page.$(sel);
+            if (exists) {
+              await page.type(sel, username);
+              this.log(`Mexos - filled username`);
+              break;
+            }
+          } catch (e) { /* try next */ }
+        }
 
-      await scr.delay(4000);
+        for (const sel of passwordSelectors) {
+          try {
+            const exists = await page.$(sel);
+            if (exists) {
+              await page.type(sel, password);
+              this.log(`Mexos - filled password`);
+              break;
+            }
+          } catch (e) { /* try next */ }
+        }
+
+        // Submit login
+        const submitBtn = await page.$('button[type="submit"], input[type="submit"], .btn-primary, .login-btn');
+        if (submitBtn) {
+          await Promise.all([
+            submitBtn.click(),
+            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
+          ]);
+        }
+
+        await scr.delay(4000);
+      }
 
       // Navigate to statistics page (Angular hash routing)
       const statsUrl = baseUrl.replace(/\/$/, '') + '/#/statistics';
