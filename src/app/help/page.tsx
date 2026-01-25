@@ -94,115 +94,76 @@ function HelpContent() {
         </p>
       </div>
 
-      {/* Getting Started Section */}
+      {/* Video Tutorials Section */}
       <section className="mb-16">
         <h2 className="text-2xl font-bold font-display mb-8 flex items-center gap-3">
           <span className="w-10 h-10 rounded-lg bg-primary-500/20 flex items-center justify-center text-primary-400">
-            🚀
+            🎬
           </span>
-          Getting Started
+          Video Tutorials
         </h2>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-8">
+          {/* Step 1: Account & API Key */}
           <div className="card overflow-hidden">
-            <div className="aspect-video bg-dark-800 flex items-center justify-center">
-              <div className="text-center text-dark-500">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <p>Video Coming Soon</p>
+            <div className="flex items-center gap-3 p-4 border-b border-dark-800">
+              <span className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-sm">1</span>
+              <div>
+                <h3 className="font-semibold">Create Your Account & Get API Key</h3>
+                <p className="text-sm text-dark-400">Use the web interface to sign up and generate your API key.</p>
               </div>
             </div>
-            <div className="p-4">
-              <h3 className="font-semibold mb-2">Installation & Setup</h3>
-              <p className="text-sm text-dark-400">How to download, install, and set up Stats Fetch on your computer.</p>
+            <div className="aspect-video">
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/jUnJe2xX1FI"
+                title="Create Account & Get API Key"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
             </div>
           </div>
 
+          {/* Step 2: Download Client Setup */}
           <div className="card overflow-hidden">
-            <div className="aspect-video bg-dark-800 flex items-center justify-center">
-              <div className="text-center text-dark-500">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <p>Video Coming Soon</p>
+            <div className="flex items-center gap-3 p-4 border-b border-dark-800">
+              <span className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-sm">2</span>
+              <div>
+                <h3 className="font-semibold">Download & Set Up the Client</h3>
+                <p className="text-sm text-dark-400">Install the Stats Fetch desktop client on your computer.</p>
               </div>
             </div>
-            <div className="p-4">
-              <h3 className="font-semibold mb-2">Adding Your First Program</h3>
-              <p className="text-sm text-dark-400">Step-by-step guide to adding affiliate programs and syncing stats.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="mb-16">
-        <h2 className="text-2xl font-bold font-display mb-8 flex items-center gap-3">
-          <span className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400">
-            ✨
-          </span>
-          Features & Tips
-        </h2>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="card overflow-hidden">
-            <div className="aspect-video bg-dark-800 flex items-center justify-center">
-              <div className="text-center text-dark-500">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <p>Video Coming Soon</p>
-              </div>
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold mb-2">Using API Keys (Recommended)</h3>
-              <p className="text-sm text-dark-400">Learn how to use API keys for faster, more reliable syncing.</p>
+            <div className="aspect-video">
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/WT1QNDkNpjY"
+                title="Download & Set Up the Client"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
             </div>
           </div>
 
+          {/* Step 3: Adding Programs */}
           <div className="card overflow-hidden">
-            <div className="aspect-video bg-dark-800 flex items-center justify-center">
-              <div className="text-center text-dark-500">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <p>Video Coming Soon</p>
+            <div className="flex items-center gap-3 p-4 border-b border-dark-800">
+              <span className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-sm">3</span>
+              <div>
+                <h3 className="font-semibold">Add Programs to Stats Fetch</h3>
+                <p className="text-sm text-dark-400">Learn how to add your affiliate programs and start syncing stats.</p>
               </div>
             </div>
-            <div className="p-4">
-              <h3 className="font-semibold mb-2">Scheduled Syncs</h3>
-              <p className="text-sm text-dark-400">Set up automatic syncing so your stats are always up to date.</p>
-            </div>
-          </div>
-
-          <div className="card overflow-hidden">
-            <div className="aspect-video bg-dark-800 flex items-center justify-center">
-              <div className="text-center text-dark-500">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <p>Video Coming Soon</p>
-              </div>
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold mb-2">Payment Tracking</h3>
-              <p className="text-sm text-dark-400">Track which programs have paid you each month.</p>
-            </div>
-          </div>
-
-          <div className="card overflow-hidden">
-            <div className="aspect-video bg-dark-800 flex items-center justify-center">
-              <div className="text-center text-dark-500">
-                <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <p>Video Coming Soon</p>
-              </div>
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold mb-2">Backup & Restore</h3>
-              <p className="text-sm text-dark-400">How to backup your data and restore it on a new device.</p>
+            <div className="aspect-video">
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/Js-_LdiYRjk"
+                title="Add Programs to Stats Fetch"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
             </div>
           </div>
         </div>

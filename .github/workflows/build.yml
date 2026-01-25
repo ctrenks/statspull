@@ -52,20 +52,20 @@ jobs:
           $exeFile = Get-ChildItem -Path "dist" -Filter "*.exe" | Where-Object { $_.Name -notlike "*blockmap*" } | Select-Object -First 1
           if ($exeFile) {
             Write-Host "Regenerating latest.yml for: $($exeFile.Name)"
-            
+
             # Calculate SHA512 hash
             $hash = Get-FileHash -Path $exeFile.FullName -Algorithm SHA512
             $base64Hash = [Convert]::ToBase64String([byte[]]::new(64))
             $hashBytes = [System.Convert]::FromHexString($hash.Hash)
             $base64Hash = [System.Convert]::ToBase64String($hashBytes)
-            
+
             # Get file size
             $size = $exeFile.Length
-            
+
             # Get version from package.json
             $packageJson = Get-Content -Path "package.json" | ConvertFrom-Json
             $version = $packageJson.version
-            
+
             # Generate latest.yml
             $latestYml = @"
           version: $version
@@ -77,7 +77,7 @@ jobs:
           sha512: $base64Hash
           releaseDate: '$((Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))'
           "@
-            
+
             # Write to file
             $latestYml | Out-File -FilePath "dist/latest.yml" -Encoding utf8 -NoNewline
             Write-Host "Generated latest.yml with SHA512: $base64Hash"
