@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
 
 interface SubscribeContentProps {
   isLoggedIn: boolean;
@@ -12,6 +14,10 @@ interface SubscribeContentProps {
   } | null;
 }
 
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
+const PAYPAL_MONTHLY_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID || "";
+const PAYPAL_YEARLY_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_YEARLY_PLAN_ID || "";
+
 export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentProps) {
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [selectedMonths, setSelectedMonths] = useState(1);
@@ -20,6 +26,7 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
 
   const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIAL";
 
@@ -188,12 +195,32 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
             </li>
           </ul>
           {isLoggedIn ? (
-            <button
-              className="btn-primary w-full"
-              onClick={() => alert("PayPal integration coming soon! Use crypto for now.")}
-            >
-              Subscribe with PayPal
-            </button>
+            PAYPAL_CLIENT_ID && PAYPAL_MONTHLY_PLAN_ID ? (
+              <PayPalScriptProvider
+                options={{
+                  clientId: PAYPAL_CLIENT_ID,
+                  vault: true,
+                  intent: "subscription",
+                }}
+              >
+                <PayPalSubscribeButton
+                  planId={PAYPAL_MONTHLY_PLAN_ID}
+                  planType="monthly"
+                  onSuccess={() => {
+                    setSubscriptionSuccess(true);
+                    window.location.reload();
+                  }}
+                  onError={(err) => setError(err)}
+                />
+              </PayPalScriptProvider>
+            ) : (
+              <button
+                className="btn-primary w-full"
+                onClick={() => setShowCryptoModal(true)}
+              >
+                Subscribe Monthly
+              </button>
+            )
           ) : (
             <Link href="/auth/signin" className="btn-primary w-full text-center block">
               Sign In to Subscribe
@@ -235,12 +262,32 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
             </li>
           </ul>
           {isLoggedIn ? (
-            <button
-              className="btn-secondary w-full"
-              onClick={() => alert("PayPal integration coming soon! Use crypto for now.")}
-            >
-              Subscribe Yearly
-            </button>
+            PAYPAL_CLIENT_ID && PAYPAL_YEARLY_PLAN_ID ? (
+              <PayPalScriptProvider
+                options={{
+                  clientId: PAYPAL_CLIENT_ID,
+                  vault: true,
+                  intent: "subscription",
+                }}
+              >
+                <PayPalSubscribeButton
+                  planId={PAYPAL_YEARLY_PLAN_ID}
+                  planType="yearly"
+                  onSuccess={() => {
+                    setSubscriptionSuccess(true);
+                    window.location.reload();
+                  }}
+                  onError={(err) => setError(err)}
+                />
+              </PayPalScriptProvider>
+            ) : (
+              <button
+                className="btn-secondary w-full"
+                onClick={() => setShowCryptoModal(true)}
+              >
+                Subscribe Yearly
+              </button>
+            )
           ) : (
             <Link href="/auth/signin" className="btn-secondary w-full text-center block">
               Sign In to Subscribe
@@ -248,6 +295,50 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
           )}
         </div>
       </div>
+
+      {/* Subscription Success Message */}
+      {subscriptionSuccess && (
+        <div className="card bg-gradient-to-r from-green-900/30 to-dark-900 border-green-500/30">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+              <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-green-400">Subscription Activated!</h3>
+              <p className="text-dark-400">
+                Thank you for subscribing! Your account has been upgraded to full access.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && !showCryptoModal && (
+        <div className="card bg-red-900/20 border-red-500/30">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-red-400">Payment Error</h3>
+              <p className="text-dark-400">{error}</p>
+            </div>
+            <button
+              onClick={() => setError("")}
+              className="ml-auto text-dark-400 hover:text-white"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Crypto Payment Option */}
       <div className="card bg-gradient-to-br from-orange-900/20 to-dark-900 border-orange-500/30">

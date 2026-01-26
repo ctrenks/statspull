@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
+    "@paypal/react-paypal-js": "^8.9.2",
     "@prisma/client": "^6.1.0",
     "cheerio": "^1.0.0-rc.12",
     "next": "^15.3.3",
