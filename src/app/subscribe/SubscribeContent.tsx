@@ -28,7 +28,14 @@ export function SubscribeContent({ isLoggedIn, subscription }: SubscribeContentP
   const [error, setError] = useState("");
   const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
 
-  const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIAL";
+  // User has active access if:
+  // 1. Status is ACTIVE or TRIAL, OR
+  // 2. Status is CANCELLED but end date hasn't passed yet (they paid for this period)
+  const hasValidEndDate = subscription?.endDate && new Date(subscription.endDate) > new Date();
+  const isActive = 
+    subscription?.status === "ACTIVE" || 
+    subscription?.status === "TRIAL" ||
+    (subscription?.status === "CANCELLED" && hasValidEndDate);
 
   const monthlyPrice = 25;
   const yearlyPrice = 275; // 1 month free (11 months)

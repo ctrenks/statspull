@@ -74,9 +74,13 @@
         }
       ],
       "icon": "build/icon.png",
-      "identity": null,
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": {
+        "teamId": "3Y76JBLTM3"
+      }
     },
     "linux": {
       "target": "AppImage",

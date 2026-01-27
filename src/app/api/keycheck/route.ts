@@ -93,7 +93,7 @@ async function validateKey(request: NextRequest, installationId?: string) {
   let isSubscriptionActive = false;
   let subscriptionStatus = user.subscriptionStatus;
 
-  // Check if subscription has expired
+  // Check if subscription has expired (end date has passed)
   if (user.subscriptionEndDate && user.subscriptionEndDate < now) {
     // Subscription expired - update status if needed
     if (user.subscriptionStatus === "ACTIVE" || user.subscriptionStatus === "CANCELLED") {
@@ -107,6 +107,10 @@ async function validateKey(request: NextRequest, installationId?: string) {
       subscriptionStatus = "EXPIRED";
     }
   } else if (user.subscriptionStatus === "ACTIVE" || user.subscriptionStatus === "TRIAL") {
+    // Active or trial subscription
+    isSubscriptionActive = true;
+  } else if (user.subscriptionStatus === "CANCELLED" && user.subscriptionEndDate && user.subscriptionEndDate > now) {
+    // Cancelled but still within paid period - they keep access until end date
     isSubscriptionActive = true;
   }
 
