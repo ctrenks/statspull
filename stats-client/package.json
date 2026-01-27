@@ -1,6 +1,6 @@
 {
   "name": "affiliate-stats-client",
-  "version": "1.9.9",
+  "version": "2.0.0",
   "description": "Stats Fetch - Desktop client for affiliate program statistics",
   "main": "src/main.js",
   "scripts": {
