@@ -1,6 +1,6 @@
 {
   "name": "affiliate-stats-client",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Stats Fetch - Desktop client for affiliate program statistics",
   "main": "src/main.js",
   "scripts": {
@@ -77,7 +77,10 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": {
+        "teamId": "3Y76JBLTM3"
+      }
     },
     "linux": {
       "target": "AppImage",
