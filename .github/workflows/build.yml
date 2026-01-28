@@ -137,7 +137,7 @@ jobs:
 
       - name: Build and Sign Mac
         run: npx electron-builder --mac --publish never
-        timeout-minutes: 30
+        timeout-minutes: 60
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
