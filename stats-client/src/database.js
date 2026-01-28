@@ -48,7 +48,7 @@ class Database {
     }
 
     const key = crypto.randomBytes(32).toString("hex");
-    fs.writeFileSync(keyPath, key, { mode: 0o600 });
+    fs.writeFileSync(this.keyPath, key, { mode: 0o600 });
     return key;
   }
 
