@@ -4599,9 +4599,14 @@ class Scraper {
         revenueData = await earningsPopup.evaluate(() => {
         const parseNum = (text) => {
           if (!text) return 0;
-          text = text.toString().replace(/[$,]/g, '').trim();
+          text = text.toString().trim();
+          // Check for accounting notation: (xxx) means negative
+          const isNegative = text.startsWith('(') && text.endsWith(')');
+          // Remove $, commas, parentheses, and trim
+          text = text.replace(/[$,()]/g, '').trim();
           const num = parseFloat(text);
-          return isNaN(num) ? 0 : num;
+          if (isNaN(num)) return 0;
+          return isNegative ? -num : num;
         };
 
         // Extract revenue from earnings page
@@ -4800,12 +4805,16 @@ class Scraper {
     const currentMonthStats = await contentFrame.evaluate(() => {
       const parseNum = (text) => {
         if (!text) return 0;
-        // Remove $, commas, parentheses (for negative), and trim
-        text = text.toString().replace(/[$,()]/g, '').trim();
+        text = text.toString().trim();
         // Skip percentage values
         if (text.includes('%')) return 0;
+        // Check for accounting notation: (xxx) means negative
+        const isNegative = text.startsWith('(') && text.endsWith(')');
+        // Remove $, commas, parentheses, and trim
+        text = text.replace(/[$,()]/g, '').trim();
         const num = parseFloat(text);
-        return isNaN(num) ? 0 : num;
+        if (isNaN(num)) return 0;
+        return isNegative ? -num : num;
       };
 
       // RTG OLD table structure:
@@ -5045,9 +5054,14 @@ class Scraper {
       const lastMonthStats = await contentFrame.evaluate(() => {
         const parseNum = (text) => {
           if (!text) return 0;
-          text = text.toString().replace(/[$,]/g, '').trim();
+          text = text.toString().trim();
+          // Check for accounting notation: (xxx) means negative
+          const isNegative = text.startsWith('(') && text.endsWith(')');
+          // Remove $, commas, parentheses, and trim
+          text = text.replace(/[$,()]/g, '').trim();
           const num = parseFloat(text);
-          return isNaN(num) ? 0 : num;
+          if (isNaN(num)) return 0;
+          return isNegative ? -num : num;
         };
 
         const stats = {
