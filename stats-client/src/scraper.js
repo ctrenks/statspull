@@ -4116,8 +4116,13 @@ class Scraper {
           // Helper to parse value (removes $, commas, etc)
           const parseVal = (text) => {
             if (!text) return 0;
-            const cleaned = text.replace(/[$€£,\s]/g, '').trim();
-            return parseFloat(cleaned) || 0;
+            text = text.toString().trim();
+            // Check for accounting notation: (xxx) means negative
+            const isNegative = text.startsWith('(') && text.endsWith(')');
+            const cleaned = text.replace(/[$€£,\s()]/g, '').trim();
+            const num = parseFloat(cleaned);
+            if (isNaN(num)) return 0;
+            return isNegative ? -num : num;
           };
 
           // Try specific RTG dashboard IDs first
@@ -4612,14 +4617,15 @@ class Scraper {
         // Extract revenue from earnings page
         const bodyText = document.body.textContent;
 
-        // Fallback: look for any dollar amount
-        const numbers = bodyText.match(/\$\s?[\d,]+\.?\d*/g) || [];
+        // Look for dollar amounts - including accounting notation ($ xxx.xx) for negatives
+        // Match: $123.45, ($ 123.45), ($123.45), -$123.45
+        const numbers = bodyText.match(/\(?\$\s?[\d,]+\.?\d*\)?|\(-?\s?\$\s?[\d,]+\.?\d*\s?\)/g) || [];
 
-        // Filter out $0.00 and find first positive amount
+        // Find first non-zero amount (could be negative in accounting notation)
         let revenue = 0;
         for (const num of numbers) {
           const parsed = parseNum(num);
-          if (parsed > 0) {
+          if (parsed !== 0) {
             revenue = parsed;
             break;
           }
