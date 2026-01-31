@@ -308,6 +308,13 @@ export default function DashboardContent({ user }: { user: User }) {
                   <span className="text-lg">💾</span>
                   <span>Download Client</span>
                 </Link>
+                <Link
+                  href="/affiliate"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-dark-800 transition-colors"
+                >
+                  <span className="text-lg">💰</span>
+                  <span>Affiliate Program</span>
+                </Link>
               </div>
             </div>
 

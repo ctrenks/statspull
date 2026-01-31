@@ -26,6 +26,7 @@ export default function AppHeader({ activePage }: AppHeaderProps) {
     { href: "/programs", label: "My Programs", active: currentPage === "programs" },
     { href: "/stats", label: "My Stats", active: currentPage === "stats" },
     { href: "/dashboard", label: "Dashboard", active: currentPage === "dashboard" },
+    { href: "/affiliate", label: "Affiliate", active: pathname?.startsWith("/affiliate") },
     { href: "/downloads", label: "Download", active: false },
     { href: "/subscribe", label: "Pricing", active: false },
     { href: "/forum", label: "Forum", active: false },
